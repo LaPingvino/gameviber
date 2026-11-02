@@ -55,7 +55,8 @@ A GUI editor (later, a web editor on the same engine); GMS2's language; compiled
 interface keeps it possible).
 
 ## Decisions (Joop, 2026-11-02)
-1. The command is `gameviber` (not `gv`): read `gv` above as `gameviber`.
-2. TOML for settings, text grids for rooms, .gml per event. Go has no TOML in its standard library: a small
-   parser of our own for the subset used (tables, strings, numbers, booleans, arrays) — no new module.
+1. The command is `gameviber` (not `gv`): long on purpose — it is mainly a UI tool people launch, not a
+   command typed all day. Read `gv` above as `gameviber`.
+2. TOML for settings, text grids for rooms, .gml per event. TOML through an existing library
+   (github.com/BurntSushi/toml — Joop: "one of the oldest libraries, no big deal to use an existing one").
 3. Pacmanio first (its assets imported into a local folder, never into the public repo), then Stelo.
