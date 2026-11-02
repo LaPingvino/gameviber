@@ -67,10 +67,10 @@ the public test page shows our own small sample games instead.
 - (ANSWERED 2026-11-02: GameViber) The name.
 - (ANSWERED 2026-11-02: public, with Pages + a wasm test build, as Stelo) Public repo or private?
 - Licence: MIT like gm53-reader and Stelo's code? (ENIGMA / LateralGM are GPL: we don't copy their code.)
-- GitHub repo: LaPingvino/gameviber — creating it was refused by the permission check (see Blocked).
+- (DONE 2026-11-02) GitHub repo: https://github.com/LaPingvino/gameviber (public; Pages with the first code).
 
 ## Blocked
-- 2026-11-02: `gh repo create LaPingvino/gameviber --public …` refused by the auto-mode check ('Create Public
+- (RESOLVED 2026-11-02 with Joop's go-ahead: created) `gh repo create LaPingvino/gameviber --public …` refused by the auto-mode check ('Create Public
   Surface'). Joop: `cd ~/Projects/gameviber && gh repo create LaPingvino/gameviber --public --source . --remote
   origin --push` (or create it on github.com and say so; I add the remote and push).
 
@@ -79,3 +79,4 @@ the public test page shows our own small sample games instead.
 - 2026-11-02 — Joop: same structure as Stelo — public repo, wasm test build on GitHub Pages.
 - 2026-11-02 — Joop: name GameViber; LLM use first-class. Directory renamed ~/Projects/gmgo → ~/Projects/gameviber.
 - 2026-11-02 — Joop: err towards what is nice for LLMs to work with (recorded as a design rule). Public repo creation refused by the permission check → Blocked.
+- 2026-11-02 — public repo created with Joop's go-ahead and pushed: https://github.com/LaPingvino/gameviber
