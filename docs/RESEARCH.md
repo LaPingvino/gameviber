@@ -52,3 +52,38 @@ statements. Both games already have a step-exact engine model (STELO-RULES.md §
 against. Things with no modern meaning get a defined stand-in (cd_* — no CD: `cd_present()` false;
 `set_graphics_mode`, `io_handle` — no-ops; `get_string` / `keyboard_wait` — the engine's own text field and
 any-key wait, as the ports do).
+
+## 2. ENIGMA and LateralGM — the vibes (Joop: "borrow from the vibes … dead in the water … a bit too complex")
+
+Read 2026-11-02 from their repositories and documentation; no code taken (both GPL-3, GameViber is MIT).
+
+**ENIGMA** — a GameMaker-compatible engine. Its language, EDL, is GML extended; ENIGMA parses it and
+**translates it to C++**, then builds the game with a C++ toolchain on the user's machine. Usable from an IDE
+(LateralGM, as a plugin) or the command line. Still alive but slow: last push to its main repository January
+2026, ~370 stars, ~155 open issues; old directory entries still list a 2014 release.
+- Good vibes: GML that compiles to a native game; a compatibility layer per GM function; a command line next
+  to the IDE.
+- What made it heavy: a C++ compiler and libraries on every user's machine, long builds, a large compatibility
+  surface aimed at every GM version at once, and a separate Java editor to keep in step with it.
+
+**LateralGM** — a Java Swing editor for GameMaker project files: reads and writes GM 5.x .gmd, 6 .gm6, 7/8
+.gmk / .gm81 and Studio 1.x .gmx (as ENIGMA's EGM too), converts between them; cannot run games itself
+(ENIGMA as a plugin does). Its author was the community's file-format expert.
+- Good vibes: one editor that opens every old format; conversion between versions; formats documented by use.
+- What made it heavy: a desktop Java GUI app, a plugin bridge to a C++ engine, two projects to keep in step.
+
+**What GameViber takes from this**
+1. One program, one language: Go engine, importers, command line and (later) editor in one module; no
+   compiler on the user's machine for playing or building (Go's toolchain only for exporting a standalone
+   game, and that is quick).
+2. Run GML with an interpreter first — no compile step in the edit-run loop; compile to Go later only if a
+   game needs the speed.
+3. A narrow, proven target first: GM 5.3's subset as used by Stelo and Pacmanio (§1), checked step for step
+   against their hand ports; widen version by version (GM 6, 7, 8) with a sample game for each.
+4. Import every old format into **one** plain-text project format (LLM-friendly, diffable); write only that
+   format (no round-tripping .gmk etc.).
+5. The command line before any GUI editor (agents and people alike, §LLM in LOOP.md); a web editor later, on
+   the same engine in wasm.
+
+Sources: github.com/enigma-dev/enigma-dev (via awesome.ecosyste.ms), github.com/IsmAvatar/LateralGM,
+yal.cc/gamemaker-formats, enigma-dev.org/docs/Wiki/Related_Projects:Developing.
