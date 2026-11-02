@@ -122,3 +122,38 @@ similar) for settings; one folder per resource kind; one small text file per obj
 strips with a text sidecar (origin, box). Written only by GameViber; old formats are read, never written.
 
 Source: yal.cc/gamemaker-formats.
+
+## 4. GML across versions (what an interpreter grows into)
+
+- **GM 5.x** (Stelo, Pacmanio): drag-and-drop actions next to code; untyped variables (real / string); `with`,
+  `repeat`, `exit`; arrays only one-dimensional, plus `x[i, j]` two-dimensional in later 5.x; `global.`;
+  `argument0…` in scripts; `#` as the newline in strings; function set as §1.
+- **GM 6** — Direct3D-era drawing (`d3d_*`), particles, more data structures (`ds_list`, `ds_map` …), timelines and
+  paths matured; the same language core.
+- **GM 7 / 8 / 8.1** — extensions (`.gex`), `.lib` action libraries, alpha sprites, more functions; the language
+  itself barely changes (no new syntax worth naming). Most old hobby games are GM 6–8.1: the main target after 5.3.
+- **GM:Studio 1** — the same GML with many functions removed or renamed (e.g. file I/O sandboxed), new ones
+  (`ds_grid`, shaders, `var` local declarations everywhere); compiled by YoYo's runner (bytecode or YYC).
+- **GMS2 (2.3+)** — a much newer language: functions as values, structs, constructors, methods, `new`, exceptions,
+  arrays as references, chained accessors; one `.gml` file per script holding many functions. Effectively GML 2.
+
+**Plan**: one parser with version flags; the interpreter starts at 5.3 (§1's subset), grows through 6–8.1 by sample
+games, and treats GMS2-style GML as a later language mode, not the first goal. The built-in functions live in a
+table per version (name → Go function), so a game's version decides what exists — the way the runners differed.
+
+## 5. Backends
+
+- **Ebitengine** (Go) — what Stelo, Pacmanio, Pits' tools and goloco already use: desktop, browser (wasm), mobile;
+  2D, an image / shader model that fits GameMaker's sprite-and-surface drawing directly; active. **The backend.**
+- **Azul3D** (Go, 3D) — dormant since 2021, not formally archived; its author's last note points Go game developers
+  to Zig and Mach. Not a candidate.
+- **Mach** (Zig) — active (development on code.hexops.org, GitHub a mirror), but by its own docs experimental and
+  not ready for games; browser support was a goal, not confirmed. A Mach target would need the engine in Zig (a
+  Zig GML library), i.e. a second implementation. **Later, if ever**: keep the engine's core (GML, the runner's
+  step model, the formats) independent of Ebitengine behind a small drawing / input / audio interface, so another
+  backend stays possible without promising one.
+
+**Decision proposed for the design (item 2)**: Ebitengine only, behind a narrow backend interface; Mach revisited
+when it is ready for 2D games.
+
+Sources: github.com/azul3d (via awesome.ecosyste.ms), machengine.org (docs, FAQ, roadmap), gitpedia.pages.dev/wiki/hexops/mach.
