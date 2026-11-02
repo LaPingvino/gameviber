@@ -86,6 +86,21 @@ Each a separate, reusable Go module (MIT), useful outside GameViber too:
   (decodeAudioData) right away — "but it's still nice to have one" for the desktop and for one code path.
 These belong in the research note (item 1) and the design (item 2); none is started before the design's yes.
 
+## Export options (Joop 2026-11-02: "You could copy these tweaks to GameViber's compilation options")
+
+What Stelo, Pacmanio and Pits needed for today's screens becomes standard in a GameViber build / export, each a
+setting (on by default) rather than per-game code:
+- sharp scaling: whole steps without smoothing when they fill ≥ 90%, else the largest fraction (never blurred);
+  the screen's real resolution for text;
+- text and menus at the real resolution (Noto Sans, OFL; the overlay of texts and rectangles);
+- touch controls for any touch screen (incl. Chromebooks: any-pointer / the first touch), laid out beside or under
+  the game, never over it; a d-pad with Hold / Toggle / Push-like modes where the game wants them;
+- full screen (a button, F11, Alt+Enter) and a sound on / off button (M);
+- the phone keyboard for text input; Esc / Cancel for text prompts;
+- the web page: cache revalidation (no stale build after a deploy), the audio unlock on the first touch;
+- audio as Ogg Opus via gopus (pure Go), music streamed, effects decoded up front;
+- pauses (action_sleep) that keep the screen alive.
+
 ## Questions for Joop
 - (ANSWERED 2026-11-02: GameViber) The name.
 - (ANSWERED 2026-11-02: public, with Pages + a wasm test build, as Stelo) Public repo or private?
@@ -108,3 +123,4 @@ These belong in the research note (item 1) and the design (item 2); none is star
 - 2026-11-02 — item 1 part 1: docs/RESEARCH.md §1, counted from the recovered sources: ~13 event types, 45 drag-and-drop actions (two unresolved: action_1_809 / 813), 37 GML functions, the statements used; the hand ports as the oracle. Next: §2 ENIGMA / LateralGM (vibes), §3 formats.
 - 2026-11-02 — item 1 part 2: ENIGMA (GML→C++ via EDL, a C++ toolchain per user, alive but slow) and LateralGM (Java editor, every old format, runs nothing itself) — the vibes, and five takeaways (one Go program; interpreter first; GM 5.3 subset first, then version by version; import everything into one text format; command line before a GUI). Next: §3 formats.
 - 2026-11-02 — item 1 part 3: the GameMaker formats (.gmd → .gm81, the .exe data per version, .lib / .gex / .gmspr, .gmx XML, .yyp JSON, compiled data.win) and the importer order: GM 5.3 exe / gmd (gm53-reader → Go) → GM 6–8.1 projects → their exes → gmx / yyp → data.win last; GameViber's own text project format sketched. Next: §4 GML across versions, §5 backends.
+- 2026-11-02 — Joop: the Stelo / Pacmanio / Pits web and phone tweaks become GameViber's export options (listed).
