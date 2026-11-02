@@ -57,7 +57,7 @@ goal of its own, weighed alongside the LLM-friendly rule.
 
 ## Queue (top = next)
 
-1. [~] Research note (docs/RESEARCH.md; parts 1 — what Stelo and Pacmanio use — 2 — ENIGMA / LateralGM — and 3 — formats — done 2026-11-02): ENIGMA and LateralGM — the vibes only (what they cover, what made them
+1. [x] Research note (docs/RESEARCH.md; parts 1–5 done 2026-11-02): ENIGMA and LateralGM — the vibes only (what they cover, what made them
    too complex, what users valued); no code taken (GPL; GameViber is MIT), the GameMaker
    formats (5.x .gmd, 6 .gm6, 7 .gmk, 8 .gm81, the .exe data of each, GMS2 .yyp JSON; LateralGM's/ENIGMA's EGM),
    GML across versions (5.3 → 8.1), the backends (Ebitengine; Azul3D — check whether it is still maintained;
