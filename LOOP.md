@@ -18,6 +18,9 @@ It would be amazing to have an easy to compile well-supported GameMaker clone." 
 ## LLM use as a first-class citizen (Joop 2026-11-02: "it would be nice to make LLM usage with the new thing a
 first class citizen as well. Maybe we can call it GameViber")
 
+RULE (Joop 2026-11-02: "it's also nice to err towards things that are nice for LLMs to work with"): when two
+designs are otherwise close, pick the one that is easier for a model to read, write, run and check.
+
 Directions for the design (to be weighed there, not decided here):
 - A project format that is plain text, small files, diffable — easy for a model to read and edit (GML scripts as
   .gml files, objects / rooms as readable text), with a schema the tools validate.
@@ -64,9 +67,15 @@ the public test page shows our own small sample games instead.
 - (ANSWERED 2026-11-02: GameViber) The name.
 - (ANSWERED 2026-11-02: public, with Pages + a wasm test build, as Stelo) Public repo or private?
 - Licence: MIT like gm53-reader and Stelo's code? (ENIGMA / LateralGM are GPL: we don't copy their code.)
-- GitHub repo: LaPingvino/gameviber (created 2026-11-02 with the name).
+- GitHub repo: LaPingvino/gameviber — creating it was refused by the permission check (see Blocked).
+
+## Blocked
+- 2026-11-02: `gh repo create LaPingvino/gameviber --public …` refused by the auto-mode check ('Create Public
+  Surface'). Joop: `cd ~/Projects/gameviber && gh repo create LaPingvino/gameviber --public --source . --remote
+  origin --push` (or create it on github.com and say so; I add the remote and push).
 
 ## Tick log
 - 2026-11-02 — project set up from Joop's message: LOOP.md only, local git, no remote.
 - 2026-11-02 — Joop: same structure as Stelo — public repo, wasm test build on GitHub Pages.
 - 2026-11-02 — Joop: name GameViber; LLM use first-class. Directory renamed ~/Projects/gmgo → ~/Projects/gameviber.
+- 2026-11-02 — Joop: err towards what is nice for LLMs to work with (recorded as a design rule). Public repo creation refused by the permission check → Blocked.
