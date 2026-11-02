@@ -63,11 +63,11 @@ goal of its own, weighed alongside the LLM-friendly rule.
    GML across versions (5.3 → 8.1), the backends (Ebitengine; Azul3D — check whether it is still maintained;
    Mach — state, and what a Zig GML library would mean), and what Stelo + Pacmanio actually use (the 76
    built-ins, event types).
-2. [~] Design proposal (docs/DESIGN.md) for Joop's yes — WRITTEN 2026-11-02, waiting for Joop: the GML front end (lexer, parser, one AST) and how it
+2. [x] Design proposal (docs/DESIGN.md) — APPROVED by Joop 2026-11-02 (command `gameviber`, TOML via our own small parser, Pacmanio first): the GML front end (lexer, parser, one AST) and how it
    runs (tree-walking interpreter first? compile GML to Go for release builds?), the runner (start from Stelo's
    internal/gm), the importers, our own text-based diffable project format, the editor question (a
    LateralGM-like editor: desktop / web?), the backend boundary (so Mach or others can come later), licence.
-3. [ ] (after the yes) Pacmanio as the first sample: import its 2006 data, run its GML unchanged, compare with
+3. [ ] NEXT — Pacmanio as the first sample: import its 2006 data, run its GML unchanged, compare with
    the hand port step by step.
 
 ## Libraries around it (Joop 2026-11-02: an Opus decoder "would fit right along the gml stuff … and the game
@@ -126,3 +126,4 @@ setting (on by default) rather than per-game code:
 - 2026-11-02 — Joop: the Stelo / Pacmanio / Pits web and phone tweaks become GameViber's export options (listed).
 - 2026-11-02 — item 1 done: §4 GML across versions (5.x → 6 → 7/8/8.1 → GMS1 → GMS2's newer language; one parser with version flags, built-ins per version) and §5 backends (Ebitengine the backend; Azul3D dormant since 2021, its author points to Mach; Mach active but not ready for 2D games — keep a narrow backend interface). Next: item 2, the design proposal for Joop.
 - 2026-11-02 — item 2: docs/DESIGN.md written (packages, the text project format, the gv command with headless deterministic replays, interpreter first, proven on Pacmanio then Stelo, export options, no editor / GMS2 / data.win in v1; three questions). WAITING for Joop's yes.
+- 2026-11-02 — Joop approved the design (asked directly): command `gameviber`, TOML (own small parser, no new module), Pacmanio then Stelo. Item 3 next, in steps: 3a the GML lexer + parser (GM 5.3 subset, one AST, tests on Pacmanio's and Stelo's recovered .gml — every file must parse), 3b the interpreter, 3c the runner from Stelo's internal/gm, 3d the importer, 3e step-by-step comparison with the hand port.

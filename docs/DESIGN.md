@@ -1,4 +1,4 @@
-# GameViber — design proposal (waiting for Joop's yes)
+# GameViber — design (APPROVED by Joop 2026-11-02)
 
 From docs/RESEARCH.md and Joop's directions (LOOP.md): a GameMaker-style engine in Go, simple, LLM-friendly,
 MIT, desktop and browser; Pacmanio as the first sample; ENIGMA / LateralGM for vibes only.
@@ -15,7 +15,7 @@ gameviber/
   backend/    a narrow interface (draw sprite / text / rect, input, audio); ebiten/ implements it
   export/     desktop binary and the web page (the "export options": sharp scaling, touch controls,
               full screen, sound button, Opus via gopus, cache-safe page …)
-  cmd/gv/     the command line (below)
+  cmd/gameviber/  the command line (below)
 ```
 
 ## 2. The project format (plain text, small files, diffable)
@@ -54,7 +54,8 @@ then 6–8.1, GMS2's newer language later as its own mode. Determinism: fixed se
 A GUI editor (later, a web editor on the same engine); GMS2's language; compiled data.win; Mach (the backend
 interface keeps it possible).
 
-## Questions for Joop
-1. The command's name: `gv`, `gameviber`, or something else?
-2. The project format: TOML for settings and text grids for rooms as above — fine, or prefer JSON / YAML?
-3. Start with Pacmanio (private assets stay outside the public repo: imported into a local folder), then Stelo?
+## Decisions (Joop, 2026-11-02)
+1. The command is `gameviber` (not `gv`): read `gv` above as `gameviber`.
+2. TOML for settings, text grids for rooms, .gml per event. Go has no TOML in its standard library: a small
+   parser of our own for the subset used (tables, strings, numbers, booleans, arrays) — no new module.
+3. Pacmanio first (its assets imported into a local folder, never into the public repo), then Stelo.
