@@ -70,6 +70,20 @@ goal of its own, weighed alongside the LLM-friendly rule.
 3. [ ] (after the yes) Pacmanio as the first sample: import its 2006 data, run its GML unchanged, compare with
    the hand port step by step.
 
+## Libraries around it (Joop 2026-11-02: an Opus decoder "would fit right along the gml stuff … and the game
+maker file decoder")
+
+Each a separate, reusable Go module (MIT), useful outside GameViber too:
+- **GML**: lexer, parser, interpreter (the engine's core).
+- **GameMaker files**: a Go reader for .exe data and project files across versions — the Go successor of
+  gm53-reader (Python), which already reads GM 5.3.
+- **Opus**: a pure-Go Opus decoder (none exists that covers the whole codec: pion/opus does SILK only; the
+  others wrap C libopus, which rules out wasm). RFC 6716 (range decoder, SILK, CELT, hybrid) + RFC 7845 (Ogg
+  Opus); port from libopus (BSD-licensed, compatible with MIT); verified bit-exact against the official test
+  vectors (RFC 8251) as goloco is verified against OpenLoco. A long series of ticks. Until it exists, the games
+  use Ogg Vorbis (Ebitengine's pure-Go decoder).
+These belong in the research note (item 1) and the design (item 2); none is started before the design's yes.
+
 ## Questions for Joop
 - (ANSWERED 2026-11-02: GameViber) The name.
 - (ANSWERED 2026-11-02: public, with Pages + a wasm test build, as Stelo) Public repo or private?
@@ -88,3 +102,4 @@ goal of its own, weighed alongside the LLM-friendly rule.
 - 2026-11-02 — Joop: err towards what is nice for LLMs to work with (recorded as a design rule). Public repo creation refused by the permission check → Blocked.
 - 2026-11-02 — public repo created with Joop's go-ahead and pushed: https://github.com/LaPingvino/gameviber
 - 2026-11-02 — Joop: MIT (LICENSE added); borrow the vibes of ENIGMA / LateralGM, not their complexity.
+- 2026-11-02 — Joop: a pure-Go Opus decoder and the GameMaker file reader as libraries alongside the GML work (recorded; design first).
