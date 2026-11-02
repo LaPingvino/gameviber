@@ -1,4 +1,4 @@
-# gmgo — a GameMaker clone in Go (working name; Joop names it)
+# GameViber — a GameMaker clone in Go, with LLM use as a first-class citizen
 
 Status: NEW, LOW PRIORITY (Joop 2026-11-02). Design first: nothing beyond research and a proposal until Joop says yes.
 
@@ -14,6 +14,21 @@ It would be amazing to have an easy to compile well-supported GameMaker clone." 
   GameMaker file formats, while keeping its own format for further development.
 - Pacmanio (private, never public) as the sample project instead of a hand port; Stelo's GML trial (its LOOP item
   15) moves here.
+
+## LLM use as a first-class citizen (Joop 2026-11-02: "it would be nice to make LLM usage with the new thing a
+first class citizen as well. Maybe we can call it GameViber")
+
+Directions for the design (to be weighed there, not decided here):
+- A project format that is plain text, small files, diffable — easy for a model to read and edit (GML scripts as
+  .gml files, objects / rooms as readable text), with a schema the tools validate.
+- A command-line tool an agent can drive end to end: create, import (.exe / .gmd / .gm6 / .gmk / .gm81),
+  validate, build (desktop / wasm), run headless for N steps with scripted input, screenshot, dump state —
+  every result checkable without a human watching.
+- Deterministic runs (fixed seeds, step-exact) so a change can be verified by replay, as the Stelo / Pacmanio
+  bot playthroughs do.
+- Error messages and docs written for agents too (an AGENTS.md / CLAUDE.md in each project, the GML reference
+  as text).
+- Later, maybe: an MCP server over the same commands; an assistant inside the editor.
 
 ## Structure (Joop 2026-11-02: "Same structure, include a wasm version for testing, Github Pages")
 
@@ -46,11 +61,12 @@ the public test page shows our own small sample games instead.
    the hand port step by step.
 
 ## Questions for Joop
-- The name.
+- (ANSWERED 2026-11-02: GameViber) The name.
 - (ANSWERED 2026-11-02: public, with Pages + a wasm test build, as Stelo) Public repo or private?
 - Licence: MIT like gm53-reader and Stelo's code? (ENIGMA / LateralGM are GPL: we don't copy their code.)
-- The GitHub repo is created once the name is chosen (renaming later moves the Pages URL).
+- GitHub repo: LaPingvino/gameviber (created 2026-11-02 with the name).
 
 ## Tick log
 - 2026-11-02 — project set up from Joop's message: LOOP.md only, local git, no remote.
 - 2026-11-02 — Joop: same structure as Stelo — public repo, wasm test build on GitHub Pages.
+- 2026-11-02 — Joop: name GameViber; LLM use first-class. Directory renamed ~/Projects/gmgo → ~/Projects/gameviber.
