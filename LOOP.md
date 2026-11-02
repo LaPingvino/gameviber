@@ -15,6 +15,13 @@ It would be amazing to have an easy to compile well-supported GameMaker clone." 
 - Pacmanio (private, never public) as the sample project instead of a hand port; Stelo's GML trial (its LOOP item
   15) moves here.
 
+## Structure (Joop 2026-11-02: "Same structure, include a wasm version for testing, Github Pages")
+
+As Stelo: Go + Ebitengine, one codebase for desktop and the browser; a public GitHub repo with a GitHub Pages
+site carrying a wasm test build (the GitHub Actions workflow builds and deploys it on each push to main).
+Pacmanio stays private: as the sample it lives outside the public repo (its data is never committed there);
+the public test page shows our own small sample games instead.
+
 ## Starting points we already have
 
 - ~/Projects/gm53-reader (MIT, public): reads GameMaker 5.3 .exe / project data (Python). Stelo's original/ and
@@ -40,7 +47,10 @@ It would be amazing to have an easy to compile well-supported GameMaker clone." 
 
 ## Questions for Joop
 - The name.
-- Public repo (MIT, like gm53-reader) or private until it works?
+- (ANSWERED 2026-11-02: public, with Pages + a wasm test build, as Stelo) Public repo or private?
+- Licence: MIT like gm53-reader and Stelo's code? (ENIGMA / LateralGM are GPL: we don't copy their code.)
+- The GitHub repo is created once the name is chosen (renaming later moves the Pages URL).
 
 ## Tick log
 - 2026-11-02 — project set up from Joop's message: LOOP.md only, local git, no remote.
+- 2026-11-02 — Joop: same structure as Stelo — public repo, wasm test build on GitHub Pages.
