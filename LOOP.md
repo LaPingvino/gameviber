@@ -82,6 +82,8 @@ Each a separate, reusable Go module (MIT), useful outside GameViber too:
   Opus); port from libopus (BSD-licensed, compatible with MIT); verified bit-exact against the official test
   vectors (RFC 8251) as goloco is verified against OpenLoco. A long series of ticks. Until it exists, the games
   use Ogg Vorbis (Ebitengine's pure-Go decoder).
+  Joop: browsers decode Opus natively (WebRTC), so the web builds can hand Opus to the browser
+  (decodeAudioData) right away — "but it's still nice to have one" for the desktop and for one code path.
 These belong in the research note (item 1) and the design (item 2); none is started before the design's yes.
 
 ## Questions for Joop
