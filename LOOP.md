@@ -40,6 +40,13 @@ site carrying a wasm test build (the GitHub Actions workflow builds and deploys 
 Pacmanio stays private: as the sample it lives outside the public repo (its data is never committed there);
 the public test page shows our own small sample games instead.
 
+## Stance towards ENIGMA and LateralGM (Joop 2026-11-02)
+
+"Borrow from the vibes of those two projects, they are basically dead in the water at this point and a bit too
+complex to my taste." So: take their ideas (what a GM clone needs, which formats matter, what users missed),
+not their code or architecture (both GPL; we are MIT). Keep GameViber small and simple — simplicity is a design
+goal of its own, weighed alongside the LLM-friendly rule.
+
 ## Starting points we already have
 
 - ~/Projects/gm53-reader (MIT, public): reads GameMaker 5.3 .exe / project data (Python). Stelo's original/ and
@@ -50,8 +57,8 @@ the public test page shows our own small sample games instead.
 
 ## Queue (top = next)
 
-1. [ ] Research note (docs/RESEARCH.md): ENIGMA and LateralGM (what they cover, licences — both GPL, so we
-   read their docs/behaviour, we don't copy code into an MIT project without deciding that), the GameMaker
+1. [ ] Research note (docs/RESEARCH.md): ENIGMA and LateralGM — the vibes only (what they cover, what made them
+   too complex, what users valued); no code taken (GPL; GameViber is MIT), the GameMaker
    formats (5.x .gmd, 6 .gm6, 7 .gmk, 8 .gm81, the .exe data of each, GMS2 .yyp JSON; LateralGM's/ENIGMA's EGM),
    GML across versions (5.3 → 8.1), the backends (Ebitengine; Azul3D — check whether it is still maintained;
    Mach — state, and what a Zig GML library would mean), and what Stelo + Pacmanio actually use (the 76
@@ -66,7 +73,7 @@ the public test page shows our own small sample games instead.
 ## Questions for Joop
 - (ANSWERED 2026-11-02: GameViber) The name.
 - (ANSWERED 2026-11-02: public, with Pages + a wasm test build, as Stelo) Public repo or private?
-- Licence: MIT like gm53-reader and Stelo's code? (ENIGMA / LateralGM are GPL: we don't copy their code.)
+- (ANSWERED 2026-11-02: MIT) Licence.
 - (DONE 2026-11-02) GitHub repo: https://github.com/LaPingvino/gameviber (public; Pages with the first code).
 
 ## Blocked
@@ -80,3 +87,4 @@ the public test page shows our own small sample games instead.
 - 2026-11-02 — Joop: name GameViber; LLM use first-class. Directory renamed ~/Projects/gmgo → ~/Projects/gameviber.
 - 2026-11-02 — Joop: err towards what is nice for LLMs to work with (recorded as a design rule). Public repo creation refused by the permission check → Blocked.
 - 2026-11-02 — public repo created with Joop's go-ahead and pushed: https://github.com/LaPingvino/gameviber
+- 2026-11-02 — Joop: MIT (LICENSE added); borrow the vibes of ENIGMA / LateralGM, not their complexity.
