@@ -57,7 +57,7 @@ goal of its own, weighed alongside the LLM-friendly rule.
 
 ## Queue (top = next)
 
-1. [~] Research note (docs/RESEARCH.md; parts 1 — what Stelo and Pacmanio use — and 2 — ENIGMA / LateralGM — done 2026-11-02): ENIGMA and LateralGM — the vibes only (what they cover, what made them
+1. [~] Research note (docs/RESEARCH.md; parts 1 — what Stelo and Pacmanio use — 2 — ENIGMA / LateralGM — and 3 — formats — done 2026-11-02): ENIGMA and LateralGM — the vibes only (what they cover, what made them
    too complex, what users valued); no code taken (GPL; GameViber is MIT), the GameMaker
    formats (5.x .gmd, 6 .gm6, 7 .gmk, 8 .gm81, the .exe data of each, GMS2 .yyp JSON; LateralGM's/ENIGMA's EGM),
    GML across versions (5.3 → 8.1), the backends (Ebitengine; Azul3D — check whether it is still maintained;
@@ -107,3 +107,4 @@ These belong in the research note (item 1) and the design (item 2); none is star
 - 2026-11-02 — Joop: a pure-Go Opus decoder and the GameMaker file reader as libraries alongside the GML work (recorded; design first).
 - 2026-11-02 — item 1 part 1: docs/RESEARCH.md §1, counted from the recovered sources: ~13 event types, 45 drag-and-drop actions (two unresolved: action_1_809 / 813), 37 GML functions, the statements used; the hand ports as the oracle. Next: §2 ENIGMA / LateralGM (vibes), §3 formats.
 - 2026-11-02 — item 1 part 2: ENIGMA (GML→C++ via EDL, a C++ toolchain per user, alive but slow) and LateralGM (Java editor, every old format, runs nothing itself) — the vibes, and five takeaways (one Go program; interpreter first; GM 5.3 subset first, then version by version; import everything into one text format; command line before a GUI). Next: §3 formats.
+- 2026-11-02 — item 1 part 3: the GameMaker formats (.gmd → .gm81, the .exe data per version, .lib / .gex / .gmspr, .gmx XML, .yyp JSON, compiled data.win) and the importer order: GM 5.3 exe / gmd (gm53-reader → Go) → GM 6–8.1 projects → their exes → gmx / yyp → data.win last; GameViber's own text project format sketched. Next: §4 GML across versions, §5 backends.

@@ -87,3 +87,38 @@ Read 2026-11-02 from their repositories and documentation; no code taken (both G
 
 Sources: github.com/enigma-dev/enigma-dev (via awesome.ecosyste.ms), github.com/IsmAvatar/LateralGM,
 yal.cc/gamemaker-formats, enigma-dev.org/docs/Wiki/Related_Projects:Developing.
+
+## 3. GameMaker file formats
+
+Overview from yal.cc/gamemaker-formats (YellowAfterlife), plus what gm53-reader already handles.
+
+| Format | Versions | What it is | Shape |
+|---|---|---|---|
+| `.gmd` | GM ≤ 5 | project | binary, version-tagged resource lists (gm53-reader reads 5.3's layout) |
+| `.gm6` | GM 6 | project | binary; resources zlib-compressed |
+| `.gmk` | GM 7, 8 | project | binary; GM 7/8 obfuscate parts of the file |
+| `.gm81` | GM 8.1 | project | as `.gmk`, 8.1 layout |
+| `.gb1`–`.gb9` | GM ≤ 8.1 | backups of the above | same formats |
+| `.exe` (GM ≤ 8.1) | each version | the game's data appended to the runner | 5.x: plain sections (gm53-reader: Stelo, Pacmanio); 6–8.1: compressed and, from 7 on, scrambled — the project can be recovered |
+| `.lib` | GM ≤ 8.1, GMS1 | drag-and-drop action libraries | binary — the source of the action ids (Pacmanio's unresolved `action_1_809` / `813`) |
+| `.gex` | GM ≤ 8.1 | extension packages | binary |
+| `.gmspr` | GM ≤ 8.1 | a sprite export | zlib, PNG-like with GM metadata |
+| `.project.gmx` + `*.object.gmx` … | GM:Studio 1 | project | XML, one file per resource; `.gmz` = 7-zip of it |
+| `.yyp` + `.yy` | GMS2 | project | JSON, one file per resource; `.yyz` = zip |
+| `data.win` / `.unx` / `.ios` / `.droid` | GMS1/2 compiled | compiled game | IFF-like (`FORM`, `GEN8` …), bytecode or native (YYC) — UndertaleModTool's territory |
+
+**What GameViber reads, in order** (each with a sample game, and each only an importer into GameViber's own format):
+1. GM 5.3: `.exe` and `.gmd` — gm53-reader's knowledge moved into a Go package (`gmfile`), checked on Stelo and
+   Pacmanio byte for byte against the Python reader's exports.
+2. GM 6 / 7 / 8 / 8.1 projects (`.gm6`, `.gmk`, `.gm81`) — the bulk of old hobby games; LateralGM proves they can
+   be read fully (behaviour learnt from its documentation and the files, not its GPL code).
+3. GM 6–8.1 `.exe` — recovering projects from games whose source is lost (Joop's own case for Stelo / Pacmanio).
+4. GM:Studio `.gmx` (XML) and GMS2 `.yyp` (JSON) — easy to parse; the GML is newer (needs §4's later versions).
+5. Compiled `data.win` — last, if ever (bytecode, version-specific; UndertaleModTool already covers it).
+
+**GameViber's own format** (LLM-friendly, diffable; to be designed in item 2): a directory — `game.toml` (or
+similar) for settings; one folder per resource kind; one small text file per object with its events as
+`.gml` files next to it; rooms as text grids or instance lists (as Stelo's `levels/*.txt`); sprites as PNG
+strips with a text sidecar (origin, box). Written only by GameViber; old formats are read, never written.
+
+Source: yal.cc/gamemaker-formats.
