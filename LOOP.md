@@ -63,7 +63,7 @@ goal of its own, weighed alongside the LLM-friendly rule.
    GML across versions (5.3 → 8.1), the backends (Ebitengine; Azul3D — check whether it is still maintained;
    Mach — state, and what a Zig GML library would mean), and what Stelo + Pacmanio actually use (the 76
    built-ins, event types).
-2. [ ] Design proposal (docs/DESIGN.md) for Joop's yes: the GML front end (lexer, parser, one AST) and how it
+2. [~] Design proposal (docs/DESIGN.md) for Joop's yes — WRITTEN 2026-11-02, waiting for Joop: the GML front end (lexer, parser, one AST) and how it
    runs (tree-walking interpreter first? compile GML to Go for release builds?), the runner (start from Stelo's
    internal/gm), the importers, our own text-based diffable project format, the editor question (a
    LateralGM-like editor: desktop / web?), the backend boundary (so Mach or others can come later), licence.
@@ -125,3 +125,4 @@ setting (on by default) rather than per-game code:
 - 2026-11-02 — item 1 part 3: the GameMaker formats (.gmd → .gm81, the .exe data per version, .lib / .gex / .gmspr, .gmx XML, .yyp JSON, compiled data.win) and the importer order: GM 5.3 exe / gmd (gm53-reader → Go) → GM 6–8.1 projects → their exes → gmx / yyp → data.win last; GameViber's own text project format sketched. Next: §4 GML across versions, §5 backends.
 - 2026-11-02 — Joop: the Stelo / Pacmanio / Pits web and phone tweaks become GameViber's export options (listed).
 - 2026-11-02 — item 1 done: §4 GML across versions (5.x → 6 → 7/8/8.1 → GMS1 → GMS2's newer language; one parser with version flags, built-ins per version) and §5 backends (Ebitengine the backend; Azul3D dormant since 2021, its author points to Mach; Mach active but not ready for 2D games — keep a narrow backend interface). Next: item 2, the design proposal for Joop.
+- 2026-11-02 — item 2: docs/DESIGN.md written (packages, the text project format, the gv command with headless deterministic replays, interpreter first, proven on Pacmanio then Stelo, export options, no editor / GMS2 / data.win in v1; three questions). WAITING for Joop's yes.
