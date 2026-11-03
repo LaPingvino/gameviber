@@ -69,7 +69,7 @@ func TestLexCorpus(t *testing.T) {
 			t.Fatal(err)
 		}
 		code := string(src)
-		if strings.Contains(f, "/objects/") {
+		if strings.Contains(f, "/objects/") || strings.Contains(f, "/timelines/") {
 			code = codeActions(code)
 		}
 		for _, tok := range Lex(code) {
