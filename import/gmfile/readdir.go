@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"os"
 	"path"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -71,6 +72,9 @@ func ReadFS(fsys fs.FS, dir string) (*Project, error) {
 			return nil, err
 		}
 		ext := path.Ext(f)
+		if base := strings.TrimSuffix(f, ext); ext == ".mid" && slices.Contains(names("sounds"), base+".opus") {
+			continue // the music is played from its .opus (the .mid is kept for editing)
+		}
 		p.Sounds = append(p.Sounds, &Sound{ID: len(p.Sounds), Name: strings.TrimSuffix(f, ext), Ext: ext, Data: data})
 	}
 	for _, f := range names("scripts") {

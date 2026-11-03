@@ -7,6 +7,7 @@ import (
 	"image/draw"
 	"image/png"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -65,8 +66,17 @@ func (p *Project) Export(dir, name string) (notes []string, err error) {
 		w.png(filepath.Join("backgrounds", b.Name+".png"), img)
 	}
 	for _, s := range p.Sounds {
-		if s != nil && s.Data != nil {
-			w.file(filepath.Join("sounds", s.Name+s.Ext), s.Data)
+		if s == nil || s.Data == nil {
+			continue
+		}
+		w.file(filepath.Join("sounds", s.Name+s.Ext), s.Data)
+		if RenderMIDI && strings.EqualFold(s.Ext, ".mid") { // MIDI music: also as Opus, playable (when the tools are here)
+			if opus, err := midiToOpus(s.Data); err == nil {
+				w.file(filepath.Join("sounds", s.Name+".opus"), opus)
+			} else if !w.midiNoted {
+				w.notes = append(w.notes, "MIDI music kept as .mid only ("+err.Error()+")")
+				w.midiNoted = true
+			}
 		}
 	}
 	for _, s := range p.Scripts {
@@ -107,10 +117,11 @@ Check your changes with `+"`gameviber check`"+`; run with `+"`gameviber run`"+`.
 }
 
 type exporter struct {
-	p     *Project
-	dir   string
-	notes []string
-	err   error
+	p         *Project
+	dir       string
+	notes     []string
+	err       error
+	midiNoted bool
 }
 
 func (w *exporter) file(rel string, data []byte) {
@@ -239,4 +250,42 @@ func (w *exporter) room(r *Room) {
 func bgr2rgb(c int32) int32 {
 	u := uint32(c)
 	return int32((u&0xFF)<<16 | u&0xFF00 | (u>>16)&0xFF)
+}
+
+// RenderMIDI: Export also renders MIDI music to .opus (off in most tests:
+// it takes about ten seconds a tune).
+var RenderMIDI = true
+
+// SoundFont is the General MIDI sound font MIDI music is rendered with
+// (FluidR3, MIT; Arch: soundfont-fluid).
+var SoundFont = "/usr/share/soundfonts/FluidR3_GM.sf2"
+
+// midiToOpus renders MIDI music to Ogg Opus (48 kHz, 64 kb/s) with
+// fluidsynth and ffmpeg — as Stelo's and Pacmanio's remakes do — so the
+// players need no synthesiser.
+func midiToOpus(mid []byte) ([]byte, error) {
+	if _, err := os.Stat(SoundFont); err != nil {
+		return nil, fmt.Errorf("no sound font at %s", SoundFont)
+	}
+	for _, tool := range []string{"fluidsynth", "ffmpeg"} {
+		if _, err := exec.LookPath(tool); err != nil {
+			return nil, fmt.Errorf("%s not found", tool)
+		}
+	}
+	dir, err := os.MkdirTemp("", "gameviber-midi")
+	if err != nil {
+		return nil, err
+	}
+	defer os.RemoveAll(dir)
+	in, wav, out := filepath.Join(dir, "in.mid"), filepath.Join(dir, "out.wav"), filepath.Join(dir, "out.opus")
+	if err := os.WriteFile(in, mid, 0o644); err != nil {
+		return nil, err
+	}
+	if b, err := exec.Command("fluidsynth", "-ni", "-q", "-g", "0.8", "-r", "48000", "-F", wav, SoundFont, in).CombinedOutput(); err != nil {
+		return nil, fmt.Errorf("fluidsynth: %v %s", err, b)
+	}
+	if b, err := exec.Command("ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", wav, "-c:a", "libopus", "-b:a", "64k", out).CombinedOutput(); err != nil {
+		return nil, fmt.Errorf("ffmpeg: %v %s", err, b)
+	}
+	return os.ReadFile(out)
 }
