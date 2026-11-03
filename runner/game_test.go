@@ -1,6 +1,11 @@
 package runner
 
-import "testing"
+import (
+	"math"
+	"testing"
+
+	"github.com/LaPingvino/gameviber/gml"
+)
 
 // Objects whose events are GML, run in the step order: a ball moving right
 // until it meets the wall, which it changes into a spark; create, step and
@@ -165,5 +170,46 @@ any = instance_exists(ball)`)
 	}
 	if m.Vars["alive"] != 1 || m.Vars["gone"] != 0 || m.Vars["any"] != 1 {
 		t.Errorf("exists: before %v, after %v, any ball %v", m.Vars["alive"], m.Vars["gone"], m.Vars["any"])
+	}
+}
+
+// Motion, distance and finding: GM 5's functions on a small room.
+func TestMotionAndFinding(t *testing.T) {
+	me := &Object{Name: "me", BBox: Box{0, 9, 0, 9}, Mask: true}
+	coin := &Object{Name: "coin", BBox: Box{0, 9, 0, 9}, Mask: true}
+	g := &Game{Objects: []*Object{me, coin}}
+	h, err := g.Code(`
+c1 = instance_create(100, 0, coin)
+c2 = instance_create(30, 0, coin)
+near = instance_nearest(x, y, coin)
+second = instance_find(coin, 1)
+d = distance_to_object(coin)
+p = distance_to_point(13, 4)
+hit = collision_point(35, 5, coin, false, true)
+miss = collision_rectangle(50, 50, 60, 60, coin, false, true)
+lx = lengthdir_x(10, 90); ly = lengthdir_y(10, 90)
+pick = choose(7, 7, 7)
+move_towards_point(0, 50, 2)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	me.Events.Create = h
+	r := &Room{W: 200, H: 200, G: &Globals{Vars: map[string]float64{}}}
+	m := r.Create(me, 0, 0)
+	if len(g.Errors) > 0 {
+		t.Fatal(g.Errors)
+	}
+	v := m.Vars
+	switch {
+	case v["near"] != v["c2"], v["second"] != v["c2"]:
+		t.Errorf("nearest %v, second %v; c2 %v", v["near"], v["second"], v["c2"])
+	case v["d"] != 21, v["p"] != 4:
+		t.Errorf("distance to the coin %v (want 21), to the point %v (want 4)", v["d"], v["p"])
+	case v["hit"] != v["c2"], v["miss"] != gml.NooneID:
+		t.Errorf("collision_point %v, collision_rectangle %v", v["hit"], v["miss"])
+	case math.Abs(v["lx"]) > 1e-9, v["ly"] != -10, v["pick"] != 7:
+		t.Errorf("lengthdir %v,%v; choose %v", v["lx"], v["ly"], v["pick"])
+	case math.Abs(m.HSpeed) > 1e-9 || math.Abs(m.VSpeed-2) > 1e-9:
+		t.Errorf("move_towards_point: %v,%v", m.HSpeed, m.VSpeed)
 	}
 }

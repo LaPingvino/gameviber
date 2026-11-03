@@ -272,6 +272,14 @@ func (g *Game) obj(v gml.Value) (*Object, error) {
 
 // runnerFuncs are the functions that need the room (Game Maker 5's names).
 func (g *Game) runnerFuncs() map[string]gml.Func {
+	m := g.coreFuncs()
+	for k, f := range g.motionFuncs() {
+		m[k] = f
+	}
+	return m
+}
+
+func (g *Game) coreFuncs() map[string]gml.Func {
 	b := func(v bool) gml.Value {
 		if v {
 			return gml.RealV(1)

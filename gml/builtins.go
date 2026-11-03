@@ -66,6 +66,24 @@ var Builtins = map[string]Func{
 		}
 		return RealV(math.Hypot(a[2].N-a[0].N, a[3].N-a[1].N)), nil
 	},
+	"choose": func(in *Interp, a []Value) (Value, error) { // (v0, v1, …): one of them at random
+		if err := need(a, 1); err != nil {
+			return Value{}, err
+		}
+		return a[min(int(in.random()*float64(len(a))), len(a)-1)], nil
+	},
+	"lengthdir_x": func(in *Interp, a []Value) (Value, error) { // (length, direction°)
+		if err := need(a, 2); err != nil {
+			return Value{}, err
+		}
+		return RealV(a[0].N * math.Cos(a[1].N*math.Pi/180)), nil
+	},
+	"lengthdir_y": func(in *Interp, a []Value) (Value, error) { // y grows downwards
+		if err := need(a, 2); err != nil {
+			return Value{}, err
+		}
+		return RealV(-a[0].N * math.Sin(a[1].N*math.Pi/180)), nil
+	},
 	"random": func(in *Interp, a []Value) (Value, error) {
 		if err := need(a, 1); err != nil {
 			return Value{}, err
