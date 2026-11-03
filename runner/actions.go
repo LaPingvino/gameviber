@@ -109,7 +109,7 @@ func (g *Game) actionFuncs() map[string]gml.Func {
 		"action_set_sprite": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (sprite, subimage: -1 keeps the frame)
 			s := g.self()
 			if len(a) > 0 {
-				s.Sprite = a[0].String() // PARTIAL: sprites by name
+				s.Sprite = g.IDs.SpriteName(a[0])
 			}
 			if sub := num(a, 1); len(a) > 1 && sub != -1 {
 				s.ImageIndex = sub

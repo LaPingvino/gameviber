@@ -37,6 +37,8 @@ type Game struct {
 	// RoomIDs are the rooms' GM ids (their index in the project) by name:
 	// a room's name in code is its id, as in GM 5; room is a number.
 	RoomIDs map[string]int
+	// IDs are the other resources' ids (sprites …).
+	IDs *IDs
 	// Highscores is GM's ten-entry table, best first (Clear fills it).
 	Highscores [10]Highscore
 	// AskString answers get_string (the input backend's); nil: the default.
@@ -117,6 +119,10 @@ func (g *Game) index() {
 	g.byName = map[string]int{}
 	for i, o := range g.Objects {
 		g.byName[o.Name] = i
+		o.Index = i
+		if o.IDs == nil {
+			o.IDs = g.IDs
+		}
 	}
 }
 
@@ -233,6 +239,11 @@ func (g *Game) interp(r *Room) *gml.Interp {
 			}
 			if id, ok := g.RoomIDs[name]; ok {
 				return gml.RealV(float64(id)), true
+			}
+			if g.IDs != nil {
+				if id, ok := g.IDs.Sprites[name]; ok {
+					return gml.RealV(float64(id)), true
+				}
 			}
 			if g.Resources[name] {
 				return gml.StrV(name), true

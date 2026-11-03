@@ -147,7 +147,7 @@ func (g *Game) drawFuncs() map[string]gml.Func {
 			x, y := at(a, 0, 3)
 			w := float64(g.SpriteWidth(a[2].String()))
 			for i := range max(g.room.G.Lives, 0) {
-				d().Sprite(a[2].String(), 0, x+float64(i)*w, y)
+				d().Sprite(g.IDs.SpriteName(a[2]), 0, x+float64(i)*w, y)
 			}
 			return ok, nil
 		},
@@ -160,7 +160,7 @@ func (g *Game) drawFuncs() map[string]gml.Func {
 			if frame == -1 {
 				frame = g.self().ImageIndex
 			}
-			d().Sprite(a[0].String(), frame, x, y)
+			d().Sprite(g.IDs.SpriteName(a[0]), frame, x, y)
 			return ok, nil
 		},
 		"draw_text": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (x, y, string)
@@ -177,7 +177,7 @@ func (g *Game) drawFuncs() map[string]gml.Func {
 		},
 		"draw_sprite": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (sprite, subimage, x, y)
 			if d() != nil && len(a) > 3 {
-				d().Sprite(a[0].String(), num(a, 1), num(a, 2), num(a, 3))
+				d().Sprite(g.IDs.SpriteName(a[0]), num(a, 1), num(a, 2), num(a, 3))
 			}
 			return ok, nil
 		},

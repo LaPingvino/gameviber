@@ -74,3 +74,27 @@ func TestDepthVariable(t *testing.T) {
 		t.Errorf("was %v, depth %v", in.Vars["was"], in.Depth)
 	}
 }
+
+// Sprites as ids: a sprite's name is its id, sprite_index reads it and takes
+// an id (or a name), object_index is the object's id.
+func TestSpriteAndObjectIDs(t *testing.T) {
+	ids := &IDs{Sprites: map[string]int{"spr_a": 0, "spr_b": 1}}
+	wall := &Object{Name: "wall"}
+	o := &Object{Name: "o", Sprite: "spr_a"}
+	g := &Game{Objects: []*Object{wall, o}, IDs: ids}
+	h, err := g.Code(`was = sprite_index; isA = (sprite_index = spr_a); sprite_index = spr_b; now = sprite_index
+me = object_index; mine = (object_index = o); sprite_index = "spr_a"`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	o.Events.Create = h
+	r := &Room{W: 64, H: 64, G: &Globals{Vars: map[string]float64{}}}
+	in := r.Create(o, 0, 0)
+	if len(g.Errors) > 0 {
+		t.Fatal(g.Errors)
+	}
+	v := in.Vars
+	if v["was"] != 0 || v["isA"] != 1 || v["now"] != 1 || v["me"] != 1 || v["mine"] != 1 || in.Sprite != "spr_a" {
+		t.Errorf("%v, sprite %q", v, in.Sprite)
+	}
+}

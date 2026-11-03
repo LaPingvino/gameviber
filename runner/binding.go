@@ -37,10 +37,13 @@ func (in *Instance) Get(name string, idx []int) (gml.Value, bool) {
 				return gml.RealV(-1), true
 			}
 			return gml.StrV(in.Timeline.Name), true
-		case "sprite_index":
-			return gml.StrV(in.Sprite), true
-		case "object_index":
-			return gml.StrV(in.Obj.Name), true
+		case "sprite_index": // its id (-1: none)
+			if in.Sprite == "" {
+				return gml.RealV(-1), true
+			}
+			return in.Obj.IDs.SpriteValue(in.Sprite), true
+		case "object_index": // its object's id
+			return gml.RealV(float64(in.Obj.Index)), true
 		}
 	}
 	if name == "alarm" && len(idx) == 1 && idx[0] >= 0 && idx[0] < len(in.Alarm) {
@@ -58,11 +61,11 @@ func (in *Instance) Get(name string, idx []int) (gml.Value, bool) {
 
 // Set writes a variable of the instance.
 func (in *Instance) Set(name string, idx []int, v gml.Value) {
-	if idx == nil && !v.IsStr && in.setBuiltin(name, v.N) {
+	if idx == nil && name == "sprite_index" { // an id, or a name from older projects
+		in.Sprite = in.Obj.IDs.SpriteName(v)
 		return
 	}
-	if idx == nil && name == "sprite_index" && v.IsStr { // PARTIAL: sprites by name
-		in.Sprite = v.S
+	if idx == nil && !v.IsStr && in.setBuiltin(name, v.N) {
 		return
 	}
 	if name == "alarm" && len(idx) == 1 && idx[0] >= 0 && idx[0] < len(in.Alarm) {

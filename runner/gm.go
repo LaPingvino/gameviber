@@ -21,7 +21,11 @@ func (a Box) Overlaps(b Box) bool { return a.L <= b.R && b.L <= a.R && a.T <= b.
 // and its sprite's bounding box (relative to the instance's position; every
 // Stelo sprite has its origin at 0, 0).
 type Object struct {
-	Name  string
+	Name string
+	// Index is the object's id (its place in Game.Objects; object_index).
+	Index int
+	// IDs are the game's resource ids (sprite_index reads through them).
+	IDs   *IDs
 	Solid bool
 	BBox  Box
 	// Mask reports whether the object collides at all (an object without a

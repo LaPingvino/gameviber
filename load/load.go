@@ -103,6 +103,15 @@ func FromProject(p *gmfile.Project) (*Game, error) {
 			g.Resources[x.Name] = true
 		}
 	}
+	g.IDs = &runner.IDs{Sprites: map[string]int{}}
+	for id, x := range p.Sprites {
+		if x != nil {
+			g.IDs.Sprites[x.Name] = id
+		}
+	}
+	for _, o := range g.Objects {
+		o.IDs = g.IDs
+	}
 	g.RoomIDs = map[string]int{}
 	for id, x := range p.Rooms {
 		if x != nil {
