@@ -10,6 +10,7 @@ import (
 	"os"
 	"runtime"
 	"strings"
+	"sync/atomic"
 
 	eb "github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
@@ -42,6 +43,17 @@ func (in *input) Mouse() (float64, float64) { return in.mx, in.my }
 func (in *input) MouseHeld(b int) bool      { return eb.IsMouseButtonPressed(buttons[b]) }
 func (in *input) MousePressed(b int) bool   { return inpututil.IsMouseButtonJustPressed(buttons[b]) }
 func (in *input) MouseReleased(b int) bool  { return inpututil.IsMouseButtonJustReleased(buttons[b]) }
+
+// Pause / StepOnce are the editor's Play controls: paused, the game does not
+// step (the window keeps drawing); StepOnce runs one step while paused.
+var (
+	paused  atomic.Bool
+	stepReq atomic.Int32
+)
+
+func Pause(on bool) { paused.Store(on) }
+func StepOnce()     { stepReq.Add(1) }
+func Paused() bool  { return paused.Load() }
 
 // Mute turns the sound off (gameviber-run -mute).
 var Mute bool
@@ -161,6 +173,12 @@ func (g *Game) Update() error {
 	if r := g.play.Room; r.ViewsEnabled && len(r.Views) > 0 && r.Views[0].Visible {
 		g.in.mx += float64(r.Views[0].X)
 		g.in.my += float64(r.Views[0].Y)
+	}
+	if paused.Load() { // the editor's pause: the picture stays, the game waits (a step request runs one step)
+		if stepReq.Load() == 0 {
+			return nil
+		}
+		stepReq.Add(-1)
 	}
 	if err := g.play.Step(&g.in); err != nil {
 		return err
