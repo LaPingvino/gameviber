@@ -32,11 +32,12 @@ footer pre { margin: 0; font: 12px/1.45 ui-monospace, monospace; white-space: pr
 .ok { color: var(--ok); } .bad { color: var(--bad); }
 </style></head>
 <body>
-<header><b>GameViber</b><span id="name"></span><span id="status"></span></header>
+<header><b>GameViber</b><span id="name"></span><span id="status"></span><span style="flex:1"></span><button id="play">▶ Play</button></header>
 <nav id="tree"></nav>
 <main>
   <div class="bar"><code id="path">pick a file on the left</code><button id="save" disabled>Save (Ctrl+S)</button></div>
   <textarea id="text" spellcheck="false" disabled></textarea>
+  <iframe id="game" title="the game" style="display:none;width:100%;height:100%;border:0;background:#111"></iframe>
   <div id="room"><div id="palette"></div><div id="stage"><canvas id="canvas"></canvas>
     <p class="hint">Click: place the chosen object (on the 32 px grid; Shift: free) · right click: remove · <a href="#" id="astext">as text</a></p></div></div>
 </main>
@@ -165,6 +166,22 @@ $("text").addEventListener("input", mark);
 $("save").onclick = save;
 document.addEventListener("keydown", (e) => { if ((e.ctrlKey || e.metaKey) && e.key === "s") { e.preventDefault(); save(); } });
 $("text").addEventListener("keydown", (e) => { if (e.key === "Tab") { e.preventDefault(); document.execCommand("insertText", false, "\t"); } });
+// --- Play (step E3): the game in the editor, from the saved files ---
+let playing = false, before = null;
+$("play").onclick = () => {
+  playing = !playing;
+  const g = $("game");
+  if (playing) {
+    before = { text: $("text").style.display, room: $("room").classList.contains("on") };
+    $("text").style.display = "none"; $("room").classList.remove("on");
+    g.style.display = ""; g.src = "play/"; g.focus();
+    $("play").textContent = "■ Stop"; $("path").textContent = "playing (the saved files)";
+  } else {
+    g.src = "about:blank"; g.style.display = "none";
+    $("text").style.display = before.text; if (before.room) $("room").classList.add("on");
+    $("play").textContent = "▶ Play"; $("path").textContent = current || (roomPath ? roomPath + " (room)" : "pick a file on the left");
+  }
+};
 load();
 </script>
 </body></html>

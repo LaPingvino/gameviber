@@ -399,45 +399,12 @@ func cmdWeb(args []string) error {
 	if err != nil {
 		return err
 	}
-	tw := tar.NewWriter(f)
-	err = filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
-		if err != nil || d.IsDir() {
-			return err
-		}
-		rel, _ := filepath.Rel(dir, path)
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return err
-		}
-		if err := tw.WriteHeader(&tar.Header{Name: filepath.ToSlash(rel), Mode: 0o644, Size: int64(len(data))}); err != nil {
-			return err
-		}
-		_, err = tw.Write(data)
-		return err
-	})
-	if err == nil {
-		err = tw.Close()
-	}
+	err = packProject(dir, f)
 	f.Close()
 	if err != nil {
 		return err
 	}
-	// The player, for the browser.
-	build := exec.Command("go", "build", "-o", filepath.Join(out, "game.wasm"), "./cmd/gameviber-run")
-	build.Env = append(os.Environ(), "GOOS=js", "GOARCH=wasm")
-	build.Stdout, build.Stderr = os.Stdout, os.Stderr
-	if err := build.Run(); err != nil {
-		return fmt.Errorf("building the wasm (run gameviber web inside the GameViber source): %w", err)
-	}
-	root, err := exec.Command("go", "env", "GOROOT").Output()
-	if err != nil {
-		return err
-	}
-	shim, err := os.ReadFile(filepath.Join(strings.TrimSpace(string(root)), "lib", "wasm", "wasm_exec.js"))
-	if err != nil {
-		return err
-	}
-	if err := os.WriteFile(filepath.Join(out, "wasm_exec.js"), shim, 0o644); err != nil {
+	if err := buildPlayer(out); err != nil {
 		return err
 	}
 	name := p.Name()
@@ -462,4 +429,49 @@ func fileHash(path string) string {
 	}
 	sum := sha256.Sum256(data)
 	return hex.EncodeToString(sum[:6])
+}
+
+// packProject writes the project folder as a tar (what the browser player
+// opens).
+func packProject(dir string, w io.Writer) error {
+	tw := tar.NewWriter(w)
+	err := filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return err
+		}
+		rel, _ := filepath.Rel(dir, path)
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		if err := tw.WriteHeader(&tar.Header{Name: filepath.ToSlash(rel), Mode: 0o644, Size: int64(len(data))}); err != nil {
+			return err
+		}
+		_, err = tw.Write(data)
+		return err
+	})
+	if err != nil {
+		return err
+	}
+	return tw.Close()
+}
+
+// buildPlayer builds the browser player into out: game.wasm (gameviber-run
+// for js/wasm — needs the GameViber source and go) and Go's wasm_exec.js.
+func buildPlayer(out string) error {
+	build := exec.Command("go", "build", "-o", filepath.Join(out, "game.wasm"), "./cmd/gameviber-run")
+	build.Env = append(os.Environ(), "GOOS=js", "GOARCH=wasm")
+	build.Stdout, build.Stderr = os.Stdout, os.Stderr
+	if err := build.Run(); err != nil {
+		return fmt.Errorf("building the wasm (run gameviber inside the GameViber source): %w", err)
+	}
+	root, err := exec.Command("go", "env", "GOROOT").Output()
+	if err != nil {
+		return err
+	}
+	shim, err := os.ReadFile(filepath.Join(strings.TrimSpace(string(root)), "lib", "wasm", "wasm_exec.js"))
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(out, "wasm_exec.js"), shim, 0o644)
 }

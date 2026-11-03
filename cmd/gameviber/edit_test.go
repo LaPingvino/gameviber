@@ -126,3 +126,29 @@ func TestEditRoom(t *testing.T) {
 		t.Errorf("strip outside sprites: %d", code.StatusCode)
 	}
 }
+
+// Play in the editor: the page names a fresh project pack, and the pack holds
+// the project's files as saved.
+func TestEditPlay(t *testing.T) {
+	dir := t.TempDir() + "/game"
+	if err := cmdNew([]string{dir}); err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(editHandler(dir))
+	defer srv.Close()
+	r, err := http.Get(srv.URL + "/play/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	page, _ := io.ReadAll(r.Body)
+	r.Body.Close()
+	if !strings.Contains(string(page), `gameviberProject = "project.tar?t=`) {
+		t.Fatalf("page: %s", page)
+	}
+	r, _ = http.Get(srv.URL + "/play/project.tar")
+	data, _ := io.ReadAll(r.Body)
+	r.Body.Close()
+	if r.StatusCode != 200 || !strings.Contains(string(data), "objects/player/step.gml") || !strings.Contains(string(data), "rooms/level/room.toml") {
+		t.Errorf("pack: %d, %d bytes", r.StatusCode, len(data))
+	}
+}
