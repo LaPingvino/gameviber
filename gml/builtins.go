@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"math/rand/v2"
+	"sort"
 	"strings"
 	"unicode"
 )
@@ -65,6 +66,17 @@ var Builtins = map[string]Func{
 			return Value{}, err
 		}
 		return RealV(math.Hypot(a[2].N-a[0].N, a[3].N-a[1].N)), nil
+	},
+	"median": func(in *Interp, a []Value) (Value, error) { // (v0, v1, …): the middle value (the lower of the two middle ones)
+		if err := need(a, 1); err != nil {
+			return Value{}, err
+		}
+		ns := make([]float64, len(a))
+		for i, v := range a {
+			ns[i] = v.N
+		}
+		sort.Float64s(ns)
+		return RealV(ns[(len(ns)-1)/2]), nil
 	},
 	"choose": func(in *Interp, a []Value) (Value, error) { // (v0, v1, …): one of them at random
 		if err := need(a, 1); err != nil {

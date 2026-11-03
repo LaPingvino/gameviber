@@ -150,6 +150,8 @@ type Room struct {
 	PausedG *Globals
 	// G holds what lives across rooms: score, lives, global variables.
 	G *Globals
+	// In is the current step's input (keyboard_check); nil before the first.
+	In Input
 }
 
 // Globals are Game Maker's game-wide state.

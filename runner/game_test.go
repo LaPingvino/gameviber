@@ -213,3 +213,32 @@ move_towards_point(0, 50, 2)`)
 		t.Errorf("move_towards_point: %v,%v", m.HSpeed, m.VSpeed)
 	}
 }
+
+// keyKeys holds the keys given.
+type keyKeys map[Key]bool
+
+func (k keyKeys) Held(c Key) bool  { return k[c] }
+func (k keyKeys) Pressed(Key) bool { return false }
+
+// keyboard_check reads the step's keys (vk_anykey / vk_nokey too);
+// room_restart asks for the same room again; median.
+func TestKeyboardCheckAndRestart(t *testing.T) {
+	o := &Object{Name: "o"}
+	g := &Game{Objects: []*Object{o}}
+	h, err := g.Code(`left = keyboard_check(vk_left); up = keyboard_check(vk_up); any = keyboard_check(vk_anykey)
+none = keyboard_check_direct(vk_nokey); m = median(5, 1, 3, 9); if (left) room_restart()`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	o.Events.Step = h
+	r := &Room{Name: "level", W: 64, H: 64, G: &Globals{Vars: map[string]float64{}}}
+	in := r.Create(o, 0, 0)
+	r.Step(keyKeys{37: true})
+	if len(g.Errors) > 0 {
+		t.Fatal(g.Errors)
+	}
+	v := in.Vars
+	if v["left"] != 1 || v["up"] != 0 || v["any"] != 1 || v["none"] != 0 || v["m"] != 3 || r.Goto != "level" {
+		t.Errorf("%v, goto %q", v, r.Goto)
+	}
+}

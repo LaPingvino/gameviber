@@ -7,6 +7,7 @@ package ebiten
 import (
 	"image"
 	"image/color"
+	"log"
 	"os"
 	"runtime"
 	"strings"
@@ -96,7 +97,8 @@ type Game struct {
 
 // New prepares a game for the window.
 func New(p *gmfile.Project, pl *load.Play) *Game {
-	if !Mute && audioAvailable() { // without a sound device the game plays silently
+	pl.G.Message = func(m string) { log.Printf("%s", m) } // PARTIAL: printed, not a dialog yet
+	if !Mute && audioAvailable() {                        // without a sound device the game plays silently
 		pl.G.Sound = newSounds(p)
 	}
 	return &Game{play: pl, assets: render.LoadAssets(p), proj: p, in: input{held: map[runner.Key]bool{}, prev: map[runner.Key]bool{}}}

@@ -38,6 +38,8 @@ type Game struct {
 	AskString func(question, def string) string
 	// Constants are the game's own constants (its global settings).
 	Constants map[string]gml.Value
+	// Message shows show_message's text (the backend's); nil: not shown.
+	Message func(string)
 	// Sound plays the game's sounds (the backend's); nil: silent.
 	Sound Sound
 	// Resources are the other resources' names (sprites, sounds, rooms …):
@@ -276,6 +278,7 @@ func (g *Game) runnerFuncs() map[string]gml.Func {
 	for k, f := range g.motionFuncs() {
 		m[k] = f
 	}
+	m["keyboard_check_direct"] = m["keyboard_check"] // the hardware's state: the same here
 	return m
 }
 
@@ -479,6 +482,33 @@ func (g *Game) coreFuncs() map[string]gml.Func {
 			g.room.Goto = "@end"
 			return gml.RealV(0), nil
 		},
+		"keyboard_check": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (key): held now; vk_anykey / vk_nokey
+			if len(a) == 0 || g.room.In == nil {
+				return b(len(a) > 0 && int(a[0].N) == 0), nil
+			}
+			k := int(a[0].N)
+			if k == 0 || k == 1 {
+				any := false
+				for c := 1; c < 256 && !any; c++ {
+					any = g.room.In.Held(Key(c))
+				}
+				return b(any == (k == 1)), nil
+			}
+			return b(g.room.In.Held(Key(k))), nil
+		},
+		"room_restart": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // the room afresh
+			g.room.Goto = g.room.Name
+			return gml.RealV(0), nil
+		},
+		"show_message": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (text): the backend shows it; headless, nothing
+			if g.Message != nil && len(a) > 0 {
+				g.Message(a[0].String())
+			}
+			return gml.RealV(0), nil
+		},
+		// The keyboard state is the backend's each step: nothing to clear.
+		"keyboard_clear": func(*gml.Interp, []gml.Value) (gml.Value, error) { return gml.RealV(0), nil },
+		"io_clear":       func(*gml.Interp, []gml.Value) (gml.Value, error) { return gml.RealV(0), nil },
 		"room_goto_next": func(in *gml.Interp, a []gml.Value) (gml.Value, error) {
 			g.room.Goto = "@next"
 			return gml.RealV(0), nil
