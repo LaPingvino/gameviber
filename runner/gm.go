@@ -79,6 +79,9 @@ type Instance struct {
 	Sprite     string
 	ImageIndex float64
 	ImageSpeed float64
+	// Depth orders the drawing (higher first, under); the object's to start
+	// with, `depth` in code.
+	Depth float64
 	// Vars holds the object's own variables (used, timelineaktiva, …).
 	Vars map[string]float64
 	// VarsStr holds string variables (tekstilo's teksto).
@@ -99,7 +102,7 @@ type Timeline struct {
 // is placed.
 func NewInstance(obj *Object, x, y float64) *Instance {
 	in := &Instance{Obj: obj, X: x, Y: y, XPrevious: x, YPrevious: y, XStart: x, YStart: y, GravityDirection: 270,
-		Sprite: obj.Sprite, ImageSpeed: 1, Solid: obj.Solid, Vars: map[string]float64{}, VarsStr: map[string]string{}}
+		Sprite: obj.Sprite, ImageSpeed: 1, Solid: obj.Solid, Depth: float64(obj.Depth), Vars: map[string]float64{}, VarsStr: map[string]string{}}
 	for i := range in.Alarm {
 		in.Alarm[i] = -1
 	}
@@ -198,6 +201,7 @@ func (r *Room) Change(in *Instance, obj *Object, perform bool) {
 	// ASSUMPTION [engine]: the new object's sprite and solid flag come
 	// with the change (as the sprite did in Stelo's engine).
 	in.Obj, in.Sprite, in.ImageIndex, in.Solid = obj, obj.Sprite, 0, obj.Solid
+	in.Depth = float64(obj.Depth) // ASSUMPTION [engine]: changing object takes the new object's depth, as its sprite
 	if perform {
 		if h := obj.handler(func(e *Events) Handler { return e.Create }); h != nil {
 			h(r, in)

@@ -109,6 +109,8 @@ func (in *Instance) builtin(name string) (float64, bool) {
 		return in.ImageIndex, true
 	case "image_speed":
 		return in.ImageSpeed, true
+	case "depth":
+		return in.Depth, true
 	case "solid":
 		return b2f(in.Solid), true
 	case "timeline_position":
@@ -149,6 +151,8 @@ func (in *Instance) setBuiltin(name string, v float64) bool {
 		in.ImageIndex = v
 	case "image_speed":
 		in.ImageSpeed = v
+	case "depth":
+		in.Depth = v
 	case "timeline_position":
 		in.TimelinePos = int(v)
 	case "solid":

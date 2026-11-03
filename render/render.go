@@ -88,7 +88,7 @@ func Frame(dst *image.RGBA, g *runner.Game, r *runner.Room, a *Assets, roomColou
 			insts = append(insts, in)
 		}
 	}
-	sort.SliceStable(insts, func(i, j int) bool { return insts[i].Obj.Depth > insts[j].Obj.Depth })
+	sort.SliceStable(insts, func(i, j int) bool { return insts[i].Depth > insts[j].Depth })
 	fd := &frameDrawer{dst: dst, a: a, ox: ox, oy: oy}
 	for _, in := range insts {
 		if g != nil && runner.HasDraw(in) {

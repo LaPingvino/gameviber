@@ -44,7 +44,7 @@ background_color, background_foreground, background_hspeed, background_htiled, b
 ## Instance variables
 
 x, y, xprevious, yprevious, xstart, ystart, hspeed, vspeed, speed, direction, gravity, gravity_direction,
-image_index (image_single), image_speed, sprite_index, object_index, solid, alarm[0–11], timeline_index,
+image_index (image_single), image_speed, depth, sprite_index, object_index, solid, alarm[0–11], timeline_index,
 timeline_position — and any variable the code sets. global.name for game-wide ones; var for a script's locals;
 argument0 … argument9 in scripts.
 

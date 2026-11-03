@@ -55,3 +55,22 @@ func TestSolidPerInstance(t *testing.T) {
 		t.Errorf("free while not solid %v, after %v; wall solid %v, object %v", m.Vars["a"], m.Vars["b"], w1.Solid, wall.Solid)
 	}
 }
+
+// depth starts as the object's and code can change it.
+func TestDepthVariable(t *testing.T) {
+	o := &Object{Name: "o", Depth: 5}
+	g := &Game{Objects: []*Object{o}}
+	h, err := g.Code("was = depth; depth = -2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	o.Events.Create = h
+	r := &Room{W: 64, H: 64, G: &Globals{Vars: map[string]float64{}}}
+	in := r.Create(o, 0, 0)
+	if len(g.Errors) > 0 {
+		t.Fatal(g.Errors)
+	}
+	if in.Vars["was"] != 5 || in.Depth != -2 {
+		t.Errorf("was %v, depth %v", in.Vars["was"], in.Depth)
+	}
+}
