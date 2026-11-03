@@ -258,3 +258,75 @@ func (h editRooms) importPNG(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, checkReport(h.dir))
 }
+
+// newThing (the editor's + Object / + Room / + Event): an object with the
+// starter's defaults, a room (640×480, added to game.toml's room order), or
+// an object's event file (empty GML, its name as the reference has them:
+// create, step, keyboard-37, collision-wall …). Nothing existing is
+// overwritten.
+func (h editRooms) newThing(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	kind, name := q.Get("kind"), q.Get("name")
+	okName := func(s string, extra string) bool {
+		return s != "" && strings.Trim(s, "abcdefghijklmnopqrstuvwxyz0123456789_"+extra) == ""
+	}
+	var path string
+	var data []byte
+	switch kind {
+	case "object":
+		if !okName(name, "") {
+			http.Error(w, "an object's name is letters a–z, digits and _", http.StatusBadRequest)
+			return
+		}
+		path = filepath.Join(h.dir, "objects", name, "object.toml")
+		data = []byte("sprite = \"-1\"\nsolid = false\nvisible = true\ndepth = 0\npersistent = false\nparent = \"-1\"\nmask = \"-1\"\n")
+	case "room":
+		if !okName(name, "") {
+			http.Error(w, "a room's name is letters a–z, digits and _", http.StatusBadRequest)
+			return
+		}
+		path = filepath.Join(h.dir, "rooms", name, "room.toml")
+		data = []byte(fmt.Sprintf("caption = %q\nwidth = 640\nheight = 480\nspeed = 30\npersistent = false\nbackground_colour = \"#20304A\"\ndraw_background_colour = true\nviews_enabled = false\n", name))
+	case "event":
+		obj := q.Get("object")
+		if !okName(obj, "") || !okName(name, "-") {
+			http.Error(w, "an event file is like step, create, keyboard-37, collision-wall", http.StatusBadRequest)
+			return
+		}
+		if _, err := os.Stat(filepath.Join(h.dir, "objects", obj, "object.toml")); err != nil {
+			http.Error(w, "no object "+obj, http.StatusBadRequest)
+			return
+		}
+		path = filepath.Join(h.dir, "objects", obj, name+".gml")
+		data = []byte("// " + obj + ": " + name + "\n")
+	default:
+		http.Error(w, "kind is object, room or event", http.StatusBadRequest)
+		return
+	}
+	if _, err := os.Stat(path); err == nil {
+		http.Error(w, "it exists already", http.StatusConflict)
+		return
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if kind == "room" { // the room joins the game's room order
+		gamePath := filepath.Join(h.dir, "game.toml")
+		var g map[string]any
+		if _, err := toml.DecodeFile(gamePath, &g); err == nil {
+			order, _ := g["room_order"].([]any)
+			g["room_order"] = append(order, name)
+			if f, err := os.Create(gamePath); err == nil {
+				toml.NewEncoder(f).Encode(g)
+				f.Close()
+			}
+		}
+	}
+	rel, _ := filepath.Rel(h.dir, path)
+	writeJSON(w, map[string]any{"path": filepath.ToSlash(rel), "check": checkReport(h.dir)})
+}

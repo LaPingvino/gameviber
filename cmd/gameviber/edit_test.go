@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 )
@@ -216,5 +217,43 @@ func TestEditImportPNG(t *testing.T) {
 	}
 	if r, _ := http.Post(srv.URL+"/api/sprite-png?name=../x&frames=1", "image/png", bytes.NewReader(buf.Bytes())); r.StatusCode != http.StatusBadRequest {
 		t.Errorf("a name with a path: %d", r.StatusCode)
+	}
+}
+
+// New things from the editor: an object, an event file for it, a room (in the
+// room order); the check stays clean; an existing one is not overwritten.
+func TestEditNew(t *testing.T) {
+	dir := t.TempDir() + "/game"
+	if err := cmdNew([]string{dir}); err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(editHandler(dir))
+	defer srv.Close()
+	post := func(q string) int {
+		r, err := http.Post(srv.URL+"/api/new?"+q, "", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		r.Body.Close()
+		return r.StatusCode
+	}
+	for _, q := range []string{"kind=object&name=enemy", "kind=event&object=enemy&name=step", "kind=room&name=level2"} {
+		if c := post(q); c != 200 {
+			t.Fatalf("%s: %d", q, c)
+		}
+	}
+	if c := post("kind=object&name=enemy"); c != http.StatusConflict {
+		t.Errorf("again: %d", c)
+	}
+	if c := post("kind=event&object=nobody&name=step"); c != http.StatusBadRequest {
+		t.Errorf("an event of no object: %d", c)
+	}
+	g, _ := os.ReadFile(dir + "/game.toml")
+	if !strings.Contains(string(g), `"level2"`) {
+		t.Errorf("room order: %s", g)
+	}
+	var b strings.Builder
+	if n, err := checkProject(dir, &b); err != nil || n != 0 {
+		t.Errorf("check: %d %v %s", n, err, b.String())
 	}
 }

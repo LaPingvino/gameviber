@@ -17,6 +17,7 @@ main { display: grid; grid-template-rows: auto 1fr; min-width: 0; }
 .bar code { flex: 1; overflow: hidden; text-overflow: ellipsis; }
 button { font: inherit; padding: 5px 14px; border: 0; border-radius: 4px; background: var(--accent); color: #fff; cursor: pointer; }
 button:disabled { opacity: .45; cursor: default; }
+button.new { background: transparent; color: var(--ink); border: 1px solid var(--line); }
 #room { display: none; grid-template-columns: 150px 1fr; min-height: 0; }
 #room.on { display: grid; }
 #palette { overflow: auto; border-right: 1px solid var(--line); padding: 6px; display: flex; flex-direction: column; gap: 4px; }
@@ -37,7 +38,7 @@ footer pre { margin: 0; font: 12px/1.45 ui-monospace, monospace; white-space: pr
 .ok { color: var(--ok); } .bad { color: var(--bad); }
 </style></head>
 <body>
-<header><b>GameViber</b><span id="name"></span><span id="status"></span><span style="flex:1"></span><button id="reset" style="display:none;background:transparent;color:var(--muted);border:1px solid var(--line)">Reset to the starter game</button><button id="newspr" style="background:transparent;color:var(--ink);border:1px solid var(--line)">+ Sprite</button><button id="play">▶ Play</button></header>
+<header><b>GameViber</b><span id="name"></span><span id="status"></span><span style="flex:1"></span><button id="reset" style="display:none;background:transparent;color:var(--muted);border:1px solid var(--line)">Reset to the starter game</button><button id="newobj" class="new">+ Object</button><button id="newevt" class="new">+ Event</button><button id="newroom" class="new">+ Room</button><button id="newspr" class="new">+ Sprite</button><button id="play">▶ Play</button></header>
 <nav id="tree"></nav>
 <main>
   <div class="bar"><code id="path">pick a file on the left</code><button id="save" disabled>Save (Ctrl+S)</button></div>
@@ -284,6 +285,28 @@ $("newspr").onclick = () => {
   const name = (window.prompt("The new sprite's name (a–z, 0–9, _):") || "").trim().toLowerCase();
   if (!name) return;
   importName = name; $("nframes").value = 1; $("pngfile").click();
+};
+
+// --- new objects, rooms, events ---
+async function makeNew(kind, name, object) {
+  const q = "kind=" + kind + "&name=" + encodeURIComponent(name) + (object ? "&object=" + encodeURIComponent(object) : "");
+  const r = await call("api/new?" + q, { method: "POST" });
+  if (!r.ok) { $("check").className = "bad"; $("check").textContent = await r.text(); return; }
+  const res = await r.json();
+  showCheck(res.check);
+  await load();
+  const parts = res.path.split("/"), file = parts.pop(), group = parts.join("/");
+  const link = [...document.querySelectorAll("nav a")].find((a) => a.textContent === file && a.parentElement.querySelector("summary")?.textContent === group);
+  if (link) { link.parentElement.open = true; open(res.path, link); }
+}
+const ask = (q, def) => (window.prompt(q, def || "") || "").trim().toLowerCase();
+$("newobj").onclick = () => { const n = ask("The new object's name (a–z, 0–9, _):"); if (n) makeNew("object", n); };
+$("newroom").onclick = () => { const n = ask("The new room's name (a–z, 0–9, _):"); if (n) makeNew("room", n); };
+$("newevt").onclick = () => {
+  const here = (current || "").match(/^objects\/([^/]+)\//);
+  const obj = ask("Which object?", here ? here[1] : ""); if (!obj) return;
+  const ev = ask("Which event? (create, step, step-begin, step-end, destroy, draw, alarm-0, keyboard-37, keypress-32, collision-wall, mouse-4, other-0 … — gameviber reference lists them)", "step");
+  if (ev) makeNew("event", ev, obj);
 };
 
 if (window.gameviberStatic) { // the published page: the project lives in this browser
