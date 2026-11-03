@@ -438,6 +438,9 @@ func (k heldKey) Pressed(runner.Key) bool { return false }
 // ports collide): where do they first differ? A report, not a check — it
 // tells whether box collisions change play against the 2006 game.
 func TestPacmanioMasksVersusBoxes(t *testing.T) {
+	if os.Getenv("GAMEVIBER_REPORTS") == "" {
+		t.Skip("a report (several seconds): GAMEVIBER_REPORTS=1 to run it")
+	}
 	d, err := os.ReadFile("../../pacmanio/win/pacmanio.exe")
 	if err != nil {
 		t.Skip("Pacmanio's exe is not checked out next to this repo")
@@ -496,6 +499,75 @@ func TestPacmanioMasksVersusBoxes(t *testing.T) {
 		}
 		if same {
 			t.Logf("seed %d: identical over %d steps; the end: %.40s", seed, len(withMasks), withMasks[len(withMasks)-1])
+		}
+	}
+}
+
+// Stelo's levels 1–3, the same as TestPacmanioMasksVersusBoxes: a
+// pseudo-random walk (left, right, up = climb / jump, down), pixel masks
+// against boxes only. A report, not a check.
+func TestSteloMasksVersusBoxes(t *testing.T) {
+	if os.Getenv("GAMEVIBER_REPORTS") == "" {
+		t.Skip("a report (several seconds): GAMEVIBER_REPORTS=1 to run it")
+	}
+	d, err := os.ReadFile("../../stelo/win/stelo.exe")
+	if err != nil {
+		t.Skip("Stelo's exe is not checked out next to this repo")
+	}
+	run := func(masks bool, room string, seed int64) []string {
+		e, _ := gmfile.OpenExe(d)
+		p, err := e.ReadProject()
+		if err != nil {
+			t.Fatal(err)
+		}
+		g, err := FromProject(p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		g.Seed = seed
+		if !masks {
+			for _, o := range g.Objects {
+				o.Pixels = nil
+			}
+		}
+		pl, err := g.StartAt(room)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var trace []string
+		lcg, key, next := uint32(seed)*2654435761+1, runner.Key(39), 0
+		for step := range 2000 {
+			if step == next {
+				lcg = lcg*1664525 + 1013904223
+				key, next = runner.Key(37+lcg>>30), step+8+int(lcg>>8%17)
+			}
+			if err := pl.Step(heldKey(key)); err != nil {
+				t.Fatal(err)
+			}
+			s := fmt.Sprintf("%s score %d lives %d", pl.Room.Name, pl.Globals.Score, pl.Globals.Lives)
+			for _, c := range pl.Room.All("character") {
+				s += fmt.Sprintf(" player %.0f,%.0f", c.X, c.Y)
+			}
+			s += fmt.Sprintf(" instances %d", len(pl.Room.Instances))
+			trace = append(trace, s)
+		}
+		return trace
+	}
+	for _, room := range []string{"nivelo1", "nivelo2", "nivelo3"} {
+		for seed := int64(1); seed <= 2; seed++ {
+			a, b := run(true, room, seed), run(false, room, seed)
+			diff := -1
+			for i := range a {
+				if a[i] != b[i] {
+					diff = i
+					break
+				}
+			}
+			if diff >= 0 {
+				t.Logf("%s seed %d: first difference at step %d:\n masks: %s\n boxes: %s", room, seed, diff, a[diff], b[diff])
+			} else {
+				t.Logf("%s seed %d: identical over %d steps; the end: %s", room, seed, len(a), a[len(a)-1])
+			}
 		}
 	}
 }
