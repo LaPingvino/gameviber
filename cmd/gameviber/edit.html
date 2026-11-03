@@ -32,6 +32,9 @@ button.new { background: transparent; color: var(--ink); border: 1px solid var(-
 #object fieldset { border: 1px solid var(--line); border-radius: 6px; display: grid; grid-template-columns: auto 200px; gap: 8px 12px; align-items: center; max-width: 460px; }
 #object select, #object input[type=number] { font: inherit; background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 4px; padding: 2px 4px; }
 #object .events a { display: inline-block; margin: 4px 8px 0 0; color: var(--accent); }
+#soundview { display: none; padding: 16px; }
+#soundview.on { display: block; }
+#soundview audio { display: block; margin: 12px 0; width: min(420px, 100%); }
 #sprite { display: none; padding: 12px; overflow: auto; gap: 16px; }
 #sprite.on { display: flex; flex-wrap: wrap; align-items: flex-start; }
 #sprite canvas { image-rendering: pixelated; border: 1px solid var(--line); background: repeating-conic-gradient(#ccc 0 25%, #fff 0 50%) 0 0 / 16px 16px; }
@@ -43,7 +46,7 @@ footer pre { margin: 0; font: 12px/1.45 ui-monospace, monospace; white-space: pr
 .ok { color: var(--ok); } .bad { color: var(--bad); }
 </style></head>
 <body>
-<header><b>GameViber</b><span id="name"></span><span id="status"></span><span style="flex:1"></span><button id="reset" style="display:none;background:transparent;color:var(--muted);border:1px solid var(--line)">Reset to the starter game</button><button id="newobj" class="new">+ Object</button><button id="newevt" class="new">+ Event</button><button id="newroom" class="new">+ Room</button><button id="newspr" class="new">+ Sprite</button><button id="pause" class="new" style="display:none">⏸ Pause</button><button id="step" class="new" style="display:none" disabled>⏭ Step</button><button id="play">▶ Play</button></header>
+<header><b>GameViber</b><span id="name"></span><span id="status"></span><span style="flex:1"></span><button id="reset" style="display:none;background:transparent;color:var(--muted);border:1px solid var(--line)">Reset to the starter game</button><button id="newobj" class="new">+ Object</button><button id="newevt" class="new">+ Event</button><button id="newroom" class="new">+ Room</button><button id="newspr" class="new">+ Sprite</button><button id="newsnd" class="new">+ Sound</button><button id="pause" class="new" style="display:none">⏸ Pause</button><button id="step" class="new" style="display:none" disabled>⏭ Step</button><button id="play">▶ Play</button></header>
 <nav id="tree"></nav>
 <main>
   <div class="bar"><code id="path">pick a file on the left</code><button id="save" disabled>Save (Ctrl+S)</button></div>
@@ -68,6 +71,8 @@ footer pre { margin: 0; font: 12px/1.45 ui-monospace, monospace; white-space: pr
       <label>parent</label><select id="oparent"></select>
       <label>mask</label><select id="omask"></select>
     </fieldset><p class="events" id="oevents"></p></div>
+  <div id="soundview"><b id="sndname"></b><audio id="sndplay" controls></audio><p class="hint" id="sndnote"></p></div>
+  <input type="file" id="sndfile" accept=".wav,.ogg,.opus,.mp3,.mid,audio/*" style="display:none">
   <div id="room"><div id="palette"></div><div id="stage"><canvas id="canvas"></canvas>
     <p class="hint">Click: place the chosen object (on the 32 px grid; Shift: free) · right click: remove · <a href="#" id="astext">as text</a></p></div></div>
 </main>
@@ -109,8 +114,48 @@ async function load() {
       box.append(a);
     }
   }
+  if (r.sounds && r.sounds.length) { // the sounds: played here, not edited as text
+    const box = Object.assign(document.createElement("details"), { open: false });
+    box.append(Object.assign(document.createElement("summary"), { textContent: "sounds" }));
+    for (const f of r.sounds) {
+      const a = Object.assign(document.createElement("a"), { href: "#", textContent: f });
+      a.onclick = (e) => { e.preventDefault(); openSound(f, a); };
+      box.append(a);
+    }
+    tree.append(box);
+  }
   showCheck(await (await call("api/check")).json());
 }
+
+// --- sounds: listen, add ---
+async function openSound(f, a) {
+  if ((dirty() || roomDirty() || sprDirty() || objDirty()) && !window.confirm("Leave without saving?")) return;
+  current = null; room = null; spr = null; obj = null;
+  for (const id of ["room", "sprite", "object"]) $(id).classList.remove("on");
+  $("text").style.display = "none"; $("soundview").classList.add("on");
+  $("path").textContent = "sounds/" + f; $("save").disabled = true; $("status").textContent = "";
+  $("sndname").textContent = f;
+  const path = "api/sound?file=" + encodeURIComponent(f);
+  $("sndplay").src = window.gameviberStatic ? URL.createObjectURL(await (await call(path)).blob()) : path;
+  $("sndnote").textContent = f.toLowerCase().endsWith(".mid")
+    ? "MIDI music: the browser doesn't play it here — gameviber import writes an .opus beside it, which the game plays." : "";
+  document.querySelectorAll("nav a.on").forEach((x) => x.classList.remove("on")); a.classList.add("on");
+}
+let sndName = null;
+$("newsnd").onclick = () => {
+  sndName = (window.prompt("The sound's name (a–z, 0–9, _) — a new one, or one to replace:") || "").trim().toLowerCase();
+  if (sndName) $("sndfile").click();
+};
+$("sndfile").addEventListener("change", async () => {
+  const f = $("sndfile").files[0]; $("sndfile").value = "";
+  if (!f || !sndName) return;
+  const ext = (f.name.match(/\.[a-z0-9]+$/i) || [""])[0].toLowerCase();
+  const r = await call("api/sound?name=" + encodeURIComponent(sndName) + "&ext=" + encodeURIComponent(ext), { method: "POST", body: new Uint8Array(await f.arrayBuffer()) });
+  if (!r.ok) { $("check").className = "bad"; $("check").textContent = await r.text(); return; }
+  showCheck(await r.json()); await load();
+  const link = [...document.querySelectorAll("nav a")].find((x) => x.textContent === sndName + ext);
+  if (link) { link.parentElement.open = true; openSound(sndName + ext, link); }
+});
 // --- rooms (step E2): the grid ---
 let room = null, roomPath = null, chosen = null, roomSaved = "";
 const strips = {};
@@ -285,6 +330,7 @@ async function open(f, a, asText) {
   if ((dirty() || roomDirty() || sprDirty() || objDirty()) && !window.confirm("Leave without saving?")) return;
   spr = null; $("sprite").classList.remove("on");
   obj = null; $("object").classList.remove("on");
+  $("soundview").classList.remove("on"); $("sndplay").pause();
   const mo = f.match(/^(objects\/[^/]+)\/object\.toml$/);
   if (mo && !asText) return openObject(mo[1], a);
   const m = f.match(/^(rooms\/[^/]+)\/room\.toml$/);

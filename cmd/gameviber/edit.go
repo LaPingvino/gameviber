@@ -71,7 +71,14 @@ func editHandler(dir string) http.Handler {
 			return nil
 		})
 		sort.Strings(files)
-		writeJSON(w, map[string]any{"name": filepath.Base(dir), "files": files})
+		var sounds []string // the sounds (files, not text: shown, played, imported)
+		ents, _ := os.ReadDir(filepath.Join(dir, "sounds"))
+		for _, e := range ents {
+			if soundTypes[strings.ToLower(filepath.Ext(e.Name()))] != "" {
+				sounds = append(sounds, e.Name())
+			}
+		}
+		writeJSON(w, map[string]any{"name": filepath.Base(dir), "files": files, "sounds": sounds})
 	})
 	mux.HandleFunc("GET /api/file", func(w http.ResponseWriter, r *http.Request) {
 		p, ok := projectPath(dir, r.URL.Query().Get("path"))
@@ -120,6 +127,43 @@ func editHandler(dir string) http.Handler {
 	mux.HandleFunc("POST /api/new", rooms.newThing)
 	mux.HandleFunc("GET /api/object", rooms.object)
 	mux.HandleFunc("PUT /api/object", rooms.saveObject)
+	mux.HandleFunc("GET /api/sound", func(w http.ResponseWriter, r *http.Request) {
+		f := r.URL.Query().Get("file")
+		typ := soundTypes[strings.ToLower(filepath.Ext(f))]
+		if typ == "" || strings.ContainsAny(f, `/\`) {
+			http.Error(w, "no such sound", http.StatusBadRequest)
+			return
+		}
+		data, err := os.ReadFile(filepath.Join(dir, "sounds", f))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		w.Header().Set("Content-Type", typ)
+		w.Write(data)
+	})
+	// A sound added or replaced: sounds/<name><ext> (WAV, Ogg / Opus, MP3, MIDI).
+	mux.HandleFunc("POST /api/sound", func(w http.ResponseWriter, r *http.Request) {
+		name, ext := r.URL.Query().Get("name"), strings.ToLower(r.URL.Query().Get("ext"))
+		if name == "" || strings.Trim(name, "abcdefghijklmnopqrstuvwxyz0123456789_") != "" || soundTypes[ext] == "" {
+			http.Error(w, "a sound's name is a–z, 0–9, _; the file WAV, Ogg, Opus, MP3 or MIDI", http.StatusBadRequest)
+			return
+		}
+		data, err := io.ReadAll(io.LimitReader(r.Body, 32<<20))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if err := os.MkdirAll(filepath.Join(dir, "sounds"), 0o755); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if err := os.WriteFile(filepath.Join(dir, "sounds", name+ext), data, 0o644); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, checkReport(dir))
+	})
 	mux.HandleFunc("GET /api/check", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, checkReport(dir))
 	})
@@ -162,3 +206,6 @@ func writeJSON(w http.ResponseWriter, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(v)
 }
+
+// soundTypes are the sound files the editor shows, by extension.
+var soundTypes = map[string]string{".wav": "audio/wav", ".ogg": "audio/ogg", ".opus": "audio/ogg", ".mp3": "audio/mpeg", ".mid": "audio/midi"}

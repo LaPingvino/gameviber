@@ -284,3 +284,36 @@ func TestEditObject(t *testing.T) {
 		t.Errorf("after: %v", s)
 	}
 }
+
+// Sounds in the editor: one added (WAV), listed, served with its type; a bad
+// name or kind refused.
+func TestEditSound(t *testing.T) {
+	dir := t.TempDir() + "/game"
+	if err := cmdNew([]string{dir}); err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(editHandler(dir))
+	defer srv.Close()
+	wav := []byte("RIFF\x24\x00\x00\x00WAVEfmt ")
+	if r, err := http.Post(srv.URL+"/api/sound?name=coin_get&ext=.wav", "audio/wav", bytes.NewReader(wav)); err != nil || r.StatusCode != 200 {
+		t.Fatalf("add: %v", err)
+	}
+	r, _ := http.Get(srv.URL + "/api/files")
+	var files struct{ Sounds []string }
+	json.NewDecoder(r.Body).Decode(&files)
+	r.Body.Close()
+	if len(files.Sounds) != 1 || files.Sounds[0] != "coin_get.wav" {
+		t.Fatalf("sounds: %v", files.Sounds)
+	}
+	r, _ = http.Get(srv.URL + "/api/sound?file=coin_get.wav")
+	data, _ := io.ReadAll(r.Body)
+	r.Body.Close()
+	if r.Header.Get("Content-Type") != "audio/wav" || !bytes.Equal(data, wav) {
+		t.Errorf("served: %s, %d bytes", r.Header.Get("Content-Type"), len(data))
+	}
+	for _, q := range []string{"name=../x&ext=.wav", "name=x&ext=.exe"} {
+		if r, _ := http.Post(srv.URL+"/api/sound?"+q, "", bytes.NewReader(wav)); r.StatusCode != http.StatusBadRequest {
+			t.Errorf("%s: %d", q, r.StatusCode)
+		}
+	}
+}
