@@ -67,7 +67,7 @@ func usage() {
   gameviber import GAME.exe DIR     turn a GameMaker 5.3 game into a GameViber project in DIR
   gameviber check DIR               check a project: every .gml parses, every function called exists
                                     (file:line:col: message; exit 1 when there is anything)
-  gameviber run [-room R] GAME      play it in a window (arrow keys, space, enter)
+  gameviber run [-room R] GAME      play it in a window (arrow keys, space, enter; M sound, F11 full screen)
   gameviber web DIR OUT             a web page that plays the project DIR (OUT: index.html, game.wasm, project.tar)
                                     (PARTIAL: run it inside the GameViber source; it builds the wasm with go)
   gameviber play [flags] GAME       run a game headless (GAME: a GameMaker 5.3 .exe or a project folder)

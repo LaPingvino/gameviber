@@ -61,6 +61,21 @@ func audioAvailable() bool {
 	return false
 }
 
+// shortcuts are the player's own keys, not the game's (the export options in
+// LOOP.md): M sound on / off, F11 or Alt+Enter full screen. The game never
+// sees them (M is not among the keys handed to it).
+func (g *Game) shortcuts() {
+	if inpututil.IsKeyJustPressed(eb.KeyM) {
+		if s, ok := g.play.G.Sound.(*sounds); ok {
+			s.SetMuted(!s.muted)
+		}
+	}
+	alt := eb.IsKeyPressed(eb.KeyAlt)
+	if inpututil.IsKeyJustPressed(eb.KeyF11) || alt && inpututil.IsKeyJustPressed(eb.KeyEnter) {
+		eb.SetFullscreen(!eb.IsFullscreen())
+	}
+}
+
 // Game is a game in the window.
 type Game struct {
 	play    *load.Play
@@ -88,9 +103,11 @@ func (g *Game) Update() error {
 	if g.MaxFrames > 0 && g.frames >= g.MaxFrames || g.play.Ended {
 		return eb.Termination
 	}
+	g.shortcuts()
 	g.in.prev, g.in.held = g.in.held, map[runner.Key]bool{}
+	alt := eb.IsKeyPressed(eb.KeyAlt)
 	for k, e := range keys {
-		if eb.IsKeyPressed(e) {
+		if eb.IsKeyPressed(e) && !(alt && k == 13) { // Alt+Enter is full screen, not the game's Enter
 			g.in.held[k] = true
 		}
 	}
