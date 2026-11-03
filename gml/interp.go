@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"math/rand/v2"
 	"strconv"
 	"strings"
 )
@@ -69,6 +70,10 @@ type Interp struct {
 	// it means (for with and x.y).
 	Instances func(id float64) []Instance
 
+	// Seed seeds random() (the same seed replays the same run).
+	Seed int64
+
+	rng      *rand.Rand
 	locals   map[string]Value
 	globals  map[string]bool // globalvar names
 	returned Value
@@ -422,6 +427,9 @@ func (in *Interp) eval(e Expr) (Value, error) {
 		return in.field(e, nil)
 	case *Call:
 		fn := in.Funcs[e.Fn]
+		if fn == nil {
+			fn = Builtins[e.Fn]
+		}
 		if fn == nil {
 			return Value{}, rerr(e, "unknown function %s", e.Fn)
 		}
