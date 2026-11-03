@@ -571,3 +571,42 @@ func TestSteloMasksVersusBoxes(t *testing.T) {
 		}
 	}
 }
+
+// Persistent instances go along to the next room: Stelo's life_controller
+// (persistent, placed in nivelo1 only) is in nivelo2 after the level change,
+// the same instance, without a second create; the lives stay.
+func TestPersistentInstancesCarry(t *testing.T) {
+	d, err := os.ReadFile("../../stelo/win/stelo.exe")
+	if err != nil {
+		t.Skip("Stelo's exe is not checked out next to this repo")
+	}
+	e, _ := gmfile.OpenExe(d)
+	p, err := e.ReadProject()
+	if err != nil {
+		t.Fatal(err)
+	}
+	g, err := FromProject(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pl, err := g.StartAt("nivelo1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	lc := pl.Room.All("life_controller")
+	if len(lc) != 1 {
+		t.Fatalf("nivelo1 has %d life controllers", len(lc))
+	}
+	pl.Globals.Lives = 2
+	pl.Room.Goto = "nivelo2"
+	if err := pl.Step(noKeys{}); err != nil {
+		t.Fatal(err)
+	}
+	if pl.Room.Name != "nivelo2" {
+		t.Fatalf("in %s", pl.Room.Name)
+	}
+	got := pl.Room.All("life_controller")
+	if len(got) != 1 || got[0] != lc[0] || got[0].ID != lc[0].ID || pl.Globals.Lives != 2 {
+		t.Errorf("nivelo2: %d life controllers (same: %v), lives %d; errors %v", len(got), len(got) == 1 && got[0] == lc[0], pl.Globals.Lives, g.Errors)
+	}
+}

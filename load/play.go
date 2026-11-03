@@ -50,7 +50,7 @@ func (g *Game) Start() (*Play, error) {
 
 // enterGame enters the first room with the game start event.
 func (p *Play) enterGame(name string) error {
-	r, err := p.G.room(name, p.Globals, true)
+	r, err := p.G.room(name, p.Globals, true, nil)
 	if err != nil {
 		return err
 	}
@@ -59,8 +59,22 @@ func (p *Play) enterGame(name string) error {
 }
 
 func (p *Play) enter(name string) error {
+	var carry []*runner.Instance
 	if p.Room != nil {
 		p.Room.End()
+		// Persistent instances leave with the player (GM 5): out of this
+		// room, into the next.
+		kept := p.Room.Instances[:0]
+		for _, in := range p.Room.Instances {
+			switch {
+			case in.Destroyed:
+			case in.Obj.Persistent:
+				carry = append(carry, in)
+			default:
+				kept = append(kept, in)
+			}
+		}
+		p.Room.Instances = kept
 		if p.Room.Persistent {
 			if p.kept == nil {
 				p.kept = map[string]*runner.Room{}
@@ -71,11 +85,12 @@ func (p *Play) enter(name string) error {
 	if r, ok := p.kept[name]; ok {
 		delete(p.kept, name)
 		r.G, r.Goto = p.Globals, ""
+		r.Instances = append(carry, r.Instances...)
 		p.Room = r
 		r.Start()
 		return nil
 	}
-	r, err := p.G.Room(name, p.Globals)
+	r, err := p.G.room(name, p.Globals, false, carry)
 	if err != nil {
 		return err
 	}

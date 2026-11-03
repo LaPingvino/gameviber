@@ -22,6 +22,8 @@ func (a Box) Overlaps(b Box) bool { return a.L <= b.R && b.L <= a.R && a.T <= b.
 // Stelo sprite has its origin at 0, 0).
 type Object struct {
 	Name string
+	// Persistent instances go along to the next room (GM 5's persistent).
+	Persistent bool
 	// Index is the object's id (its place in Game.Objects; object_index).
 	Index int
 	// IDs are the game's resource ids (sprite_index reads through them).

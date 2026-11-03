@@ -52,7 +52,7 @@ func FromProject(p *gmfile.Project) (*Game, error) {
 			objs[i] = &runner.Object{Name: fmt.Sprintf("<deleted %d>", i)}
 			continue
 		}
-		ro := &runner.Object{Name: o.Name, Solid: o.Solid, Visible: o.Visible, Depth: int(o.Depth)}
+		ro := &runner.Object{Name: o.Name, Solid: o.Solid, Visible: o.Visible, Depth: int(o.Depth), Persistent: o.Persistent}
 		spr := o.Sprite
 		if o.Mask >= 0 {
 			spr = o.Mask
@@ -287,12 +287,17 @@ func (g *Game) event(ro *runner.Object, o *gmfile.GMObject, ev gmfile.Event) err
 // Room makes the project's room into a runner room with its instances
 // (each one's create event run, in placement order).
 func (g *Game) Room(name string, glob *runner.Globals) (*runner.Room, error) {
-	return g.room(name, glob, false)
+	return g.room(name, glob, false, nil)
 }
 
 // room makes a room; gameStart runs the game start event (the first room)
 // after the creation code, before the room start — GM 5's order.
-func (g *Game) room(name string, glob *runner.Globals, gameStart bool) (*runner.Room, error) {
+//
+// carry are the persistent instances coming from the room left: they are in
+// the new room before its own instances are made (ASSUMPTION [engine]: first
+// in the order, as the older instances), keep their state, run no create
+// event, and get the room start event with the rest.
+func (g *Game) room(name string, glob *runner.Globals, gameStart bool, carry []*runner.Instance) (*runner.Room, error) {
 	for _, r := range g.Project.Rooms {
 		if r == nil || r.Name != name {
 			continue
@@ -317,6 +322,7 @@ func (g *Game) room(name string, glob *runner.Globals, gameStart bool) (*runner.
 			rr.Backgrounds = append(rr.Backgrounds, runner.Background{Name: name, Visible: b.Visible, Foreground: b.Foreground,
 				X: float64(b.X), Y: float64(b.Y), HSpeed: float64(b.HSpeed), VSpeed: float64(b.VSpeed), TileH: b.TileH, TileV: b.TileV, Stretch: b.Stretch})
 		}
+		rr.Instances = append(rr.Instances, carry...)
 		// GM 5's order: each instance's create event, then its creation code;
 		// then the room's creation code; then every room start event.
 		for _, in := range r.Instances {
