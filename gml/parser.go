@@ -508,3 +508,83 @@ func Format(e Expr) string {
 	}
 	return "?"
 }
+
+// Calls lists every function call in the code (for checks and tools).
+func Calls(list []Stmt) []*Call {
+	var out []*Call
+	var expr func(e Expr)
+	expr = func(e Expr) {
+		switch e := e.(type) {
+		case *Call:
+			out = append(out, e)
+			for _, a := range e.Args {
+				expr(a)
+			}
+		case *Unary:
+			expr(e.X)
+		case *Binary:
+			expr(e.L)
+			expr(e.R)
+		case *Field:
+			expr(e.X)
+		case *Index:
+			expr(e.X)
+			for _, i := range e.I {
+				expr(i)
+			}
+		}
+	}
+	var stmt func(s Stmt)
+	stmt = func(s Stmt) {
+		switch s := s.(type) {
+		case *Block:
+			for _, x := range s.List {
+				stmt(x)
+			}
+		case *Assign:
+			expr(s.Target)
+			expr(s.Value)
+		case *ExprStmt:
+			expr(s.X)
+		case *If:
+			expr(s.Cond)
+			stmt(s.Then)
+			if s.Else != nil {
+				stmt(s.Else)
+			}
+		case *While:
+			expr(s.Cond)
+			stmt(s.Body)
+		case *Do:
+			stmt(s.Body)
+			expr(s.Until)
+		case *Repeat:
+			expr(s.Count)
+			stmt(s.Body)
+		case *For:
+			stmt(s.Init)
+			expr(s.Cond)
+			stmt(s.Step)
+			stmt(s.Body)
+		case *With:
+			expr(s.Target)
+			stmt(s.Body)
+		case *Switch:
+			expr(s.X)
+			for _, c := range s.Cases {
+				for _, v := range c.Values {
+					expr(v)
+				}
+				for _, x := range c.Body {
+					stmt(x)
+				}
+			}
+		case *Return:
+			expr(s.X)
+		}
+	}
+	for _, s := range list {
+		stmt(s)
+	}
+	return out
+}

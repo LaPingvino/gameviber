@@ -25,6 +25,9 @@ type Game struct {
 	// SpriteWidth gives a sprite's width (the loader's; life images).
 	SpriteWidth func(name string) int
 	draw        drawState
+	// HasNextRoom tells whether a room comes after the named one (the room
+	// order is the loader's); nil: assume one does.
+	HasNextRoom func(room string) bool
 	// Highscores is GM's ten-entry table, best first (Clear fills it).
 	Highscores [10]Highscore
 	// AskString answers get_string (the input backend's); nil: the default.
@@ -104,6 +107,21 @@ func (g *Game) index() {
 	for i, o := range g.Objects {
 		g.byName[o.Name] = i
 	}
+}
+
+// KnownFuncs are the names code can call: GM 5's functions GameViber has
+// (the runner's, the actions, the drawing, the built-ins) and the scripts.
+func (g *Game) KnownFuncs() map[string]bool {
+	out := map[string]bool{}
+	for _, m := range []map[string]gml.Func{g.runnerFuncs(), g.actionFuncs(), g.drawFuncs(), gml.Builtins, g.Funcs} {
+		for k := range m {
+			out[k] = true
+		}
+	}
+	for k := range g.scripts {
+		out[k] = true
+	}
+	return out
 }
 
 // Script adds a script: callable by name (name(args…)) and by
@@ -324,7 +342,10 @@ func (g *Game) runnerFuncs() map[string]gml.Func {
 		"screen_refresh": func(*gml.Interp, []gml.Value) (gml.Value, error) { return gml.RealV(0), nil },
 		// keyboard_wait waits for a key in GM 5; headless, it goes on at once
 		// (PARTIAL: the input backend will wait).
-		"keyboard_wait": func(*gml.Interp, []gml.Value) (gml.Value, error) { return gml.RealV(0), nil },
+		// The window and the message loop are the backend's: nothing to do here.
+		"set_graphics_mode": func(*gml.Interp, []gml.Value) (gml.Value, error) { return gml.RealV(0), nil },
+		"io_handle":         func(*gml.Interp, []gml.Value) (gml.Value, error) { return gml.RealV(0), nil },
+		"keyboard_wait":     func(*gml.Interp, []gml.Value) (gml.Value, error) { return gml.RealV(0), nil },
 		"show_error": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (message, abort)
 			msg := ""
 			if len(a) > 0 {

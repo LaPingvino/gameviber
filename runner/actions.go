@@ -298,6 +298,12 @@ func (g *Game) actionFuncs() map[string]gml.Func {
 			g.room.Goto = "@restart"
 			return ok, nil
 		},
+		"action_if_next_room": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // a next room exists
+			return boolV(g.HasNextRoom == nil || g.HasNextRoom(g.room.Name)), nil
+		},
+		"action_set_caption": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (score, scorecaption, lives, livescaption, health, healthcaption): the window caption's
+			return ok, nil // PARTIAL: the window caption is the backend's
+		},
 		"action_next_room": func(in *gml.Interp, a []gml.Value) (gml.Value, error) {
 			g.room.Goto = "@next"
 			return ok, nil

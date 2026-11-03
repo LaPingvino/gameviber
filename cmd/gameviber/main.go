@@ -12,9 +12,11 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/LaPingvino/gameviber/gml"
 	"image"
 	"image/png"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -34,10 +36,12 @@ func main() {
 		err = cmdImport(os.Args[2:])
 	case "play":
 		err = cmdPlay(os.Args[2:])
+	case "check":
+		err = cmdCheck(os.Args[2:])
 	case "help", "-h", "--help":
 		usage()
 	default:
-		err = fmt.Errorf("unknown command %q (import, play)", os.Args[1])
+		err = fmt.Errorf("unknown command %q (import, play, check)", os.Args[1])
 	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "gameviber:", err)
@@ -49,6 +53,8 @@ func usage() {
 	fmt.Fprint(os.Stderr, `gameviber — a GameMaker-style engine and toolset
 
   gameviber import GAME.exe DIR     turn a GameMaker 5.3 game into a GameViber project in DIR
+  gameviber check DIR               check a project: every .gml parses, every function called exists
+                                    (file:line:col: message; exit 1 when there is anything)
   gameviber play [flags] GAME       run a game headless (GAME: a GameMaker 5.3 .exe or a project folder)
       -room NAME      start in this room (default: the first in the room order)
       -steps N        steps to run (default 300)
@@ -244,6 +250,66 @@ func cmdPlay(args []string) error {
 	fmt.Printf("rooms: %s\nscore %d, lives %d\n", strings.Join(rooms, " → "), pl.Globals.Score, pl.Globals.Lives)
 	for _, e := range errs {
 		fmt.Println("error:", e)
+	}
+	return nil
+}
+
+func cmdCheck(args []string) error {
+	if len(args) != 1 {
+		return fmt.Errorf("usage: gameviber check DIR")
+	}
+	dir := args[0]
+	// First every file on its own (syntax, with its path), then the calls
+	// against what the loaded project knows.
+	type parsed struct {
+		path string
+		list []gml.Stmt
+	}
+	var ok []parsed
+	problems, files := 0, 0
+	walkErr := filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
+		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".gml") {
+			return err
+		}
+		files++
+		src, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		list, err := gml.Parse(string(src))
+		if err != nil {
+			fmt.Printf("%s:%v\n", path, err)
+			problems++
+			return nil
+		}
+		ok = append(ok, parsed{path, list})
+		return nil
+	})
+	if walkErr != nil {
+		return walkErr
+	}
+	if problems == 0 {
+		p, err := gmfile.ReadDir(dir)
+		if err != nil {
+			return err
+		}
+		g, err := load.FromProject(p)
+		if err != nil {
+			return err
+		}
+		known := g.KnownFuncs()
+		for _, f := range ok {
+			for _, c := range gml.Calls(f.list) {
+				if !known[c.Fn] {
+					fmt.Printf("%s:%s: %s is not a function GameViber knows (nor a script of this project)\n", f.path, c.P, c.Fn)
+					problems++
+				}
+			}
+		}
+	}
+	fmt.Printf("%d .gml files, %d problems\n", files, problems)
+	if problems > 0 {
+		os.Exit(1)
 	}
 	return nil
 }

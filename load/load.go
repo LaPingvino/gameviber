@@ -24,6 +24,14 @@ type Game struct {
 func FromProject(p *gmfile.Project) (*Game, error) {
 	g := &Game{Game: &runner.Game{}, Project: p}
 	g.ClearHighscores()
+	g.HasNextRoom = func(room string) bool {
+		for i, id := range p.RoomOrder {
+			if int(id) < len(p.Rooms) && p.Rooms[id] != nil && p.Rooms[id].Name == room {
+				return i+1 < len(p.RoomOrder)
+			}
+		}
+		return false
+	}
 	g.SpriteWidth = func(name string) int {
 		for _, s := range p.Sprites {
 			if s != nil && s.Name == name {
