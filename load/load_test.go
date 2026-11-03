@@ -2,6 +2,7 @@ package load
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"sort"
 	"strings"
@@ -422,6 +423,79 @@ func TestPreciseMasksLoaded(t *testing.T) {
 		t.Logf("%s: %d objects with pixel masks: %v", exe, len(with), with)
 		if len(with) == 0 {
 			t.Errorf("%s: no object has a pixel mask", exe)
+		}
+	}
+}
+
+// heldKey holds one key.
+type heldKey runner.Key
+
+func (k heldKey) Held(c runner.Key) bool  { return runner.Key(k) == c }
+func (k heldKey) Pressed(runner.Key) bool { return false }
+
+// Pacmanio's first level with its ghosts, the same seed and keys, once with
+// the precise sprites' pixel masks and once with boxes only (as the hand
+// ports collide): where do they first differ? A report, not a check — it
+// tells whether box collisions change play against the 2006 game.
+func TestPacmanioMasksVersusBoxes(t *testing.T) {
+	d, err := os.ReadFile("../../pacmanio/win/pacmanio.exe")
+	if err != nil {
+		t.Skip("Pacmanio's exe is not checked out next to this repo")
+	}
+	run := func(masks bool, seed int64) []string {
+		e, _ := gmfile.OpenExe(d)
+		p, err := e.ReadProject()
+		if err != nil {
+			t.Fatal(err)
+		}
+		g, err := FromProject(p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		g.Seed = seed
+		if !masks {
+			for _, o := range g.Objects {
+				o.Pixels = nil
+			}
+		}
+		r, err := g.Room("pu_1a_nivelo", &runner.Globals{Lives: 30, Vars: map[string]float64{"murigxu": 2}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		var trace []string
+		// a fixed pseudo-random walk: a new arrow every 12–20 steps
+		lcg, key, next := uint32(seed)*2654435761+1, runner.Key(39), 0
+		for step := range 3000 {
+			if step == next {
+				lcg = lcg*1664525 + 1013904223
+				key, next = runner.Key(37+lcg>>30), step+12+int(lcg>>8%9)
+			}
+			r.Step(heldKey(key))
+			r.NoMoreLivesDue()
+			pac := r.All("pacman")
+			s := fmt.Sprintf("score %d lives %d dots %d", r.G.Score, r.G.Lives, len(r.All("point")))
+			if len(pac) > 0 {
+				s += fmt.Sprintf(" pacman %.0f,%.0f", pac[0].X, pac[0].Y)
+			}
+			for _, m := range r.All("monster") {
+				s += fmt.Sprintf(" %s %.0f,%.0f", m.Obj.Name, m.X, m.Y)
+			}
+			trace = append(trace, s)
+		}
+		return trace
+	}
+	for seed := int64(1); seed <= 4; seed++ { // 8 seeds checked 2026-11-03: all identical
+		withMasks, withBoxes := run(true, seed), run(false, seed)
+		same := true
+		for i := range withMasks {
+			if withMasks[i] != withBoxes[i] {
+				t.Logf("seed %d: first difference at step %d:\n masks: %.120s\n boxes: %.120s", seed, i, withMasks[i], withBoxes[i])
+				same = false
+				break
+			}
+		}
+		if same {
+			t.Logf("seed %d: identical over %d steps; the end: %.40s", seed, len(withMasks), withMasks[len(withMasks)-1])
 		}
 	}
 }
