@@ -286,7 +286,7 @@ func (g *Game) actionFuncs() map[string]gml.Func {
 		// rooms
 		"action_another_room": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (room, transition)
 			if len(a) > 0 {
-				g.room.Goto = a[0].String()
+				g.room.Goto = g.RoomName(a[0])
 			}
 			return ok, nil
 		},

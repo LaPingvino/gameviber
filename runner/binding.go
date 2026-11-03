@@ -179,6 +179,8 @@ type GlobalVars struct {
 	str map[string]string
 	// Room is the current room (its background_* arrays).
 	Room *Room
+	// roomValue is how `room` reads (the game's ids).
+	roomValue func(name string) gml.Value
 }
 
 // background reads or writes background_<field>[i] of the current room.
@@ -244,7 +246,10 @@ func (gv *GlobalVars) Get(name string, idx []int) (gml.Value, bool) {
 	if v, ok := gv.view(name, idx, nil); ok {
 		return v, true
 	}
-	if idx == nil && name == "room" && gv.Room != nil { // PARTIAL: rooms by name until ids (room == bonusnivelo works)
+	if idx == nil && name == "room" && gv.Room != nil { // its id (a number), as in GM 5
+		if gv.roomValue != nil {
+			return gv.roomValue(gv.Room.Name), true
+		}
 		return gml.StrV(gv.Room.Name), true
 	}
 	if idx == nil && name == "room_caption" && gv.Room != nil {

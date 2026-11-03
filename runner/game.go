@@ -34,6 +34,9 @@ type Game struct {
 	HasNextRoom func(room string) bool
 	// RoomOrder is the rooms in the game's order (room_next / room_previous).
 	RoomOrder []string
+	// RoomIDs are the rooms' GM ids (their index in the project) by name:
+	// a room's name in code is its id, as in GM 5; room is a number.
+	RoomIDs map[string]int
 	// Highscores is GM's ten-entry table, best first (Clear fills it).
 	Highscores [10]Highscore
 	// AskString answers get_string (the input backend's); nil: the default.
@@ -228,6 +231,9 @@ func (g *Game) interp(r *Room) *gml.Interp {
 			if _, ok := g.scripts[name]; ok { // a script named as a value (action arguments)
 				return gml.StrV(name), true
 			}
+			if id, ok := g.RoomIDs[name]; ok {
+				return gml.RealV(float64(id)), true
+			}
 			if g.Resources[name] {
 				return gml.StrV(name), true
 			}
@@ -261,6 +267,7 @@ func (g *Game) interp(r *Room) *gml.Interp {
 		}
 	}
 	gv.Room = r
+	gv.roomValue = g.RoomValue
 	g.in.Global = gv
 	return g.in
 }
@@ -466,9 +473,9 @@ func (g *Game) coreFuncs() map[string]gml.Func {
 		"cd_init":    func(*gml.Interp, []gml.Value) (gml.Value, error) { return gml.RealV(0), nil },
 		"cd_play":    func(*gml.Interp, []gml.Value) (gml.Value, error) { return gml.RealV(0), nil },
 		"cd_stop":    func(*gml.Interp, []gml.Value) (gml.Value, error) { return gml.RealV(0), nil },
-		"room_goto": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (room): by name (PARTIAL: names until ids)
+		"room_goto": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (room)
 			if len(a) > 0 {
-				g.room.Goto = a[0].String()
+				g.room.Goto = g.RoomName(a[0])
 			}
 			return gml.RealV(0), nil
 		},
@@ -498,7 +505,7 @@ func (g *Game) coreFuncs() map[string]gml.Func {
 			}
 			return b(g.room.In.Held(Key(k))), nil
 		},
-		"room_next": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (room): the one after it, -1 if none (PARTIAL: rooms by name until ids)
+		"room_next": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (room): the one after it, -1 if none
 			return g.roomStep(a, 1), nil
 		},
 		"room_previous": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (room): the one before it, -1 if none
@@ -584,11 +591,33 @@ func (g *Game) roomStep(a []gml.Value, d int) gml.Value {
 	if len(a) == 0 {
 		return gml.RealV(-1)
 	}
-	name := a[0].String()
+	name := g.RoomName(a[0])
 	for i, r := range g.RoomOrder {
 		if r == name && i+d >= 0 && i+d < len(g.RoomOrder) {
-			return gml.StrV(g.RoomOrder[i+d])
+			return g.RoomValue(g.RoomOrder[i+d])
 		}
 	}
 	return gml.RealV(-1)
+}
+
+// RoomName is the room a value names: its id (a number) or, from older
+// projects and actions, its name.
+func (g *Game) RoomName(v gml.Value) string {
+	if v.IsStr {
+		return v.S
+	}
+	for name, id := range g.RoomIDs {
+		if id == int(v.N) {
+			return name
+		}
+	}
+	return v.String()
+}
+
+// RoomValue is a room as code sees it: its id, or its name when it has none.
+func (g *Game) RoomValue(name string) gml.Value {
+	if id, ok := g.RoomIDs[name]; ok {
+		return gml.RealV(float64(id))
+	}
+	return gml.StrV(name)
 }

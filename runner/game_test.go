@@ -246,8 +246,8 @@ none = keyboard_check_direct(vk_nokey); m = median(5, 1, 3, 9); if (left) room_r
 // room_next / room_previous follow the game's room order; -1 at the ends.
 func TestRoomNextPrevious(t *testing.T) {
 	o := &Object{Name: "o"}
-	g := &Game{Objects: []*Object{o}, RoomOrder: []string{"title", "level1", "level2"}, Resources: map[string]bool{"title": true, "level1": true, "level2": true}}
-	h, err := g.Code(`n = room_next(level1); p = room_previous(level1); e = room_next(level2); s = room_previous(title); same = (room_next(title) = level1)`)
+	g := &Game{Objects: []*Object{o}, RoomOrder: []string{"title", "level1", "level2"}, RoomIDs: map[string]int{"level2": 0, "title": 1, "level1": 2}}
+	h, err := g.Code(`n = room_next(level1); p = room_previous(level1); e = room_next(level2); s = room_previous(title); same = (room_next(title) = level1); here = room; go = (room = level1)`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -257,7 +257,8 @@ func TestRoomNextPrevious(t *testing.T) {
 	if len(g.Errors) > 0 {
 		t.Fatal(g.Errors)
 	}
-	if in.VarsStr["n"] != "level2" || in.VarsStr["p"] != "title" || in.Vars["e"] != -1 || in.Vars["s"] != -1 || in.Vars["same"] != 1 {
+	// ids are the project's indices (not the order): level2 0, title 1, level1 2
+	if in.Vars["n"] != 0 || in.Vars["p"] != 1 || in.Vars["e"] != -1 || in.Vars["s"] != -1 || in.Vars["same"] != 1 || in.Vars["here"] != 2 || in.Vars["go"] != 1 {
 		t.Errorf("vars %v, strings %v", in.Vars, in.VarsStr)
 	}
 }
