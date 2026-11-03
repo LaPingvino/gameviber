@@ -25,10 +25,24 @@ type Font struct {
 	Bold   bool
 }
 
-// drawState is GM 5's drawing state, kept across events like GM's.
+// drawState is GM 5's drawing state, kept across events like GM's: the
+// font's name / size / bold here; brush_color, pen_color and font_color are
+// game-wide variables code sets too (they live in the globals).
 type drawState struct {
-	brush, pen int32
-	font       Font
+	font Font
+}
+
+func (g *Game) colour(name string) int32 { return int32(g.room.G.Vars[name]) }
+
+func (g *Game) font() Font {
+	f := g.draw.font
+	if f.Name == "" {
+		f = Font{Name: "Arial", Size: 10}
+	}
+	if c, ok := g.room.G.Vars["font_color"]; ok {
+		f.Colour = int32(c)
+	}
+	return f
 }
 
 // parseFont reads GM 5's font string: "name",size,colour,bold,italic,…
@@ -71,16 +85,17 @@ func (g *Game) drawFuncs() map[string]gml.Func {
 	d := func() Drawer { return g.Drawer }
 	return map[string]gml.Func{
 		"action_color": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (brush[, pen])
-			g.draw.brush = int32(num(a, 0))
-			g.draw.pen = g.draw.brush
+			g.room.G.Vars["brush_color"] = num(a, 0)
+			g.room.G.Vars["pen_color"] = num(a, 0)
 			if len(a) > 1 {
-				g.draw.pen = int32(num(a, 1))
+				g.room.G.Vars["pen_color"] = num(a, 1)
 			}
 			return ok, nil
 		},
 		"action_draw_font": func(in *gml.Interp, a []gml.Value) (gml.Value, error) {
 			if len(a) > 0 {
 				g.draw.font = parseFont(a[0].String())
+				g.room.G.Vars["font_color"] = float64(g.draw.font.Colour)
 			}
 			return ok, nil
 		},
@@ -90,7 +105,7 @@ func (g *Game) drawFuncs() map[string]gml.Func {
 			}
 			x1, y1 := at(a, 0, 4)
 			x2, y2 := at(a, 2, 4)
-			d().Rect(x1, y1, x2, y2, g.draw.brush, g.draw.pen, true)
+			d().Rect(x1, y1, x2, y2, g.colour("brush_color"), g.colour("pen_color"), true)
 			return ok, nil
 		},
 		"action_draw_text": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (text, x, y, rel)
@@ -98,7 +113,7 @@ func (g *Game) drawFuncs() map[string]gml.Func {
 				return ok, nil
 			}
 			x, y := at(a, 1, 3)
-			d().Text(x, y, a[0].String(), g.draw.font)
+			d().Text(x, y, a[0].String(), g.font())
 			return ok, nil
 		},
 		"action_draw_score": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (x, y, caption, rel)
@@ -110,7 +125,7 @@ func (g *Game) drawFuncs() map[string]gml.Func {
 			if len(a) > 2 {
 				caption = a[2].String()
 			}
-			d().Text(x, y, caption+strconv.Itoa(g.room.G.Score), g.draw.font)
+			d().Text(x, y, caption+strconv.Itoa(g.room.G.Score), g.font())
 			return ok, nil
 		},
 		"action_draw_life": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (x, y, caption, rel)
@@ -122,7 +137,7 @@ func (g *Game) drawFuncs() map[string]gml.Func {
 			if len(a) > 2 {
 				caption = a[2].String()
 			}
-			d().Text(x, y, caption+strconv.Itoa(g.room.G.Lives), g.draw.font)
+			d().Text(x, y, caption+strconv.Itoa(g.room.G.Lives), g.font())
 			return ok, nil
 		},
 		"action_draw_life_images": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (x, y, sprite, rel)
@@ -150,13 +165,13 @@ func (g *Game) drawFuncs() map[string]gml.Func {
 		},
 		"draw_text": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (x, y, string)
 			if d() != nil && len(a) > 2 {
-				d().Text(num(a, 0), num(a, 1), a[2].String(), g.draw.font)
+				d().Text(num(a, 0), num(a, 1), a[2].String(), g.font())
 			}
 			return ok, nil
 		},
 		"draw_rectangle": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (x1, y1, x2, y2): GM 5 fills with the brush, outlines with the pen
 			if d() != nil {
-				d().Rect(num(a, 0), num(a, 1), num(a, 2), num(a, 3), g.draw.brush, g.draw.pen, true)
+				d().Rect(num(a, 0), num(a, 1), num(a, 2), num(a, 3), g.colour("brush_color"), g.colour("pen_color"), true)
 			}
 			return ok, nil
 		},
