@@ -23,6 +23,7 @@ type Game struct {
 // FromProject builds the runner's objects from the project's.
 func FromProject(p *gmfile.Project) (*Game, error) {
 	g := &Game{Game: &runner.Game{}, Project: p}
+	g.ClearHighscores()
 	objs := make([]*runner.Object, len(p.Objects))
 	for i, o := range p.Objects {
 		if o == nil {

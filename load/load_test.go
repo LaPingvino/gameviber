@@ -68,3 +68,42 @@ func TestRunPacmanioLevel(t *testing.T) {
 	}
 	t.Logf("%d of %d ghosts moved", moved, len(ghosts))
 }
+
+// Pacmanio from its first room: with no input, komenco's timer sends it to
+// fino (the highscores) after 450 steps — the room change, the room end /
+// start and the globals across rooms.
+func TestPlayPacmanioFromStart(t *testing.T) {
+	d, err := os.ReadFile("../../pacmanio/win/pacmanio.exe")
+	if err != nil {
+		t.Skip("Pacmanio's exe is not checked out next to this repo")
+	}
+	e, err := gmfile.OpenExe(d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := e.ReadProject()
+	if err != nil {
+		t.Fatal(err)
+	}
+	g, err := FromProject(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pl, err := g.Start()
+	if err != nil {
+		t.Fatal(err)
+	}
+	rooms := []string{pl.Room.Name}
+	for range 600 {
+		if err := pl.Step(noKeys{}); err != nil {
+			t.Fatal(err)
+		}
+		if n := pl.Room.Name; n != rooms[len(rooms)-1] {
+			rooms = append(rooms, n)
+		}
+	}
+	t.Logf("rooms: %v; lives %d; errors %v", rooms, pl.Globals.Lives, g.Errors)
+	if len(rooms) < 2 || rooms[0] != "komenco" || rooms[1] != "fino" {
+		t.Errorf("rooms %v, want komenco then fino", rooms)
+	}
+}

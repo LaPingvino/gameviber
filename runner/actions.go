@@ -242,6 +242,20 @@ func (g *Game) actionFuncs() map[string]gml.Func {
 			return boolV((h <= 0 || int(s.X)%h == 0) && (v <= 0 || int(s.Y)%v == 0)), nil
 		},
 		// rooms
+		"action_another_room": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (room, transition)
+			if len(a) > 0 {
+				g.room.Goto = a[0].String()
+			}
+			return ok, nil
+		},
+		"action_previous_room": func(in *gml.Interp, a []gml.Value) (gml.Value, error) {
+			g.room.Goto = "@previous"
+			return ok, nil
+		},
+		"action_restart_game": func(in *gml.Interp, a []gml.Value) (gml.Value, error) {
+			g.room.Goto = "@restart"
+			return ok, nil
+		},
 		"action_next_room": func(in *gml.Interp, a []gml.Value) (gml.Value, error) {
 			g.room.Goto = "@next"
 			return ok, nil

@@ -186,8 +186,15 @@ func (gv *GlobalVars) Get(name string, idx []int) (gml.Value, bool) {
 	if v, ok := gv.G.Vars[k]; ok {
 		return gml.RealV(v), true
 	}
+	if idx == nil && inputDefaults[name] { // the input backend sets them; until then: nothing pressed
+		return gml.RealV(0), true
+	}
 	return gml.Value{}, false
 }
+
+// inputDefaults are GM's input variables, 0 until an input backend sets them.
+var inputDefaults = map[string]bool{"mouse_button": true, "mouse_x": true, "mouse_y": true,
+	"keyboard_key": true, "keyboard_lastkey": true}
 
 // Set writes a global variable (lives through AddLives, so "no more lives"
 // is noticed).

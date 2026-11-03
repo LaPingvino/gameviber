@@ -20,6 +20,10 @@ type Game struct {
 	// "ignore" did; the first ones are kept).
 	Errors []error
 
+	// Highscores is GM's ten-entry table, best first (Clear fills it).
+	Highscores [10]Highscore
+	// AskString answers get_string (the input backend's); nil: the default.
+	AskString func(question, def string) string
 	// Constants are the game's own constants (its global settings).
 	Constants map[string]gml.Value
 	// Sound plays the game's sounds (the backend's); nil: silent.
@@ -35,6 +39,32 @@ type Game struct {
 	globals map[*Globals]*GlobalVars
 	in      *gml.Interp
 	room    *Room
+}
+
+// Highscore is one entry of the table.
+type Highscore struct {
+	Name  string
+	Score int
+}
+
+// ClearHighscores is highscore_clear: ten "<nobody>" with 0.
+func (g *Game) ClearHighscores() {
+	for i := range g.Highscores {
+		g.Highscores[i] = Highscore{"<nobody>", 0}
+	}
+}
+
+// AddHighscore is highscore_add: inserted in order if it beats the last.
+func (g *Game) AddHighscore(name string, score int) {
+	i := len(g.Highscores)
+	for i > 0 && score > g.Highscores[i-1].Score {
+		i--
+	}
+	if i == len(g.Highscores) {
+		return
+	}
+	copy(g.Highscores[i+1:], g.Highscores[i:len(g.Highscores)-1])
+	g.Highscores[i] = Highscore{name, score}
 }
 
 // Sound is what the runner asks of the audio backend.
@@ -279,6 +309,51 @@ func (g *Game) runnerFuncs() map[string]gml.Func {
 		"sound_isplaying": func(in *gml.Interp, a []gml.Value) (gml.Value, error) {
 			return b(g.Sound != nil && len(a) > 0 && g.Sound.Playing(g.soundName(a[0]))), nil
 		},
+		"highscore_clear": func(in *gml.Interp, a []gml.Value) (gml.Value, error) {
+			g.ClearHighscores()
+			return gml.RealV(0), nil
+		},
+		"highscore_add": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (name, score)
+			if len(a) < 2 {
+				return gml.Value{}, fmt.Errorf("needs name, score")
+			}
+			g.AddHighscore(a[0].String(), int(a[1].N))
+			return gml.RealV(0), nil
+		},
+		"highscore_value": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (place, 1–10)
+			if len(a) == 0 {
+				return gml.RealV(0), nil
+			}
+			if i := int(a[0].N) - 1; i >= 0 && i < len(g.Highscores) {
+				return gml.RealV(float64(g.Highscores[i].Score)), nil
+			}
+			return gml.RealV(0), nil
+		},
+		"highscore_name": func(in *gml.Interp, a []gml.Value) (gml.Value, error) {
+			if len(a) == 0 {
+				return gml.RealV(0), nil
+			}
+			if i := int(a[0].N) - 1; i >= 0 && i < len(g.Highscores) {
+				return gml.StrV(g.Highscores[i].Name), nil
+			}
+			return gml.StrV(""), nil
+		},
+		"draw_highscore": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // drawing comes with the draw events
+			return gml.RealV(0), nil
+		},
+		"get_string": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (question, default)
+			q, def := "", ""
+			if len(a) > 0 {
+				q = a[0].String()
+			}
+			if len(a) > 1 {
+				def = a[1].String()
+			}
+			if g.AskString != nil {
+				return gml.StrV(g.AskString(q, def)), nil
+			}
+			return gml.StrV(def), nil
+		},
 		// GM 5's CD functions: GameViber has no CD drive, so they answer as a
 		// machine without one (no CD present, no tracks; play does nothing) —
 		// the games then take their own music, as they did in 2006 then.
@@ -289,6 +364,24 @@ func (g *Game) runnerFuncs() map[string]gml.Func {
 		"cd_init":    func(*gml.Interp, []gml.Value) (gml.Value, error) { return gml.RealV(0), nil },
 		"cd_play":    func(*gml.Interp, []gml.Value) (gml.Value, error) { return gml.RealV(0), nil },
 		"cd_stop":    func(*gml.Interp, []gml.Value) (gml.Value, error) { return gml.RealV(0), nil },
+		"room_goto": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (room): by name (PARTIAL: names until ids)
+			if len(a) > 0 {
+				g.room.Goto = a[0].String()
+			}
+			return gml.RealV(0), nil
+		},
+		"room_goto_previous": func(in *gml.Interp, a []gml.Value) (gml.Value, error) {
+			g.room.Goto = "@previous"
+			return gml.RealV(0), nil
+		},
+		"game_restart": func(in *gml.Interp, a []gml.Value) (gml.Value, error) {
+			g.room.Goto = "@restart"
+			return gml.RealV(0), nil
+		},
+		"game_end": func(in *gml.Interp, a []gml.Value) (gml.Value, error) {
+			g.room.Goto = "@end"
+			return gml.RealV(0), nil
+		},
 		"room_goto_next": func(in *gml.Interp, a []gml.Value) (gml.Value, error) {
 			g.room.Goto = "@next"
 			return gml.RealV(0), nil
