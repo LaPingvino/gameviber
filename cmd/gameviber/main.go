@@ -31,7 +31,7 @@ import (
 	"github.com/LaPingvino/gameviber/runner"
 )
 
-func main() {
+func cliMain() {
 	if len(os.Args) < 2 {
 		usage()
 	}
@@ -45,6 +45,8 @@ func main() {
 		err = cmdCheck(os.Args[2:])
 	case "edit":
 		err = cmdEdit(os.Args[2:])
+	case "editor-web":
+		err = cmdEditorWeb(os.Args[2:])
 	case "run":
 		err = cmdRun(os.Args[2:])
 	case "web":

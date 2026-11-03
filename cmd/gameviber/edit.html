@@ -37,7 +37,7 @@ footer pre { margin: 0; font: 12px/1.45 ui-monospace, monospace; white-space: pr
 .ok { color: var(--ok); } .bad { color: var(--bad); }
 </style></head>
 <body>
-<header><b>GameViber</b><span id="name"></span><span id="status"></span><span style="flex:1"></span><button id="play">▶ Play</button></header>
+<header><b>GameViber</b><span id="name"></span><span id="status"></span><span style="flex:1"></span><button id="reset" style="display:none;background:transparent;color:var(--muted);border:1px solid var(--line)">Reset to the starter game</button><button id="play">▶ Play</button></header>
 <nav id="tree"></nav>
 <main>
   <div class="bar"><code id="path">pick a file on the left</code><button id="save" disabled>Save (Ctrl+S)</button></div>
@@ -56,6 +56,15 @@ footer pre { margin: 0; font: 12px/1.45 ui-monospace, monospace; white-space: pr
 <footer><pre id="check">…</pre></footer>
 <script>
 const $ = (id) => document.getElementById(id);
+// The editor's requests: to the local server (gameviber edit), or — on the
+// published page, where there is none — to the editor running in the page
+// (gameviberAPI, the same Go code as WebAssembly).
+async function call(path, opts = {}) {
+  if (!window.gameviberStatic) return fetch(path, opts);
+  await window.gameviberWait;
+  const r = await window.gameviberAPI(opts.method || "GET", path, opts.body);
+  return new Response(r.body, { status: r.status, headers: { "Content-Type": r.type || "text/plain" } });
+}
 let current = null, saved = "";
 function showCheck(c) {
   $("check").className = c.problems ? "bad" : "ok";
@@ -64,7 +73,7 @@ function showCheck(c) {
 function dirty() { return current && $("text").value !== saved; }
 function mark() { $("save").disabled = !dirty(); $("status").textContent = dirty() ? "· unsaved" : ""; }
 async function load() {
-  const r = await (await fetch("api/files")).json();
+  const r = await (await call("api/files")).json();
   $("name").textContent = r.name;
   const groups = {};
   for (const f of r.files) {
@@ -82,13 +91,18 @@ async function load() {
       box.append(a);
     }
   }
-  showCheck(await (await fetch("api/check")).json());
+  showCheck(await (await call("api/check")).json());
 }
 // --- rooms (step E2): the grid ---
 let room = null, roomPath = null, chosen = null, roomSaved = "";
 const strips = {};
 function strip(name) {
-  if (!strips[name]) { strips[name] = new Image(); strips[name].src = "api/strip?sprite=" + encodeURIComponent(name); strips[name].onload = drawRoom; }
+  if (!strips[name]) {
+    strips[name] = new Image(); strips[name].onload = drawRoom;
+    const path = "api/strip?sprite=" + encodeURIComponent(name);
+    if (!window.gameviberStatic) strips[name].src = path;
+    else call(path).then((r) => r.blob()).then((b) => { strips[name].src = URL.createObjectURL(b); });
+  }
   return strips[name];
 }
 function spriteOf(obj) { const o = room.objects.find((x) => x.name === obj); return o && o.sprite; }
@@ -131,14 +145,14 @@ $("canvas").addEventListener("mousedown", (e) => {
 $("canvas").addEventListener("contextmenu", (e) => e.preventDefault());
 function markRoom() { $("save").disabled = !roomDirty(); $("status").textContent = roomDirty() ? "· unsaved" : ""; }
 async function openRoom(dir, a) {
-  room = await (await fetch("api/room?path=" + encodeURIComponent(dir))).json();
+  room = await (await call("api/room?path=" + encodeURIComponent(dir))).json();
   roomPath = dir; roomSaved = JSON.stringify(room.instances); current = null;
   $("path").textContent = dir + " (room)"; $("text").style.display = "none"; $("room").classList.add("on");
   const pal = $("palette"); pal.textContent = "";
   for (const o of room.objects) {
     const b = document.createElement("button"), cv = document.createElement("canvas");
     cv.width = 32; cv.height = 32;
-    if (o.sprite) { const img = strip(o.sprite), s = room.sprites[o.sprite]; const paint = () => s && img.naturalWidth && cv.getContext("2d").drawImage(img, 0, 0, s.W, s.H, 0, 0, 32, 32); img.complete ? paint() : img.addEventListener("load", paint); }
+    if (o.sprite) { const img = strip(o.sprite), s = room.sprites[o.sprite]; const paint = () => s && img.naturalWidth && cv.getContext("2d").drawImage(img, 0, 0, s.W, s.H, 0, 0, 32, 32); img.addEventListener("load", paint); paint(); }
     b.append(cv, o.name);
     b.onclick = () => { chosen = o.name; pal.querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b)); };
     pal.append(b);
@@ -148,7 +162,7 @@ async function openRoom(dir, a) {
 }
 async function saveRoom() {
   if (!roomDirty()) return;
-  const r = await fetch("api/room?path=" + encodeURIComponent(roomPath), { method: "PUT", body: JSON.stringify(room.instances) });
+  const r = await call("api/room?path=" + encodeURIComponent(roomPath), { method: "PUT", body: JSON.stringify(room.instances) });
   if (!r.ok) { $("check").className = "bad"; $("check").textContent = await r.text(); return; }
   roomSaved = JSON.stringify(room.instances); markRoom(); showCheck(await r.json());
 }
@@ -183,7 +197,7 @@ function drawSprite2() {
 for (const [id, [key, i]] of Object.entries(fields)) $(id).addEventListener("input", () => { spr[key][i] = Number($(id).value) || 0; drawSprite2(); });
 $("precise").addEventListener("change", () => { spr.precise = $("precise").checked; drawSprite2(); });
 async function openSprite(dir, a) {
-  spr = await (await fetch("api/sprite?path=" + encodeURIComponent(dir))).json();
+  spr = await (await call("api/sprite?path=" + encodeURIComponent(dir))).json();
   sprPath = dir; sprSaved = sprState(); current = null; room = null;
   $("path").textContent = dir + " (sprite)"; $("text").style.display = "none"; $("room").classList.remove("on"); $("sprite").classList.add("on");
   $("sprname").textContent = spr.name + " — " + spr.frames + " frame(s), " + spr.frame_w + "×" + spr.frame_h;
@@ -195,7 +209,7 @@ async function openSprite(dir, a) {
 }
 async function saveSprite() {
   if (!sprDirty()) return;
-  const r = await fetch("api/sprite?path=" + encodeURIComponent(sprPath), { method: "PUT", body: sprState() });
+  const r = await call("api/sprite?path=" + encodeURIComponent(sprPath), { method: "PUT", body: sprState() });
   if (!r.ok) { $("check").className = "bad"; $("check").textContent = await r.text(); return; }
   sprSaved = sprState(); drawSprite2(); showCheck(await r.json());
 }
@@ -208,7 +222,7 @@ async function open(f, a, asText) {
   const ms = f.match(/^(sprites\/[^/]+)\/sprite\.toml$/);
   if (ms && !asText) return openSprite(ms[1], a);
   room = null; $("room").classList.remove("on"); $("text").style.display = "";
-  const t = await (await fetch("api/file?path=" + encodeURIComponent(f))).text();
+  const t = await (await call("api/file?path=" + encodeURIComponent(f))).text();
   current = f; saved = t;
   $("path").textContent = f; $("text").value = t; $("text").disabled = false;
   document.querySelectorAll("nav a.on").forEach((x) => x.classList.remove("on"));
@@ -219,7 +233,7 @@ async function save() {
   if (room) return saveRoom();
   if (!dirty()) return;
   const body = $("text").value;
-  const r = await fetch("api/file?path=" + encodeURIComponent(current), { method: "PUT", body });
+  const r = await call("api/file?path=" + encodeURIComponent(current), { method: "PUT", body });
   if (!r.ok) { $("check").className = "bad"; $("check").textContent = await r.text(); return; }
   saved = body; mark(); showCheck(await r.json());
 }
@@ -235,7 +249,9 @@ $("play").onclick = () => {
   if (playing) {
     before = { text: $("text").style.display, room: $("room").classList.contains("on"), sprite: $("sprite").classList.contains("on") };
     $("text").style.display = "none"; $("room").classList.remove("on"); $("sprite").classList.remove("on");
-    g.style.display = ""; g.src = "play/"; g.focus();
+    g.style.display = "";
+    if (!window.gameviberStatic) { g.src = "play/"; g.focus(); }
+    else call("play/project.tar").then((r) => r.blob()).then((b) => { g.src = "play.html?project=" + encodeURIComponent(URL.createObjectURL(b)); g.focus(); });
     $("play").textContent = "■ Stop"; $("path").textContent = "playing (the saved files)";
   } else {
     g.src = "about:blank"; g.style.display = "none";
@@ -243,6 +259,10 @@ $("play").onclick = () => {
     $("play").textContent = "▶ Play"; $("path").textContent = current || (roomPath ? roomPath + " (room)" : "pick a file on the left");
   }
 };
+if (window.gameviberStatic) { // the published page: the project lives in this browser
+  $("reset").style.display = "";
+  $("reset").onclick = () => { if (window.confirm("Throw away your changes and start again from the starter game?")) { window.gameviberWait.then(() => window.gameviberReset()); } };
+}
 load();
 </script>
 </body></html>

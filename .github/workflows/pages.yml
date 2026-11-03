@@ -34,6 +34,10 @@ jobs:
           go run ./cmd/gameviber new /tmp/kolektu
           go run ./cmd/gameviber web /tmp/kolektu /tmp/demo
           sudo cp -r /tmp/demo _site/demo
+      - name: The editor
+        run: |
+          go run ./cmd/gameviber editor-web /tmp/editor
+          sudo cp -r /tmp/editor _site/editor
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

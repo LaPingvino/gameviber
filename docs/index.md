@@ -30,6 +30,14 @@ collect the coins. It is what `gameviber new` writes, built with `gameviber web`
 `gameviber import GAME.exe DIR` turns a GameMaker 5.3 game into a GameViber project; `gameviber play` runs it (or a project folder — edit the .gml and run again)
 headless (`-keys "right:40,right+up:25"`, `-shot frame.png`, `-json` for the state).
 
+## Try the editor
+
+**[Open the editor](editor/)** — GameViber's editor, running entirely in your browser (the same editor
+`gameviber edit DIR` serves on your own machine): the starter game's files in a tree, each object's events
+as GML text checked as you save, rooms drawn with their sprites — click to place things, right click to
+remove — sprites with their origin and bounding box, and **▶ Play** to run what you saved. Your changes stay
+in this browser (Reset brings back the starter game). Still to come: importing pictures, step / pause.
+
 ## Playing: the window and the browser
 
 `gameviber run GAME` opens a window; `gameviber web DIR OUT` builds a page. Both scale sharply (whole steps, never
