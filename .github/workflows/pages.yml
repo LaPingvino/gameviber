@@ -21,7 +21,9 @@ jobs:
         with:
           go-version-file: go.mod
       - name: Test
-        run: go test ./...
+        # The window (backend/ebiten, cmd/gameviber-run) needs X11 headers to
+        # build for the desktop; the page builds it for the browser below.
+        run: go test $(go list ./... | grep -v -e /backend/ebiten -e /cmd/gameviber-run)
       - name: Pages from docs (Jekyll renders the Markdown)
         uses: actions/jekyll-build-pages@v1
         with:
