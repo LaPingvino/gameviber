@@ -137,3 +137,66 @@ func (h editRooms) sprites() map[string]editSprite {
 	}
 	return out
 }
+
+// The editor's sprites (docs/EDITOR.md, step E4): sprite.toml as JSON for the
+// sprite view, and its origin / bounding box / precise saved back (the other
+// settings kept).
+func (h editRooms) sprite(w http.ResponseWriter, r *http.Request) {
+	p, ok := projectPath(h.dir, r.URL.Query().Get("path"))
+	if !ok {
+		http.Error(w, "not a sprite of this project", http.StatusBadRequest)
+		return
+	}
+	var s map[string]any
+	if _, err := toml.DecodeFile(filepath.Join(p, "sprite.toml"), &s); err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	s["name"] = filepath.Base(p)
+	writeJSON(w, s)
+}
+
+func (h editRooms) saveSprite(w http.ResponseWriter, r *http.Request) {
+	p, ok := projectPath(h.dir, r.URL.Query().Get("path"))
+	if !ok {
+		http.Error(w, "not a sprite of this project", http.StatusBadRequest)
+		return
+	}
+	file := filepath.Join(p, "sprite.toml")
+	var s map[string]any
+	if _, err := toml.DecodeFile(file, &s); err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	var in struct {
+		Origin   []int `json:"origin"`
+		BBoxLRBT []int `json:"bbox_lrbt"`
+		Precise  *bool `json:"precise"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if len(in.Origin) == 2 {
+		s["origin"] = []int64{int64(in.Origin[0]), int64(in.Origin[1])}
+	}
+	if len(in.BBoxLRBT) == 4 {
+		b := in.BBoxLRBT
+		s["bbox_lrbt"] = []int64{int64(b[0]), int64(b[1]), int64(b[2]), int64(b[3])}
+	}
+	if in.Precise != nil {
+		s["precise"] = *in.Precise
+	}
+	f, err := os.Create(file)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	err = toml.NewEncoder(f).Encode(s)
+	f.Close()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, checkReport(h.dir))
+}

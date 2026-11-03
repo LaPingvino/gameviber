@@ -26,6 +26,11 @@ button:disabled { opacity: .45; cursor: default; }
 #stage { overflow: auto; padding: 10px; }
 #stage canvas { image-rendering: pixelated; border: 1px solid var(--line); cursor: crosshair; }
 .hint { color: var(--muted); font-size: 12px; }
+#sprite { display: none; padding: 12px; overflow: auto; gap: 16px; }
+#sprite.on { display: flex; flex-wrap: wrap; align-items: flex-start; }
+#sprite canvas { image-rendering: pixelated; border: 1px solid var(--line); background: repeating-conic-gradient(#ccc 0 25%, #fff 0 50%) 0 0 / 16px 16px; }
+#sprite fieldset { border: 1px solid var(--line); border-radius: 6px; display: grid; grid-template-columns: auto 64px; gap: 6px 10px; align-items: center; }
+#sprite input[type=number] { width: 64px; font: inherit; background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 4px; padding: 2px 4px; }
 textarea { width: 100%; height: 100%; resize: none; border: 0; padding: 12px; background: var(--panel); color: var(--ink); font: 13px/1.5 ui-monospace, monospace; tab-size: 4; outline: none; }
 footer { grid-column: 1 / 3; border-top: 1px solid var(--line); padding: 6px 14px; max-height: 30vh; overflow: auto; }
 footer pre { margin: 0; font: 12px/1.45 ui-monospace, monospace; white-space: pre-wrap; }
@@ -38,6 +43,13 @@ footer pre { margin: 0; font: 12px/1.45 ui-monospace, monospace; white-space: pr
   <div class="bar"><code id="path">pick a file on the left</code><button id="save" disabled>Save (Ctrl+S)</button></div>
   <textarea id="text" spellcheck="false" disabled></textarea>
   <iframe id="game" title="the game" style="display:none;width:100%;height:100%;border:0;background:#111"></iframe>
+  <div id="sprite"><div><canvas id="spr"></canvas><div id="frames"></div></div>
+    <fieldset><legend id="sprname"></legend>
+      <label>origin x</label><input type="number" id="ox"><label>origin y</label><input type="number" id="oy">
+      <label>box left</label><input type="number" id="bl"><label>box top</label><input type="number" id="bt">
+      <label>box right</label><input type="number" id="br"><label>box bottom</label><input type="number" id="bb">
+      <label>precise</label><input type="checkbox" id="precise">
+      <span class="hint" style="grid-column: 1 / 3">red: the origin · green: the bounding box</span></fieldset></div>
   <div id="room"><div id="palette"></div><div id="stage"><canvas id="canvas"></canvas>
     <p class="hint">Click: place the chosen object (on the 32 px grid; Shift: free) · right click: remove · <a href="#" id="astext">as text</a></p></div></div>
 </main>
@@ -143,10 +155,58 @@ async function saveRoom() {
 $("astext").onclick = (e) => { e.preventDefault(); const a = document.querySelector("nav a.on"); room = null; open(roomPath + "/room.toml", a, true); };
 window.addEventListener("resize", drawRoom);
 
+// --- sprites (step E4): view, origin, box ---
+let spr = null, sprPath = null, sprSaved = "";
+const fields = { ox: ["origin", 0], oy: ["origin", 1], bl: ["bbox_lrbt", 0], br: ["bbox_lrbt", 1], bb: ["bbox_lrbt", 2], bt: ["bbox_lrbt", 3] };
+function sprState() { return JSON.stringify({ origin: spr.origin, bbox_lrbt: spr.bbox_lrbt, precise: spr.precise }); }
+function sprDirty() { return spr && sprState() !== sprSaved; }
+function drawSprite2() {
+  if (!spr) return;
+  const img = strip(spr.name), w = spr.frame_w, h = spr.frame_h;
+  const k = Math.max(1, Math.floor(Math.min(320 / w, 320 / h)));
+  const c = $("spr"); c.width = w * k; c.height = h * k;
+  const ctx = c.getContext("2d"); ctx.imageSmoothingEnabled = false; ctx.clearRect(0, 0, c.width, c.height);
+  if (img.complete && img.naturalWidth) ctx.drawImage(img, 0, 0, w, h, 0, 0, w * k, h * k);
+  const [l, r, b, t] = spr.bbox_lrbt;
+  ctx.strokeStyle = "#1fae4a"; ctx.lineWidth = 2; ctx.strokeRect(l * k + 1, t * k + 1, (r - l + 1) * k - 2, (b - t + 1) * k - 2);
+  const [ox, oy] = spr.origin;
+  ctx.strokeStyle = "#e0302a"; ctx.beginPath();
+  ctx.moveTo(ox * k - 8, oy * k); ctx.lineTo(ox * k + 8, oy * k); ctx.moveTo(ox * k, oy * k - 8); ctx.lineTo(ox * k, oy * k + 8); ctx.stroke();
+  const fr = $("frames"); fr.textContent = "";
+  for (let i = 0; i < spr.frames; i++) {
+    const cv = document.createElement("canvas"); cv.width = w; cv.height = h; cv.style.width = w * 2 + "px";
+    if (img.complete) cv.getContext("2d").drawImage(img, i * w, 0, w, h, 0, 0, w, h);
+    fr.append(cv);
+  }
+  $("save").disabled = !sprDirty(); $("status").textContent = sprDirty() ? "· unsaved" : "";
+}
+for (const [id, [key, i]] of Object.entries(fields)) $(id).addEventListener("input", () => { spr[key][i] = Number($(id).value) || 0; drawSprite2(); });
+$("precise").addEventListener("change", () => { spr.precise = $("precise").checked; drawSprite2(); });
+async function openSprite(dir, a) {
+  spr = await (await fetch("api/sprite?path=" + encodeURIComponent(dir))).json();
+  sprPath = dir; sprSaved = sprState(); current = null; room = null;
+  $("path").textContent = dir + " (sprite)"; $("text").style.display = "none"; $("room").classList.remove("on"); $("sprite").classList.add("on");
+  $("sprname").textContent = spr.name + " — " + spr.frames + " frame(s), " + spr.frame_w + "×" + spr.frame_h;
+  for (const [id, [key, i]] of Object.entries(fields)) $(id).value = spr[key][i];
+  $("precise").checked = !!spr.precise;
+  const img = strip(spr.name); img.addEventListener("load", drawSprite2);
+  document.querySelectorAll("nav a.on").forEach((x) => x.classList.remove("on")); a.classList.add("on");
+  drawSprite2();
+}
+async function saveSprite() {
+  if (!sprDirty()) return;
+  const r = await fetch("api/sprite?path=" + encodeURIComponent(sprPath), { method: "PUT", body: sprState() });
+  if (!r.ok) { $("check").className = "bad"; $("check").textContent = await r.text(); return; }
+  sprSaved = sprState(); drawSprite2(); showCheck(await r.json());
+}
+
 async function open(f, a, asText) {
-  if ((dirty() || roomDirty()) && !window.confirm("Leave without saving?")) return;
+  if ((dirty() || roomDirty() || sprDirty()) && !window.confirm("Leave without saving?")) return;
+  spr = null; $("sprite").classList.remove("on");
   const m = f.match(/^(rooms\/[^/]+)\/room\.toml$/);
   if (m && !asText) return openRoom(m[1], a);
+  const ms = f.match(/^(sprites\/[^/]+)\/sprite\.toml$/);
+  if (ms && !asText) return openSprite(ms[1], a);
   room = null; $("room").classList.remove("on"); $("text").style.display = "";
   const t = await (await fetch("api/file?path=" + encodeURIComponent(f))).text();
   current = f; saved = t;
@@ -155,6 +215,7 @@ async function open(f, a, asText) {
   a.classList.add("on"); mark();
 }
 async function save() {
+  if (spr) return saveSprite();
   if (room) return saveRoom();
   if (!dirty()) return;
   const body = $("text").value;
@@ -172,13 +233,13 @@ $("play").onclick = () => {
   playing = !playing;
   const g = $("game");
   if (playing) {
-    before = { text: $("text").style.display, room: $("room").classList.contains("on") };
-    $("text").style.display = "none"; $("room").classList.remove("on");
+    before = { text: $("text").style.display, room: $("room").classList.contains("on"), sprite: $("sprite").classList.contains("on") };
+    $("text").style.display = "none"; $("room").classList.remove("on"); $("sprite").classList.remove("on");
     g.style.display = ""; g.src = "play/"; g.focus();
     $("play").textContent = "■ Stop"; $("path").textContent = "playing (the saved files)";
   } else {
     g.src = "about:blank"; g.style.display = "none";
-    $("text").style.display = before.text; if (before.room) $("room").classList.add("on");
+    $("text").style.display = before.text; if (before.room) $("room").classList.add("on"); if (before.sprite) $("sprite").classList.add("on");
     $("play").textContent = "▶ Play"; $("path").textContent = current || (roomPath ? roomPath + " (room)" : "pick a file on the left");
   }
 };

@@ -152,3 +152,35 @@ func TestEditPlay(t *testing.T) {
 		t.Errorf("pack: %d, %d bytes", r.StatusCode, len(data))
 	}
 }
+
+// Sprites in the editor: read as JSON, the origin / box / precise saved back
+// into sprite.toml (the rest kept).
+func TestEditSprite(t *testing.T) {
+	dir := t.TempDir() + "/game"
+	if err := cmdNew([]string{dir}); err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(editHandler(dir))
+	defer srv.Close()
+	r, _ := http.Get(srv.URL + "/api/sprite?path=sprites/coin")
+	var s map[string]any
+	json.NewDecoder(r.Body).Decode(&s)
+	r.Body.Close()
+	if s["name"] != "coin" || s["frame_w"] != float64(32) {
+		t.Fatalf("sprite: %v", s)
+	}
+	req, _ := http.NewRequest(http.MethodPut, srv.URL+"/api/sprite?path=sprites/coin", strings.NewReader(`{"origin":[16,16],"bbox_lrbt":[4,27,27,4],"precise":true}`))
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil || resp.StatusCode != 200 {
+		t.Fatalf("save: %v %v", err, resp.Status)
+	}
+	resp.Body.Close()
+	r, _ = http.Get(srv.URL + "/api/sprite?path=sprites/coin")
+	s = map[string]any{}
+	json.NewDecoder(r.Body).Decode(&s)
+	r.Body.Close()
+	o, _ := s["origin"].([]any)
+	if len(o) != 2 || o[0] != float64(16) || s["precise"] != true || s["frame_w"] != float64(32) {
+		t.Errorf("after save: %v", s)
+	}
+}

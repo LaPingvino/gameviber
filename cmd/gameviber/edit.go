@@ -114,6 +114,8 @@ func editHandler(dir string) http.Handler {
 	mux.HandleFunc("GET /api/room", rooms.room)
 	mux.HandleFunc("PUT /api/room", rooms.saveRoom)
 	mux.HandleFunc("GET /api/strip", rooms.strip)
+	mux.HandleFunc("GET /api/sprite", rooms.sprite)
+	mux.HandleFunc("PUT /api/sprite", rooms.saveSprite)
 	mux.HandleFunc("GET /api/check", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, checkReport(dir))
 	})
