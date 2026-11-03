@@ -115,8 +115,10 @@ func (in *Instance) BoxAt(x, y float64) Box {
 
 // Room holds the instances.
 type Room struct {
-	Name      string
-	W, H      int
+	Name string
+	W, H int
+	// Speed is the room's steps per second (action_sleep counts in steps).
+	Speed     int
 	Instances []*Instance
 	// Goto asks the game to change rooms after this step (room_goto); "" = stay.
 	Goto string

@@ -197,7 +197,7 @@ func (g *Game) Room(name string, glob *runner.Globals) (*runner.Room, error) {
 		if r == nil || r.Name != name {
 			continue
 		}
-		rr := &runner.Room{Name: r.Name, W: int(r.W), H: int(r.H), G: glob}
+		rr := &runner.Room{Name: r.Name, W: int(r.W), H: int(r.H), Speed: int(r.Speed), G: glob}
 		// GM 5's order: each instance's create event, then its creation code;
 		// then the room's creation code; then every room start event.
 		for _, in := range r.Instances {

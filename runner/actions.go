@@ -106,6 +106,24 @@ func (g *Game) actionFuncs() map[string]gml.Func {
 			}
 			return ok, nil
 		},
+		"action_set_sprite": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (sprite, subimage: -1 keeps the frame)
+			s := g.self()
+			if len(a) > 0 {
+				s.Sprite = a[0].String() // PARTIAL: sprites by name
+			}
+			if sub := num(a, 1); len(a) > 1 && sub != -1 {
+				s.ImageIndex = sub
+			}
+			return ok, nil
+		},
+		"action_sleep": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (milliseconds, redraw)
+			speed := g.room.Speed
+			if speed <= 0 {
+				speed = 30
+			}
+			g.room.SleepMS(int(num(a, 0)), speed)
+			return ok, nil
+		},
 		"action_move_start": func(in *gml.Interp, a []gml.Value) (gml.Value, error) {
 			s := g.self()
 			s.X, s.Y = s.XStart, s.YStart
@@ -199,13 +217,14 @@ func (g *Game) actionFuncs() map[string]gml.Func {
 		},
 		// questions: they return whether the next action runs (the importer
 		// writes 'if action_if_…(…) next' — and 'if !…' for NOT)
-		"action_if_empty": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (x, y, only solid, rel)
+		"action_if_empty": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (x, y, objects, rel)
+			// objects is a menu: 0 only solid, 1 all (GM's "Check Empty").
 			s := g.self()
 			x, y := num(a, 0), num(a, 1)
 			if rel(a, 3) {
 				x, y = x+s.X, y+s.Y
 			}
-			if rel(a, 2) { // only solid
+			if num(a, 2) == 0 {
 				return boolV(g.room.PlaceFree(s, x, y)), nil
 			}
 			return boolV(g.room.PlaceEmpty(s, x, y)), nil
