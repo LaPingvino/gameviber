@@ -55,6 +55,7 @@ type Game struct {
 
 // New prepares a game for the window.
 func New(p *gmfile.Project, pl *load.Play) *Game {
+	pl.G.Sound = newSounds(p)
 	return &Game{play: pl, assets: render.LoadAssets(p), proj: p, in: input{held: map[runner.Key]bool{}, prev: map[runner.Key]bool{}}}
 }
 
