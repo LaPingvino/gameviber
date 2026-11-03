@@ -610,3 +610,69 @@ func TestPersistentInstancesCarry(t *testing.T) {
 		t.Errorf("nivelo2: %d life controllers (same: %v), lives %d; errors %v", len(got), len(got) == 1 && got[0] == lc[0], pl.Globals.Lives, g.Errors)
 	}
 }
+
+// Stelo's levels 1–3 under pseudo-random walks (the walk of
+// TestSteloMasksVersusBoxes), against the hand port given the same keys:
+// the player's position and the score at every step
+// ($GAMEVIBER_STELO_WALKS: a folder with stelo-walk-<level>-<seed>.json).
+// Lives are left out: started in nivelo2 / 3 the original has no life
+// controller yet (it comes along from nivelo1), the hand port starts at 3.
+func TestSteloWalksAgainstHandPort(t *testing.T) {
+	dir := os.Getenv("GAMEVIBER_STELO_WALKS")
+	if dir == "" {
+		t.Skip("no hand-port walks ($GAMEVIBER_STELO_WALKS)")
+	}
+	d, err := os.ReadFile("../../stelo/win/stelo.exe")
+	if err != nil {
+		t.Skip("Stelo's exe is not checked out next to this repo")
+	}
+	for _, room := range []string{"nivelo1", "nivelo2", "nivelo3"} {
+		for seed := int64(1); seed <= 2; seed++ {
+			raw, err := os.ReadFile(fmt.Sprintf("%s/stelo-walk-%s-%d.json", dir, room, seed))
+			if err != nil {
+				t.Fatal(err)
+			}
+			var want [][4]float64
+			if err := json.Unmarshal(raw, &want); err != nil {
+				t.Fatal(err)
+			}
+			e, _ := gmfile.OpenExe(d)
+			p, _ := e.ReadProject()
+			g, err := FromProject(p)
+			if err != nil {
+				t.Fatal(err)
+			}
+			pl, err := g.StartAt(room)
+			if err != nil {
+				t.Fatal(err)
+			}
+			lcg, key, next := uint32(seed)*2654435761+1, runner.Key(39), 0
+			for step := range want {
+				if step == next {
+					lcg = lcg*1664525 + 1013904223
+					key, next = runner.Key(37+lcg>>30), step+8+int(lcg>>8%17)
+				}
+				if err := pl.Step(heldKey(key)); err != nil {
+					t.Fatal(err)
+				}
+				if pl.Room.Name != room { // the hand port's level harness does not change rooms
+					t.Logf("%s seed %d: identical for %d steps, then on to %s (score %d, lives %d)", room, seed, step, pl.Room.Name, pl.Globals.Score, pl.Globals.Lives)
+					break
+				}
+				x, y := -1.0, -1.0
+				if c := pl.Room.All("character"); len(c) > 0 {
+					x, y = c[0].X, c[0].Y
+				}
+				w := want[step]
+				if x != w[0] || y != w[1] || float64(pl.Globals.Score) != w[2] {
+					t.Errorf("%s seed %d step %d (key %d): GameViber in %s %v,%v score %d lives %d; hand port %v,%v score %v lives %v",
+						room, seed, step, key, pl.Room.Name, x, y, pl.Globals.Score, pl.Globals.Lives, w[0], w[1], w[2], w[3])
+					break
+				}
+				if step == len(want)-1 {
+					t.Logf("%s seed %d: identical over %d steps (%v,%v score %v)", room, seed, len(want), x, y, w[2])
+				}
+			}
+		}
+	}
+}
