@@ -25,6 +25,8 @@ type Game struct {
 	// SpriteWidth gives a sprite's width (the loader's; life images).
 	SpriteWidth func(name string) int
 	draw        drawState
+	// Timelines are the game's timelines by name (the loader's).
+	Timelines map[string]*Timeline
 	// HasNextRoom tells whether a room comes after the named one (the room
 	// order is the loader's); nil: assume one does.
 	HasNextRoom func(room string) bool

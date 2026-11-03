@@ -32,6 +32,11 @@ func (in *Instance) Get(name string, idx []int) (gml.Value, bool) {
 			return gml.RealV(v), true
 		}
 		switch name {
+		case "timeline_index": // PARTIAL: by name until ids; -1 none
+			if in.Timeline == nil {
+				return gml.RealV(-1), true
+			}
+			return gml.StrV(in.Timeline.Name), true
 		case "sprite_index":
 			return gml.StrV(in.Sprite), true
 		case "object_index":

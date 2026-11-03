@@ -304,6 +304,18 @@ func (g *Game) actionFuncs() map[string]gml.Func {
 		"action_set_caption": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (score, scorecaption, lives, livescaption, health, healthcaption): the window caption's
 			return ok, nil // PARTIAL: the window caption is the backend's
 		},
+		"action_set_timeline": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (timeline, position)
+			s := g.self()
+			if len(a) == 0 {
+				return ok, nil
+			}
+			t := g.Timelines[a[0].String()]
+			if t == nil && a[0].String() != "-1" {
+				return gml.Value{}, fmt.Errorf("no timeline %s", a[0].String())
+			}
+			s.Timeline, s.TimelinePos = t, int(num(a, 1))
+			return ok, nil
+		},
 		"action_next_room": func(in *gml.Interp, a []gml.Value) (gml.Value, error) {
 			g.room.Goto = "@next"
 			return ok, nil

@@ -131,6 +131,25 @@ func FromProject(p *gmfile.Project) (*Game, error) {
 			}
 		}
 	}
+	g.Timelines = map[string]*runner.Timeline{}
+	for _, t := range p.Timelines {
+		if t == nil {
+			continue
+		}
+		rt := &runner.Timeline{Name: t.Name, Moments: map[int]runner.Handler{}}
+		for _, m := range t.Moments {
+			src, err := p.ActionsToGML(m.Actions)
+			if err != nil {
+				return nil, fmt.Errorf("timeline %s moment %d: %w", t.Name, m.Step, err)
+			}
+			h, err := g.Code(src)
+			if err != nil {
+				return nil, fmt.Errorf("timeline %s moment %d: %w", t.Name, m.Step, err)
+			}
+			rt.Moments[int(m.Step)] = h
+		}
+		g.Timelines[t.Name] = rt
+	}
 	for name, code := range p.LibCode { // library actions' own code (filled while converting)
 		if err := g.Script(name, code); err != nil {
 			return nil, fmt.Errorf("%s: %w", name, err)

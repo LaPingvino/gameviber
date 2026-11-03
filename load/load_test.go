@@ -358,3 +358,41 @@ func TestSteloBonusRoundTrip(t *testing.T) {
 	}
 	t.Logf("nivelo1 → bonusnivelo → nivelo1 as left; errors %v", g.Errors)
 }
+
+// Stelo's bonus level: with its monsters gone, monsterfarilo starts the
+// timeline faruMonsterojn, which makes a b_monster at its steps 30, 60, 90
+// (STELO-RULES §4) — at each of the room's spawners (four).
+func TestSteloTimeline(t *testing.T) {
+	d, err := os.ReadFile("../../stelo/win/stelo.exe")
+	if err != nil {
+		t.Skip("Stelo's exe is not checked out next to this repo")
+	}
+	e, _ := gmfile.OpenExe(d)
+	p, err := e.ReadProject()
+	if err != nil {
+		t.Fatal(err)
+	}
+	g, err := FromProject(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := g.Room("bonusnivelo", &runner.Globals{Lives: 3, Vars: map[string]float64{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, m := range r.All("b_monster") {
+		m.Destroyed = true
+	}
+	spawners := len(r.All("monsterfarilo"))
+	counts := map[int]int{}
+	for i := 1; i <= 100; i++ {
+		r.Step(noKeys{})
+		if i == 25 || i == 35 || i == 65 || i == 95 {
+			counts[i] = len(r.All("b_monster"))
+		}
+	}
+	t.Logf("b_monsters at steps 25/35/65/95: %v; errors %v", counts, g.Errors)
+	if counts[25] != 0 || counts[35] != spawners || counts[65] != 2*spawners || counts[95] != 3*spawners {
+		t.Errorf("b_monsters %v, want 0 / 1 / 2 / 3 × %d spawners", counts, spawners)
+	}
+}
