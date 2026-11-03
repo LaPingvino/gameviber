@@ -21,6 +21,11 @@ MIT licensed · [source on GitHub](https://github.com/LaPingvino/gameviber)
 | 3d | Importer for GameMaker 5.3 games | **in progress** — reads a whole GameMaker 5.3 game from its executable — settings, sounds, sprites, backgrounds, scripts, timelines, objects with their events and actions, rooms — matching gm53-reader on Stelo; drag-and-drop actions become readable GML; the game is written out in GameViber's text format (Stelo: 56 GML files, 22 PNGs, rooms in order) |
 | 3e | Pacmanio imported and run, compared step by step with the hand port; then Stelo | **in progress** — Pacmanio's first level loads from the 2006 executable and runs headless — creation code, room start, scripts, sounds through a backend hook, the game's constants; plays from its title room through the region's title room into the first level, drawn with its HUD; Pacman's moves, eating and scoring identical to the hand port at every step (ghosts, which move at random, taken out); Stelo's level 2 runs with its view following the player — **step for step identical** to Stelo's hand port: levels 1–3 under a scripted run (jumps, deaths, scoring, lives), position / score / lives equal at every one of 360 steps |
 
+## Try it
+
+`gameviber import GAME.exe DIR` turns a GameMaker 5.3 game into a GameViber project; `gameviber play` runs it
+headless (`-keys "right:40,right+up:25"`, `-shot frame.png`, `-json` for the state).
+
 ## The sample games
 
 The first proofs are two games made with GameMaker in 2006 and remade in Go by hand, step for step:

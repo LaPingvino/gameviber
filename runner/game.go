@@ -322,6 +322,9 @@ func (g *Game) runnerFuncs() map[string]gml.Func {
 		// long wait); the frame is drawn every step anyway: nothing to do.
 		"screen_redraw":  func(*gml.Interp, []gml.Value) (gml.Value, error) { return gml.RealV(0), nil },
 		"screen_refresh": func(*gml.Interp, []gml.Value) (gml.Value, error) { return gml.RealV(0), nil },
+		// keyboard_wait waits for a key in GM 5; headless, it goes on at once
+		// (PARTIAL: the input backend will wait).
+		"keyboard_wait": func(*gml.Interp, []gml.Value) (gml.Value, error) { return gml.RealV(0), nil },
 		"show_error": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (message, abort)
 			msg := ""
 			if len(a) > 0 {
