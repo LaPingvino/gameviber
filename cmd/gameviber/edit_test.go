@@ -72,3 +72,57 @@ func TestEditAPI(t *testing.T) {
 		t.Errorf("writing a non-text file: %d, want refused", code)
 	}
 }
+
+// Rooms in the editor: read as JSON, an instance added and saved back into
+// room.toml (the room's settings kept), the check still clean.
+func TestEditRoom(t *testing.T) {
+	dir := t.TempDir() + "/game"
+	if err := cmdNew([]string{dir}); err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(editHandler(dir))
+	defer srv.Close()
+	var room struct {
+		Width     any
+		Instances []map[string]any
+		Objects   []editObject
+		Sprites   map[string]editSprite
+	}
+	r, err := http.Get(srv.URL + "/api/room?path=rooms/level")
+	if err != nil {
+		t.Fatal(err)
+	}
+	json.NewDecoder(r.Body).Decode(&room)
+	r.Body.Close()
+	n := len(room.Instances)
+	if n == 0 || len(room.Objects) == 0 || room.Sprites["coin"].W != 32 {
+		t.Fatalf("room: %d instances, objects %v, sprites %v", n, room.Objects, room.Sprites)
+	}
+	room.Instances = append(room.Instances, map[string]any{"object": "coin", "x": 320, "y": 224})
+	body, _ := json.Marshal(room.Instances)
+	req, _ := http.NewRequest(http.MethodPut, srv.URL+"/api/room?path=rooms/level", strings.NewReader(string(body)))
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var c struct{ Problems int }
+	json.NewDecoder(resp.Body).Decode(&c)
+	resp.Body.Close()
+	if resp.StatusCode != 200 || c.Problems != 0 {
+		t.Fatalf("save: %d, %d problems", resp.StatusCode, c.Problems)
+	}
+	r, _ = http.Get(srv.URL + "/api/room?path=rooms/level")
+	var again struct {
+		Width     any
+		Instances []map[string]any
+	}
+	json.NewDecoder(r.Body).Decode(&again)
+	r.Body.Close()
+	last := again.Instances[len(again.Instances)-1]
+	if len(again.Instances) != n+1 || last["object"] != "coin" || last["x"] != float64(320) || again.Width != float64(640) {
+		t.Errorf("after save: %d instances, last %v, width %v", len(again.Instances), last, again.Width)
+	}
+	if code, _ := http.Get(srv.URL + "/api/strip?sprite=../game.toml"); code.StatusCode != http.StatusBadRequest {
+		t.Errorf("strip outside sprites: %d", code.StatusCode)
+	}
+}
