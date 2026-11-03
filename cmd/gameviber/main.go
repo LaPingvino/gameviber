@@ -16,6 +16,7 @@ import (
 	"image"
 	"image/png"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -38,10 +39,12 @@ func main() {
 		err = cmdPlay(os.Args[2:])
 	case "check":
 		err = cmdCheck(os.Args[2:])
+	case "run":
+		err = cmdRun(os.Args[2:])
 	case "help", "-h", "--help":
 		usage()
 	default:
-		err = fmt.Errorf("unknown command %q (import, play, check)", os.Args[1])
+		err = fmt.Errorf("unknown command %q (import, play, check, run)", os.Args[1])
 	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "gameviber:", err)
@@ -55,6 +58,7 @@ func usage() {
   gameviber import GAME.exe DIR     turn a GameMaker 5.3 game into a GameViber project in DIR
   gameviber check DIR               check a project: every .gml parses, every function called exists
                                     (file:line:col: message; exit 1 when there is anything)
+  gameviber run [-room R] GAME      play it in a window (arrow keys, space, enter)
   gameviber play [flags] GAME       run a game headless (GAME: a GameMaker 5.3 .exe or a project folder)
       -room NAME      start in this room (default: the first in the room order)
       -steps N        steps to run (default 300)
@@ -312,4 +316,20 @@ func cmdCheck(args []string) error {
 		os.Exit(1)
 	}
 	return nil
+}
+
+func cmdRun(args []string) error {
+	// The window is a binary of its own (gameviber-run): Ebitengine needs a
+	// display as soon as it is linked in, and gameviber's other commands must
+	// work without one (servers, agents, tests).
+	exe, err := os.Executable()
+	path := filepath.Join(filepath.Dir(exe), "gameviber-run")
+	if _, statErr := os.Stat(path); err != nil || statErr != nil {
+		if path, err = exec.LookPath("gameviber-run"); err != nil {
+			return fmt.Errorf("the window is gameviber-run: go install ./cmd/gameviber-run (or go run ./cmd/gameviber-run %s)", strings.Join(args, " "))
+		}
+	}
+	cmd := exec.Command(path, args...)
+	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
+	return cmd.Run()
 }
