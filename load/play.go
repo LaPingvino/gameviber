@@ -15,6 +15,19 @@ type Play struct {
 	Globals *runner.Globals
 	order   []string
 	Ended   bool
+	// kept are the persistent rooms left, as they were (GM 5: coming back,
+	// their instances are as left; no create events, the room start runs).
+	kept map[string]*runner.Room
+}
+
+// StartAt begins the game at a named room (a test or tool's shortcut).
+func (g *Game) StartAt(name string) (*Play, error) {
+	p, err := g.Start()
+	if err != nil {
+		return nil, err
+	}
+	p.Room = nil
+	return p, p.enter(name)
 }
 
 // Start begins the game at its first room. Score and lives start at 0
@@ -35,6 +48,19 @@ func (g *Game) Start() (*Play, error) {
 func (p *Play) enter(name string) error {
 	if p.Room != nil {
 		p.Room.End()
+		if p.Room.Persistent {
+			if p.kept == nil {
+				p.kept = map[string]*runner.Room{}
+			}
+			p.kept[p.Room.Name] = p.Room
+		}
+	}
+	if r, ok := p.kept[name]; ok {
+		delete(p.kept, name)
+		r.G, r.Goto = p.Globals, ""
+		p.Room = r
+		r.Start()
+		return nil
 	}
 	r, err := p.G.Room(name, p.Globals)
 	if err != nil {

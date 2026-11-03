@@ -297,3 +297,55 @@ func TestPacmanioAgainstHandPort(t *testing.T) {
 	}
 	t.Logf("%d steps identical (ends at %v); errors %v", i, want[i-1], g.Errors)
 }
+
+// Stelo's bonus level, as the hand port's TestRoomChanges: the diamond makes
+// nivelo1 persistent and goes to bonusnivelo; a flyer there brings the player
+// back to nivelo1 as it was left — the same player, the diamond gone, no life
+// lost.
+func TestSteloBonusRoundTrip(t *testing.T) {
+	d, err := os.ReadFile("../../stelo/win/stelo.exe")
+	if err != nil {
+		t.Skip("Stelo's exe is not checked out next to this repo")
+	}
+	e, _ := gmfile.OpenExe(d)
+	p, err := e.ReadProject()
+	if err != nil {
+		t.Fatal(err)
+	}
+	g, err := FromProject(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pl, err := g.StartAt("nivelo1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	pl.Globals.Lives = 3
+	player := pl.Room.All("character")[0]
+	dia := pl.Room.All("iru_al_bonuso")[0]
+	player.X, player.Y = dia.X, dia.Y
+	for i := 0; i < 10 && pl.Room.Name != "bonusnivelo"; i++ {
+		if err := pl.Step(noKeys{}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if pl.Room.Name != "bonusnivelo" {
+		t.Fatalf("the diamond led to %s; errors %v", pl.Room.Name, g.Errors)
+	}
+	lives := pl.Globals.Lives
+	bp := pl.Room.All("character")[0]
+	f := pl.Room.All("flyer")[0]
+	bp.X, bp.Y = f.X, f.Y
+	for i := 0; i < 60 && pl.Room.Name != "nivelo1"; i++ {
+		if err := pl.Step(noKeys{}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if pl.Room.Name != "nivelo1" || pl.Globals.Lives != lives {
+		t.Fatalf("after the flyer: in %s, lives %d (was %d); errors %v", pl.Room.Name, pl.Globals.Lives, lives, g.Errors)
+	}
+	if len(pl.Room.All("iru_al_bonuso")) != 0 || pl.Room.All("character")[0] != player {
+		t.Errorf("nivelo1 not as left: diamonds %d, same player %v", len(pl.Room.All("iru_al_bonuso")), pl.Room.All("character")[0] == player)
+	}
+	t.Logf("nivelo1 → bonusnivelo → nivelo1 as left; errors %v", g.Errors)
+}

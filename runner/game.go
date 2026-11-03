@@ -318,6 +318,10 @@ func (g *Game) runnerFuncs() map[string]gml.Func {
 		"sound_isplaying": func(in *gml.Interp, a []gml.Value) (gml.Value, error) {
 			return b(g.Sound != nil && len(a) > 0 && g.Sound.Playing(g.soundName(a[0]))), nil
 		},
+		// screen_redraw / screen_refresh draw at once in GM 5 (e.g. before a
+		// long wait); the frame is drawn every step anyway: nothing to do.
+		"screen_redraw":  func(*gml.Interp, []gml.Value) (gml.Value, error) { return gml.RealV(0), nil },
+		"screen_refresh": func(*gml.Interp, []gml.Value) (gml.Value, error) { return gml.RealV(0), nil },
 		"show_error": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (message, abort)
 			msg := ""
 			if len(a) > 0 {

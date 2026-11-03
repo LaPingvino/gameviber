@@ -123,7 +123,7 @@ type Room struct {
 	Backgrounds []Background
 	// Caption is room_caption.
 	Caption string
-	// Persistent is room_persistent (PARTIAL: kept, not yet acted on when leaving).
+	// Persistent is room_persistent: kept as it is when left (load.Play).
 	Persistent bool
 	// Views: shown when ViewsEnabled (GM 5 has 8).
 	ViewsEnabled bool
