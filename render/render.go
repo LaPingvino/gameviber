@@ -124,8 +124,7 @@ func Frame(dst *image.RGBA, g *runner.Game, r *runner.Room, a *Assets, roomColou
 }
 
 // TextCall is a text the draw events drew: where, what, with which font.
-// PARTIAL: text is recorded, not rasterised — a font rasteriser needs a new
-// module (golang.org/x/image), which waits for Joop's OK.
+// It is drawn into the frame as well (text.go).
 type TextCall struct {
 	X, Y float64
 	S    string
@@ -183,7 +182,9 @@ func (d *frameDrawer) Background(name string, x, y float64) {
 }
 
 func (d *frameDrawer) Text(x, y float64, s string, f runner.Font) {
-	d.texts = append(d.texts, TextCall{x - d.ox, y - d.oy, s, f})
+	t := TextCall{x - d.ox, y - d.oy, s, f}
+	d.texts = append(d.texts, t)
+	drawText(d.dst, t) // drawn as it is called: later drawing goes over it, as in GM
 }
 
 // drawLayer draws a background layer at its position, tiled as set.
