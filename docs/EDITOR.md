@@ -1,8 +1,8 @@
 # GameViber editor — proposal (building since 2026-11-04 on Joop's "decide, correct later")
 
 DESIGN.md §6 left a GUI editor out of the first version ("later, a web editor on the same engine"). The first
-version now runs both sample games from their 2006 data, so this is the proposal for the next step. Nothing is
-built until Joop says yes; every point below is open to reshaping.
+version now runs both sample games from their 2006 data, so this is the proposal for the next step. It is
+being built with the choices under "Decided for now"; every point below is open to reshaping.
 
 ## What it is for
 
