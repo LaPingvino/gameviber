@@ -350,7 +350,7 @@ func (in *Interp) assign(s *Assign) error {
 			in.locals[name] = v
 			return nil
 		}
-		if in.globals[name] {
+		if in.globals[name] || GlobalBuiltins[name] && idx == nil {
 			in.Global.Set(name, idx, v)
 			return nil
 		}
@@ -384,6 +384,15 @@ func (in *Interp) place(e Expr) ([]Instance, string, []int, error) {
 		return ts, name, idx, err
 	}
 	return nil, "", nil, rerr(e, "can't assign to %s", Format(e))
+}
+
+// GlobalBuiltins are GM 5's game-wide built-in variables: read and written
+// through Interp.Global whoever runs the code.
+var GlobalBuiltins = map[string]bool{
+	"score": true, "lives": true, "health": true, "keyboard_string": true, "keyboard_key": true,
+	"keyboard_lastkey": true, "keyboard_lastchar": true, "mouse_x": true, "mouse_y": true, "mouse_button": true,
+	"room": true, "room_speed": true, "room_caption": true, "room_width": true, "room_height": true,
+	"background_color": true, "show_score": true, "show_lives": true, "caption_score": true, "caption_lives": true,
 }
 
 // constants are GM 5's built-in constants (the rest come from Lookup).
@@ -572,7 +581,7 @@ func (in *Interp) lookup(n *Name, idx []int) (Value, error) {
 	if v, ok := in.locals[n.Name]; ok && idx == nil {
 		return v, nil
 	}
-	if in.globals[n.Name] {
+	if in.globals[n.Name] || GlobalBuiltins[n.Name] && idx == nil {
 		if v, ok := in.Global.Get(n.Name, idx); ok {
 			return v, nil
 		}
