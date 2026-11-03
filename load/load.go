@@ -24,6 +24,11 @@ type Game struct {
 func FromProject(p *gmfile.Project) (*Game, error) {
 	g := &Game{Game: &runner.Game{}, Project: p}
 	g.ClearHighscores()
+	for _, id := range p.RoomOrder {
+		if int(id) < len(p.Rooms) && p.Rooms[id] != nil {
+			g.RoomOrder = append(g.RoomOrder, p.Rooms[id].Name)
+		}
+	}
 	g.HasNextRoom = func(room string) bool {
 		for i, id := range p.RoomOrder {
 			if int(id) < len(p.Rooms) && p.Rooms[id] != nil && p.Rooms[id].Name == room {

@@ -32,6 +32,8 @@ type Game struct {
 	// HasNextRoom tells whether a room comes after the named one (the room
 	// order is the loader's); nil: assume one does.
 	HasNextRoom func(room string) bool
+	// RoomOrder is the rooms in the game's order (room_next / room_previous).
+	RoomOrder []string
 	// Highscores is GM's ten-entry table, best first (Clear fills it).
 	Highscores [10]Highscore
 	// AskString answers get_string (the input backend's); nil: the default.
@@ -496,6 +498,12 @@ func (g *Game) coreFuncs() map[string]gml.Func {
 			}
 			return b(g.room.In.Held(Key(k))), nil
 		},
+		"room_next": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (room): the one after it, -1 if none (PARTIAL: rooms by name until ids)
+			return g.roomStep(a, 1), nil
+		},
+		"room_previous": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (room): the one before it, -1 if none
+			return g.roomStep(a, -1), nil
+		},
 		"room_restart": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // the room afresh
 			g.room.Goto = g.room.Name
 			return gml.RealV(0), nil
@@ -569,4 +577,18 @@ func (g *Game) Caption(r *Room) string {
 		parts = append(parts, fmt.Sprintf("%s%d", str("caption_lives", "Lives: "), r.G.Lives))
 	}
 	return strings.Join(parts, "  ")
+}
+
+// roomStep is the room d places from a[0] in the game's order, or -1.
+func (g *Game) roomStep(a []gml.Value, d int) gml.Value {
+	if len(a) == 0 {
+		return gml.RealV(-1)
+	}
+	name := a[0].String()
+	for i, r := range g.RoomOrder {
+		if r == name && i+d >= 0 && i+d < len(g.RoomOrder) {
+			return gml.StrV(g.RoomOrder[i+d])
+		}
+	}
+	return gml.RealV(-1)
 }

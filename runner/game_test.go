@@ -242,3 +242,22 @@ none = keyboard_check_direct(vk_nokey); m = median(5, 1, 3, 9); if (left) room_r
 		t.Errorf("%v, goto %q", v, r.Goto)
 	}
 }
+
+// room_next / room_previous follow the game's room order; -1 at the ends.
+func TestRoomNextPrevious(t *testing.T) {
+	o := &Object{Name: "o"}
+	g := &Game{Objects: []*Object{o}, RoomOrder: []string{"title", "level1", "level2"}, Resources: map[string]bool{"title": true, "level1": true, "level2": true}}
+	h, err := g.Code(`n = room_next(level1); p = room_previous(level1); e = room_next(level2); s = room_previous(title); same = (room_next(title) = level1)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	o.Events.Create = h
+	r := &Room{Name: "level1", W: 64, H: 64, G: &Globals{Vars: map[string]float64{}}}
+	in := r.Create(o, 0, 0)
+	if len(g.Errors) > 0 {
+		t.Fatal(g.Errors)
+	}
+	if in.VarsStr["n"] != "level2" || in.VarsStr["p"] != "title" || in.Vars["e"] != -1 || in.Vars["s"] != -1 || in.Vars["same"] != 1 {
+		t.Errorf("vars %v, strings %v", in.Vars, in.VarsStr)
+	}
+}
