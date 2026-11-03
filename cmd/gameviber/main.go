@@ -346,6 +346,7 @@ func checkProject(dir string, w io.Writer) (int, error) {
 			}
 		}
 	}
+	problems += checkRefs(dir, w)
 	fmt.Fprintf(w, "%d .gml files, %d problems\n", files, problems)
 	return problems, nil
 }

@@ -343,3 +343,29 @@ func TestEditRoomSettings(t *testing.T) {
 		t.Errorf("after: %v", m)
 	}
 }
+
+// check finds broken names in the TOML: a room placing a missing object (with
+// the near name), an object with a missing sprite, a room order naming a
+// missing room.
+func TestCheckRefs(t *testing.T) {
+	dir := t.TempDir() + "/game"
+	if err := cmdNew([]string{dir}); err != nil {
+		t.Fatal(err)
+	}
+	var clean strings.Builder
+	if n := checkRefs(dir, &clean); n != 0 {
+		t.Fatalf("the starter game: %d problems\n%s", n, clean.String())
+	}
+	room, _ := os.ReadFile(dir + "/rooms/level/room.toml")
+	os.WriteFile(dir+"/rooms/level/room.toml", append(room, []byte("\n[[instance]]\n  object = \"con\"\n  x = 0\n  y = 0\n")...), 0o644)
+	os.WriteFile(dir+"/objects/coin/object.toml", []byte("sprite = \"gold\"\n"), 0o644)
+	g, _ := os.ReadFile(dir + "/game.toml")
+	os.WriteFile(dir+"/game.toml", []byte(strings.Replace(string(g), `["level"]`, `["level", "level2"]`, 1)), 0o644)
+	var b strings.Builder
+	n := checkRefs(dir, &b)
+	out := b.String()
+	if n != 3 || !strings.Contains(out, `rooms/level/room.toml: an instance's object "con" does not exist — did you mean coin?`) ||
+		!strings.Contains(out, `objects/coin/object.toml: sprite "gold"`) || !strings.Contains(out, `game.toml: room_order's room "level2"`) {
+		t.Errorf("%d problems:\n%s", n, out)
+	}
+}
