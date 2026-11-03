@@ -41,11 +41,11 @@ compares, and / or / xor / not / div / mod are words.
 | mouse-<n>.gml | 0–2 a button held on the instance, 4–6 pressed, 7–9 released, 3 none; 50–58 the same anywhere |
 | collision-<object>.gml | touching an instance of <object> (other = it) |
 | draw.gml | draws the instance itself (instead of its sprite) |
-| other-0 / 2 / 3 / 4 / 5 / 6 / 7 .gml | outside the room / game start / game end / room start / room end / no more lives / animation end |
+| other-0 / 1 / 2 / 3 / 4 / 5 / 6 / 7 .gml | outside the room / touching its edge / game start / game end / room start / room end / no more lives / animation end |
 | other-10 … other-25 .gml | user events 0–15 (event_user(n)) |
 
 The step order is GameMaker 5's: begin step, alarms, keyboard, key press, key release, mouse, step, timelines,
-movement (speed, gravity), outside room, collisions, end step, animation, views.
+movement (speed, gravity), outside room, intersect boundary, collisions, end step, animation, views.
 
 `)
 	for _, k := range []struct{ group, title string }{

@@ -50,7 +50,7 @@ type Events struct {
 	KeyRelease map[Key]Handler
 	Mouse      map[int]Handler
 	// Other holds the other events by GM's number not given a field above:
-	// 2 game start, 3 game end, 7 animation end, 10–25 user events 0–15.
+	// 1 intersect boundary, 2 game start, 3 game end, 7 animation end, 10–25 user events 0–15.
 	Other map[int]Handler
 }
 
@@ -210,6 +210,11 @@ func (r *Room) Step(in Input) {
 			h(r, i)
 		}
 	})
+	each(func(i *Instance) { // intersect boundary (other 1)
+		if h := i.Obj.handler(func(e *Events) Handler { return e.Other[1] }); h != nil && r.crossesEdge(i) {
+			h(r, i)
+		}
+	})
 	each(func(i *Instance) {
 		c := i.Obj.cached()
 		cols := c.coll
@@ -270,6 +275,17 @@ func (r *Room) outside(i *Instance) bool {
 		b = i.BoxAt(i.X, i.Y)
 	}
 	return b.R < 0 || b.L >= r.W || b.B < 0 || b.T >= r.H
+}
+
+// crossesEdge: GM 5's intersect boundary — the instance lies at least partly
+// outside the room (its box, or its position without one). ASSUMPTION
+// [engine]: a box ending exactly on the last pixel row / column is inside.
+func (r *Room) crossesEdge(i *Instance) bool {
+	b := Box{int(i.X), int(i.X), int(i.Y), int(i.Y)}
+	if i.Obj.Mask {
+		b = i.BoxAt(i.X, i.Y)
+	}
+	return b.L < 0 || b.R >= r.W || b.T < 0 || b.B >= r.H
 }
 
 // Events run in a fixed order: keys by key code, collisions by the other

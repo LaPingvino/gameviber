@@ -110,3 +110,24 @@ func TestAnimationEndAndUserEvents(t *testing.T) {
 		t.Errorf("ends %v, user2 %v, image_index %v", in.Vars["ends"], in.Vars["user2"], in.ImageIndex)
 	}
 }
+
+// Intersect boundary (other 1): while the box is partly (or wholly) outside.
+func TestIntersectBoundary(t *testing.T) {
+	ball := &Object{Name: "ball", BBox: Box{0, 15, 0, 15}, Mask: true}
+	g := &Game{Objects: []*Object{ball}}
+	h, err := g.Code("edges += 1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ball.Events.Other = map[int]Handler{1: h}
+	r := &Room{W: 100, H: 100, G: &Globals{Vars: map[string]float64{}}}
+	in := r.Create(ball, 70, 50)
+	in.Vars["edges"] = 0
+	in.HSpeed = 5
+	for range 4 { // x 75, 80, 85 (box to 100: out), 90
+		r.Step(noKeys)
+	}
+	if in.Vars["edges"] != 2 {
+		t.Errorf("edges %v, want 2", in.Vars["edges"])
+	}
+}
