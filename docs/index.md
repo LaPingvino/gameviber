@@ -37,7 +37,7 @@ headless (`-keys "right:40,right+up:25"`, `-shot frame.png`, `-json` for the sta
 as GML text checked as you save, rooms drawn with their sprites — click to place things, right click to
 remove — sprites with their origin and bounding box, new objects, events and rooms, new sprites from PNG pictures (+ Sprite), and **▶ Play** to run what you
 saved. Your changes stay
-in this browser (Reset brings back the starter game). Still to come: step / pause, sounds, object settings as a form.
+in this browser (Reset brings back the starter game). Objects open as a form (sprite, solid, depth, parent …). Still to come: step / pause, sounds.
 
 ## Playing: the window and the browser
 

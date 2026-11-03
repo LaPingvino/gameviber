@@ -257,3 +257,30 @@ func TestEditNew(t *testing.T) {
 		t.Errorf("check: %d %v %s", n, err, b.String())
 	}
 }
+
+// Object settings as a form: read, changed (solid, depth), saved, read back.
+func TestEditObject(t *testing.T) {
+	dir := t.TempDir() + "/game"
+	if err := cmdNew([]string{dir}); err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(editHandler(dir))
+	defer srv.Close()
+	get := func() map[string]any {
+		r, _ := http.Get(srv.URL + "/api/object?path=objects/coin")
+		var o struct{ Settings map[string]any }
+		json.NewDecoder(r.Body).Decode(&o)
+		r.Body.Close()
+		return o.Settings
+	}
+	if s := get(); s["sprite"] != "coin" || s["solid"] != false {
+		t.Fatalf("coin: %v", s)
+	}
+	req, _ := http.NewRequest(http.MethodPut, srv.URL+"/api/object?path=objects/coin", strings.NewReader(`{"solid":true,"depth":5,"sprite":"coin"}`))
+	if r, err := http.DefaultClient.Do(req); err != nil || r.StatusCode != 200 {
+		t.Fatalf("save: %v", err)
+	}
+	if s := get(); s["solid"] != true || s["depth"] != float64(5) || s["visible"] != true {
+		t.Errorf("after: %v", s)
+	}
+}

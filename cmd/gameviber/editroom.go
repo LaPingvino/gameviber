@@ -330,3 +330,69 @@ func (h editRooms) newThing(w http.ResponseWriter, r *http.Request) {
 	rel, _ := filepath.Rel(h.dir, path)
 	writeJSON(w, map[string]any{"path": filepath.ToSlash(rel), "check": checkReport(h.dir)})
 }
+
+// The editor's object settings (object.toml as a form): read as JSON with the
+// sprites and objects to choose from; the settings saved back (other keys
+// kept).
+func (h editRooms) object(w http.ResponseWriter, r *http.Request) {
+	p, ok := projectPath(h.dir, r.URL.Query().Get("path"))
+	if !ok {
+		http.Error(w, "not an object of this project", http.StatusBadRequest)
+		return
+	}
+	var o map[string]any
+	if _, err := toml.DecodeFile(filepath.Join(p, "object.toml"), &o); err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	var sprites []string
+	for name := range h.sprites() {
+		sprites = append(sprites, name)
+	}
+	sort.Strings(sprites)
+	writeJSON(w, map[string]any{"name": filepath.Base(p), "settings": o, "sprites": sprites, "objects": h.objects(), "spriteInfo": h.sprites()})
+}
+
+func (h editRooms) saveObject(w http.ResponseWriter, r *http.Request) {
+	p, ok := projectPath(h.dir, r.URL.Query().Get("path"))
+	if !ok {
+		http.Error(w, "not an object of this project", http.StatusBadRequest)
+		return
+	}
+	file := filepath.Join(p, "object.toml")
+	var o map[string]any
+	if _, err := toml.DecodeFile(file, &o); err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	var in map[string]any
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	for _, k := range []string{"sprite", "parent", "mask"} { // a name, or "-1" for none
+		if v, ok := in[k].(string); ok {
+			o[k] = v
+		}
+	}
+	for _, k := range []string{"solid", "visible", "persistent"} {
+		if v, ok := in[k].(bool); ok {
+			o[k] = v
+		}
+	}
+	if v, ok := in["depth"].(float64); ok {
+		o["depth"] = int64(v)
+	}
+	f, err := os.Create(file)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	err = toml.NewEncoder(f).Encode(o)
+	f.Close()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, checkReport(h.dir))
+}

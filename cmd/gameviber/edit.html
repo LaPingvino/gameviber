@@ -27,6 +27,11 @@ button.new { background: transparent; color: var(--ink); border: 1px solid var(-
 #stage { overflow: auto; padding: 10px; }
 #stage canvas { image-rendering: pixelated; border: 1px solid var(--line); cursor: crosshair; }
 .hint { color: var(--muted); font-size: 12px; }
+#object { display: none; padding: 12px; overflow: auto; }
+#object.on { display: block; }
+#object fieldset { border: 1px solid var(--line); border-radius: 6px; display: grid; grid-template-columns: auto 200px; gap: 8px 12px; align-items: center; max-width: 460px; }
+#object select, #object input[type=number] { font: inherit; background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 4px; padding: 2px 4px; }
+#object .events a { display: inline-block; margin: 4px 8px 0 0; color: var(--accent); }
 #sprite { display: none; padding: 12px; overflow: auto; gap: 16px; }
 #sprite.on { display: flex; flex-wrap: wrap; align-items: flex-start; }
 #sprite canvas { image-rendering: pixelated; border: 1px solid var(--line); background: repeating-conic-gradient(#ccc 0 25%, #fff 0 50%) 0 0 / 16px 16px; }
@@ -54,6 +59,15 @@ footer pre { margin: 0; font: 12px/1.45 ui-monospace, monospace; white-space: pr
       <label>frames in a picture</label><input type="number" id="nframes" min="1" value="1">
       <label style="grid-column: 1 / 3"><button type="button" id="replace">Replace picture…</button></label></fieldset></div>
   <input type="file" id="pngfile" accept="image/png" style="display:none">
+  <div id="object"><fieldset><legend id="objname"></legend>
+      <label>sprite</label><span><select id="osprite"></select> <canvas id="opic" width="32" height="32" style="vertical-align:middle;image-rendering:pixelated"></canvas></span>
+      <label>solid</label><input type="checkbox" id="osolid">
+      <label>visible</label><input type="checkbox" id="ovisible">
+      <label>persistent</label><input type="checkbox" id="opersistent">
+      <label>depth</label><input type="number" id="odepth">
+      <label>parent</label><select id="oparent"></select>
+      <label>mask</label><select id="omask"></select>
+    </fieldset><p class="events" id="oevents"></p></div>
   <div id="room"><div id="palette"></div><div id="stage"><canvas id="canvas"></canvas>
     <p class="hint">Click: place the chosen object (on the 32 px grid; Shift: free) · right click: remove · <a href="#" id="astext">as text</a></p></div></div>
 </main>
@@ -218,9 +232,61 @@ async function saveSprite() {
   sprSaved = sprState(); drawSprite2(); showCheck(await r.json());
 }
 
+// --- object settings (object.toml as a form) ---
+let obj = null, objPath = null, objSaved = "";
+function objDirty() { return obj && JSON.stringify(obj.settings) !== objSaved; }
+function markObj() { $("save").disabled = !objDirty(); $("status").textContent = objDirty() ? "· unsaved" : ""; }
+function fillSelect(sel, names, value) {
+  sel.textContent = "";
+  for (const [v, t] of [["-1", "(none)"], ...names.map((n) => [n, n])]) sel.append(Object.assign(document.createElement("option"), { value: v, textContent: t, selected: v === value }));
+}
+function drawObjPic() {
+  const c = $("opic").getContext("2d"); c.clearRect(0, 0, 32, 32);
+  const name = obj.settings.sprite, s = obj.spriteInfo[name];
+  if (!s) return;
+  const img = strip(name), paint = () => img.naturalWidth && c.drawImage(img, 0, 0, s.W, s.H, 0, 0, 32, 32);
+  img.addEventListener("load", paint); paint();
+}
+async function openObject(dir, a) {
+  obj = await (await call("api/object?path=" + encodeURIComponent(dir))).json();
+  objPath = dir; objSaved = JSON.stringify(obj.settings); current = null; room = null; spr = null;
+  $("path").textContent = dir + " (object)"; $("text").style.display = "none";
+  $("room").classList.remove("on"); $("sprite").classList.remove("on"); $("object").classList.add("on");
+  $("objname").textContent = obj.name;
+  const st = obj.settings;
+  fillSelect($("osprite"), obj.sprites, st.sprite); fillSelect($("omask"), obj.sprites, st.mask);
+  fillSelect($("oparent"), obj.objects.map((o) => o.name).filter((n) => n !== obj.name), st.parent);
+  $("osolid").checked = !!st.solid; $("ovisible").checked = !!st.visible; $("opersistent").checked = !!st.persistent; $("odepth").value = st.depth || 0;
+  const ev = $("oevents"); ev.textContent = "Events: ";
+  for (const l of [...document.querySelectorAll("nav a")].filter((x) => x.parentElement.querySelector("summary")?.textContent === dir && x.textContent.endsWith(".gml"))) {
+    const e = Object.assign(document.createElement("a"), { href: "#", textContent: l.textContent.replace(/\.gml$/, "") });
+    e.onclick = (x) => { x.preventDefault(); open(dir + "/" + l.textContent, l); };
+    ev.append(e);
+  }
+  if (ev.children.length === 0) ev.append("none yet — + Event adds one");
+  document.querySelectorAll("nav a.on").forEach((x) => x.classList.remove("on")); a.classList.add("on");
+  drawObjPic(); markObj();
+}
+for (const [id, key, kind] of [["osprite", "sprite", "s"], ["omask", "mask", "s"], ["oparent", "parent", "s"], ["osolid", "solid", "b"], ["ovisible", "visible", "b"], ["opersistent", "persistent", "b"], ["odepth", "depth", "n"]]) {
+  $(id).addEventListener(kind === "b" ? "change" : "input", () => {
+    obj.settings[key] = kind === "b" ? $(id).checked : kind === "n" ? Number($(id).value) || 0 : $(id).value;
+    if (key === "sprite") drawObjPic();
+    markObj();
+  });
+}
+async function saveObject() {
+  if (!objDirty()) return;
+  const r = await call("api/object?path=" + encodeURIComponent(objPath), { method: "PUT", body: JSON.stringify(obj.settings) });
+  if (!r.ok) { $("check").className = "bad"; $("check").textContent = await r.text(); return; }
+  objSaved = JSON.stringify(obj.settings); markObj(); showCheck(await r.json());
+}
+
 async function open(f, a, asText) {
-  if ((dirty() || roomDirty() || sprDirty()) && !window.confirm("Leave without saving?")) return;
+  if ((dirty() || roomDirty() || sprDirty() || objDirty()) && !window.confirm("Leave without saving?")) return;
   spr = null; $("sprite").classList.remove("on");
+  obj = null; $("object").classList.remove("on");
+  const mo = f.match(/^(objects\/[^/]+)\/object\.toml$/);
+  if (mo && !asText) return openObject(mo[1], a);
   const m = f.match(/^(rooms\/[^/]+)\/room\.toml$/);
   if (m && !asText) return openRoom(m[1], a);
   const ms = f.match(/^(sprites\/[^/]+)\/sprite\.toml$/);
@@ -233,6 +299,7 @@ async function open(f, a, asText) {
   a.classList.add("on"); mark();
 }
 async function save() {
+  if (obj) return saveObject();
   if (spr) return saveSprite();
   if (room) return saveRoom();
   if (!dirty()) return;
@@ -251,15 +318,15 @@ $("play").onclick = () => {
   playing = !playing;
   const g = $("game");
   if (playing) {
-    before = { text: $("text").style.display, room: $("room").classList.contains("on"), sprite: $("sprite").classList.contains("on") };
-    $("text").style.display = "none"; $("room").classList.remove("on"); $("sprite").classList.remove("on");
+    before = { text: $("text").style.display, room: $("room").classList.contains("on"), sprite: $("sprite").classList.contains("on"), object: $("object").classList.contains("on") };
+    $("text").style.display = "none"; $("room").classList.remove("on"); $("sprite").classList.remove("on"); $("object").classList.remove("on");
     g.style.display = "";
     if (!window.gameviberStatic) { g.src = "play/"; g.focus(); }
     else call("play/project.tar").then((r) => r.blob()).then((b) => { g.src = "play.html?project=" + encodeURIComponent(URL.createObjectURL(b)); g.focus(); });
     $("play").textContent = "■ Stop"; $("path").textContent = "playing (the saved files)";
   } else {
     g.src = "about:blank"; g.style.display = "none";
-    $("text").style.display = before.text; if (before.room) $("room").classList.add("on"); if (before.sprite) $("sprite").classList.add("on");
+    $("text").style.display = before.text; if (before.room) $("room").classList.add("on"); if (before.sprite) $("sprite").classList.add("on"); if (before.object) $("object").classList.add("on");
     $("play").textContent = "▶ Play"; $("path").textContent = current || (roomPath ? roomPath + " (room)" : "pick a file on the left");
   }
 };
