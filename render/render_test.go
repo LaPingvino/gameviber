@@ -160,3 +160,51 @@ func TestPlayPacmanioIntoLevel(t *testing.T) {
 		f.Close()
 	}
 }
+
+// Stelo's level 2 (2560 px wide, a view following the player): holding
+// right, the view follows; the frame is the view, drawn ($GAMEVIBER_SHOT3).
+func TestSteloViewFollows(t *testing.T) {
+	d, err := os.ReadFile("../../stelo/win/stelo.exe")
+	if err != nil {
+		t.Skip("Stelo's exe is not checked out next to this repo")
+	}
+	e, _ := gmfile.OpenExe(d)
+	p, err := e.ReadProject()
+	if err != nil {
+		t.Fatal(err)
+	}
+	g, err := load.FromProject(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := g.Room("nivelo2", &runner.Globals{Lives: 3, Vars: map[string]float64{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !r.ViewsEnabled || len(r.Views) == 0 || r.Views[0].Follow == "" {
+		t.Fatalf("nivelo2's view: enabled %v %+v", r.ViewsEnabled, r.Views)
+	}
+	h := &held{key: runner.KeyRight, first: true}
+	for range 150 {
+		r.Step(h)
+		h.first = false
+	}
+	pl := r.All("character")
+	t.Logf("player at %v; view at %d; errors %v", pl[0].X, r.Views[0].X, g.Errors)
+	if r.Views[0].X == 0 {
+		t.Error("the view did not follow")
+	}
+	img := image.NewRGBA(image.Rect(0, 0, r.Views[0].W, r.Views[0].H))
+	var room *gmfile.Room
+	for _, x := range p.Rooms {
+		if x != nil && x.Name == "nivelo2" {
+			room = x
+		}
+	}
+	Frame(img, g.Game, r, LoadAssets(p), room.BGColor, room.DrawBGColor)
+	if path := os.Getenv("GAMEVIBER_SHOT3"); path != "" {
+		f, _ := os.Create(path)
+		png.Encode(f, img)
+		f.Close()
+	}
+}

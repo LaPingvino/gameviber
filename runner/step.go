@@ -102,6 +102,7 @@ func (o *Object) collisionHandlers() map[string]CollisionHandler {
 // at its previous position, then the event runs, and afterwards it moves on by
 // its (possibly changed) speed if that place is free.
 func (r *Room) Step(in Input) {
+	defer r.UpdateViews() // the views follow at the end of the step
 	if r.Sleep > 0 {
 		r.Sleep--
 		for _, i := range r.Paused { // the paused picture stays alive: animations run

@@ -230,11 +230,14 @@ func (gv *GlobalVars) Get(name string, idx []int) (gml.Value, bool) {
 	if v, ok := gv.background(name, idx, nil); ok {
 		return v, true
 	}
-	if len(idx) == 1 && (name == "view_left" || name == "view_top") {
-		return gml.RealV(0), true // PARTIAL: no views yet — the view is the room's top-left
+	if v, ok := gv.view(name, idx, nil); ok {
+		return v, true
 	}
 	if idx == nil && name == "room_caption" && gv.Room != nil {
 		return gml.StrV(gv.Room.Caption), true
+	}
+	if idx == nil && name == "room_persistent" && gv.Room != nil {
+		return gml.RealV(b2f(gv.Room.Persistent)), true
 	}
 	if idx == nil {
 		switch name {
@@ -266,6 +269,13 @@ var inputDefaults = map[string]bool{"mouse_button": true, "mouse_x": true, "mous
 // Set writes a global variable (lives through AddLives, so "no more lives"
 // is noticed).
 func (gv *GlobalVars) Set(name string, idx []int, v gml.Value) {
+	if idx == nil && name == "room_persistent" && gv.Room != nil {
+		gv.Room.Persistent = v.True()
+		return
+	}
+	if _, ok := gv.view(name, idx, &v); ok {
+		return
+	}
 	if _, ok := gv.background(name, idx, &v); ok {
 		return
 	}
@@ -293,4 +303,52 @@ func (gv *GlobalVars) Set(name string, idx []int, v gml.Value) {
 	}
 	delete(gv.str, k)
 	gv.G.Vars[k] = v.N
+}
+
+// view reads or writes view_left / top / width / height / visible [i] of the
+// current room (without an index: view 0).
+func (gv *GlobalVars) view(name string, idx []int, set *gml.Value) (gml.Value, bool) {
+	field, ok := strings.CutPrefix(name, "view_")
+	if !ok || gv.Room == nil {
+		return gml.Value{}, false
+	}
+	i := 0
+	if len(idx) == 1 {
+		i = idx[0]
+	}
+	if field == "enabled" {
+		if set != nil {
+			gv.Room.ViewsEnabled = set.True()
+		}
+		return gml.RealV(b2f(gv.Room.ViewsEnabled)), true
+	}
+	if i < 0 || i > 7 {
+		return gml.Value{}, false
+	}
+	for len(gv.Room.Views) <= i {
+		gv.Room.Views = append(gv.Room.Views, View{})
+	}
+	v := &gv.Room.Views[i]
+	var p *int
+	switch field {
+	case "left", "xview":
+		p = &v.X
+	case "top", "yview":
+		p = &v.Y
+	case "width", "wview":
+		p = &v.W
+	case "height", "hview":
+		p = &v.H
+	case "visible":
+		if set != nil {
+			v.Visible = set.True()
+		}
+		return gml.RealV(b2f(v.Visible)), true
+	default:
+		return gml.Value{}, false
+	}
+	if set != nil {
+		*p = int(set.N)
+	}
+	return gml.RealV(float64(*p)), true
 }

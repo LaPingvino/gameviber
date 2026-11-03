@@ -403,7 +403,8 @@ func (in *Interp) place(e Expr) ([]Instance, string, []int, error) {
 var GlobalBuiltins = map[string]bool{
 	"score": true, "lives": true, "health": true, "keyboard_string": true, "keyboard_key": true,
 	"keyboard_lastkey": true, "keyboard_lastchar": true, "mouse_x": true, "mouse_y": true, "mouse_button": true,
-	"room": true, "room_speed": true, "room_caption": true, "view_left": true, "view_top": true, "room_width": true, "room_height": true,
+	"room": true, "room_speed": true, "room_caption": true, "room_persistent": true, "view_left": true, "view_top": true, "view_width": true, "view_height": true, "view_visible": true, "view_enabled": true,
+	"view_xview": true, "view_yview": true, "view_wview": true, "view_hview": true, "room_width": true, "room_height": true,
 	"background_color": true, "brush_color": true, "pen_color": true, "font_color": true, "background_x": true, "background_y": true, "background_hspeed": true,
 	"background_vspeed": true, "background_visible": true, "background_foreground": true, "background_index": true,
 	"background_htiled": true, "background_vtiled": true, "show_score": true, "show_lives": true, "caption_score": true, "caption_lives": true,

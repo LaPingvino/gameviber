@@ -229,6 +229,18 @@ func (g *Game) actionFuncs() map[string]gml.Func {
 			}
 			return boolV(g.room.PlaceEmpty(s, x, y)), nil
 		},
+		"action_if_object": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (object, x, y, rel)
+			o, err := g.obj(a[0])
+			if err != nil {
+				return gml.Value{}, err
+			}
+			s := g.self()
+			x, y := num(a, 1), num(a, 2)
+			if rel(a, 3) {
+				x, y = x+s.X, y+s.Y
+			}
+			return boolV(g.room.PlaceMeeting(s, x, y, o.Name) != nil), nil
+		},
 		"action_if_number": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (object, number, operation: 0 =, 1 <, 2 >)
 			o, err := g.obj(a[0])
 			if err != nil {

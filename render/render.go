@@ -59,12 +59,19 @@ func Frame(dst *image.RGBA, g *runner.Game, r *runner.Room, a *Assets, roomColou
 		u := uint32(c)
 		draw.Draw(dst, dst.Bounds(), image.NewUniform(color.RGBA{uint8(u), uint8(u >> 8), uint8(u >> 16), 255}), image.Point{}, draw.Src)
 	}
+	// Through view 0 when the room has views (PARTIAL: one view, at the
+	// port's top-left of dst).
+	ox, oy := 0.0, 0.0
+	if r.ViewsEnabled && len(r.Views) > 0 && r.Views[0].Visible {
+		ox, oy = float64(r.Views[0].X), float64(r.Views[0].Y)
+	}
 	layers := func(fore bool) {
 		for _, b := range r.Backgrounds {
 			img := a.BGs[b.Name]
 			if !b.Visible || b.Foreground != fore || img == nil {
 				continue
 			}
+			b.X, b.Y = b.X-ox, b.Y-oy
 			drawLayer(dst, img, b)
 		}
 	}
@@ -77,7 +84,7 @@ func Frame(dst *image.RGBA, g *runner.Game, r *runner.Room, a *Assets, roomColou
 		}
 	}
 	sort.SliceStable(insts, func(i, j int) bool { return insts[i].Obj.Depth > insts[j].Obj.Depth })
-	fd := &frameDrawer{dst: dst, a: a}
+	fd := &frameDrawer{dst: dst, a: a, ox: ox, oy: oy}
 	for _, in := range insts {
 		if g != nil && runner.HasDraw(in) {
 			g.RunDraw(r, in, fd)
@@ -93,7 +100,7 @@ func Frame(dst *image.RGBA, g *runner.Game, r *runner.Room, a *Assets, roomColou
 		}
 		f := frames[k]
 		o := a.Origins[in.Sprite]
-		at := image.Pt(int(math.Round(in.X))-o.X, int(math.Round(in.Y))-o.Y)
+		at := image.Pt(int(math.Round(in.X-ox))-o.X, int(math.Round(in.Y-oy))-o.Y)
 		draw.Draw(dst, f.Bounds().Add(at), f, image.Point{}, draw.Over)
 	}
 	return fd.texts
@@ -110,9 +117,10 @@ type TextCall struct {
 
 // frameDrawer draws draw events into the frame.
 type frameDrawer struct {
-	dst   *image.RGBA
-	a     *Assets
-	texts []TextCall
+	dst    *image.RGBA
+	a      *Assets
+	ox, oy float64 // the view's position (room coordinates → the frame)
+	texts  []TextCall
 }
 
 func bgr(c int32) color.RGBA {
@@ -123,6 +131,7 @@ func bgr(c int32) color.RGBA {
 // Rect fills (brush) and outlines (pen) a rectangle, corners inclusive as
 // Windows' Rectangle with GM's +1 (ASSUMPTION, as the hand ports have it).
 func (d *frameDrawer) Rect(x1, y1, x2, y2 float64, fill, outline int32, filled bool) {
+	x1, y1, x2, y2 = x1-d.ox, y1-d.oy, x2-d.ox, y2-d.oy
 	r := image.Rect(int(math.Round(min(x1, x2))), int(math.Round(min(y1, y2))), int(math.Round(max(x1, x2)))+1, int(math.Round(max(y1, y2)))+1)
 	if filled {
 		draw.Draw(d.dst, r, image.NewUniform(bgr(fill)), image.Point{}, draw.Src)
@@ -135,6 +144,7 @@ func (d *frameDrawer) Rect(x1, y1, x2, y2 float64, fill, outline int32, filled b
 }
 
 func (d *frameDrawer) Sprite(name string, frame, x, y float64) {
+	x, y = x-d.ox, y-d.oy
 	frames := d.a.Frames[name]
 	if len(frames) == 0 {
 		return
@@ -149,13 +159,14 @@ func (d *frameDrawer) Sprite(name string, frame, x, y float64) {
 }
 
 func (d *frameDrawer) Background(name string, x, y float64) {
+	x, y = x-d.ox, y-d.oy
 	if img := d.a.BGs[name]; img != nil {
 		draw.Draw(d.dst, img.Bounds().Add(image.Pt(int(x), int(y))), img, image.Point{}, draw.Over)
 	}
 }
 
 func (d *frameDrawer) Text(x, y float64, s string, f runner.Font) {
-	d.texts = append(d.texts, TextCall{x, y, s, f})
+	d.texts = append(d.texts, TextCall{x - d.ox, y - d.oy, s, f})
 }
 
 // drawLayer draws a background layer at its position, tiled as set.

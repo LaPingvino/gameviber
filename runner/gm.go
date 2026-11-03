@@ -122,8 +122,13 @@ type Room struct {
 	// Backgrounds are the room's background layers (GM 5 has 8).
 	Backgrounds []Background
 	// Caption is room_caption.
-	Caption   string
-	Instances []*Instance
+	Caption string
+	// Persistent is room_persistent (PARTIAL: kept, not yet acted on when leaving).
+	Persistent bool
+	// Views: shown when ViewsEnabled (GM 5 has 8).
+	ViewsEnabled bool
+	Views        []View
+	Instances    []*Instance
 	// Goto asks the game to change rooms after this step (room_goto); "" = stay.
 	Goto string
 	// Sleep is action_sleep: steps during which the game is frozen (nothing
@@ -364,4 +369,49 @@ type Background struct {
 	X, Y, HSpeed, VSpeed float64
 	TileH, TileV         bool
 	Stretch              bool
+}
+
+// View is one of a room's views: the part of the room shown, the object it
+// follows (with the border to keep and the speed it may move; −1 no limit).
+type View struct {
+	Visible                          bool
+	X, Y, W, H                       int
+	PortX, PortY, PortW, PortH       int
+	BorderH, BorderV, SpeedH, SpeedV int
+	Follow                           string // an object's name; "" none
+}
+
+// UpdateViews moves each view after the instance it follows, as Game Maker
+// does at the end of a step (Stelo's World.UpdateView, which is step-exact):
+// nearer than the border to an edge, the view moves to bring it back to the
+// border, at most the view speed a step, and stays in the room.
+func (r *Room) UpdateViews() {
+	if !r.ViewsEnabled || r.Paused != nil {
+		return
+	}
+	step := func(pos, size, room, objPos, border, speed int) int {
+		target := pos
+		if objPos-pos < border {
+			target = objPos - border
+		} else if pos+size-objPos < border {
+			target = objPos + border - size
+		}
+		d := target - pos
+		if speed >= 0 {
+			d = max(-speed, min(speed, d))
+		}
+		return max(0, min(room-size, pos+d))
+	}
+	for i := range r.Views {
+		v := &r.Views[i]
+		if !v.Visible || v.Follow == "" {
+			continue
+		}
+		f := r.All(v.Follow)
+		if len(f) == 0 {
+			continue
+		}
+		v.X = step(v.X, v.W, r.W, int(f[0].X), v.BorderH, v.SpeedH)
+		v.Y = step(v.Y, v.H, r.H, int(f[0].Y), v.BorderV, v.SpeedV)
+	}
 }

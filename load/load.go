@@ -213,6 +213,16 @@ func (g *Game) Room(name string, glob *runner.Globals) (*runner.Room, error) {
 			continue
 		}
 		rr := &runner.Room{Name: r.Name, Caption: r.Caption, W: int(r.W), H: int(r.H), Speed: int(r.Speed), G: glob}
+		rr.ViewsEnabled, rr.Persistent = r.ViewsEnabled, r.Persistent
+		for _, v := range r.Views {
+			follow := ""
+			if v.Follow >= 0 && int(v.Follow) < len(g.Objects) {
+				follow = g.Objects[v.Follow].Name
+			}
+			rr.Views = append(rr.Views, runner.View{Visible: v.Visible, X: int(v.X), Y: int(v.Y), W: int(v.W), H: int(v.H),
+				PortX: int(v.PortX), PortY: int(v.PortY), PortW: int(v.PortW), PortH: int(v.PortH),
+				BorderH: int(v.HBorder), BorderV: int(v.VBorder), SpeedH: int(v.HSpeed), SpeedV: int(v.VSpeed), Follow: follow})
+		}
 		for _, b := range r.Backgrounds {
 			name := ""
 			if b.BG >= 0 && int(b.BG) < len(g.Project.Backgrounds) && g.Project.Backgrounds[b.BG] != nil {
