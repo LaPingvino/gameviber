@@ -1,6 +1,7 @@
 package load
 
 import (
+	"encoding/json"
 	"os"
 	"sort"
 	"strings"
@@ -106,4 +107,59 @@ func TestPlayPacmanioFromStart(t *testing.T) {
 	if len(rooms) < 2 || rooms[0] != "komenco" || rooms[1] != "fino" {
 		t.Errorf("rooms %v, want komenco then fino", rooms)
 	}
+}
+
+// held holds one key (pressed on its first step).
+type held struct {
+	key   runner.Key
+	first bool
+}
+
+func (h *held) Held(k runner.Key) bool    { return k == h.key }
+func (h *held) Pressed(k runner.Key) bool { return k == h.key && h.first }
+
+// Stelo's nivelo2 under GameViber against the hand port (a step-exact
+// remake): the player's position at every step of 150 with → held. The hand
+// port's trace comes from $GAMEVIBER_STELO_TRACE (JSON [[x,y],…], made by
+// a throwaway program in the Stelo repo).
+func TestSteloAgainstHandPort(t *testing.T) {
+	tp := os.Getenv("GAMEVIBER_STELO_TRACE")
+	if tp == "" {
+		t.Skip("no hand-port trace ($GAMEVIBER_STELO_TRACE)")
+	}
+	js, err := os.ReadFile(tp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var want [][2]float64
+	if err := json.Unmarshal(js, &want); err != nil {
+		t.Fatal(err)
+	}
+	d, err := os.ReadFile("../../stelo/win/stelo.exe")
+	if err != nil {
+		t.Skip("Stelo's exe is not checked out next to this repo")
+	}
+	e, _ := gmfile.OpenExe(d)
+	p, err := e.ReadProject()
+	if err != nil {
+		t.Fatal(err)
+	}
+	g, err := FromProject(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := g.Room("nivelo2", &runner.Globals{Lives: 3, Vars: map[string]float64{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := &held{key: runner.KeyRight, first: true}
+	for i, w := range want {
+		r.Step(h)
+		h.first = false
+		pl := r.All("character")[0]
+		if pl.X != w[0] || pl.Y != w[1] {
+			t.Fatalf("step %d: GameViber (%v, %v), hand port (%v, %v)", i+1, pl.X, pl.Y, w[0], w[1])
+		}
+	}
+	t.Logf("%d steps identical; errors %v", len(want), g.Errors)
 }
