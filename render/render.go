@@ -82,8 +82,20 @@ func Frame(dst *image.RGBA, g *runner.Game, r *runner.Room, a *Assets, roomColou
 	}
 	layers(false)
 	defer layers(true)
-	insts := make([]*runner.Instance, 0, len(r.Instances))
-	for _, in := range r.Instances {
+	// During a pause (action_sleep) the moment it began is shown — the
+	// instances and the score / lives of then — with its animations running
+	// (runner.Room.SleepMS), not what the paused event has done since.
+	shown := r.Instances
+	if r.Sleep > 0 && r.Paused != nil {
+		shown = r.Paused
+		if r.PausedG != nil {
+			now := r.G
+			r.G = r.PausedG
+			defer func() { r.G = now }()
+		}
+	}
+	insts := make([]*runner.Instance, 0, len(shown))
+	for _, in := range shown {
 		if !in.Destroyed && in.Obj.Visible {
 			insts = append(insts, in)
 		}

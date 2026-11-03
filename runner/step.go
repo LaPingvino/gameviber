@@ -116,6 +116,10 @@ func (r *Room) Step(in Input) {
 		for _, i := range r.Paused { // the paused picture stays alive: animations run
 			i.ImageIndex += i.ImageSpeed
 		}
+		for b := range r.Backgrounds { // and the backgrounds keep scrolling
+			r.Backgrounds[b].X += r.Backgrounds[b].HSpeed
+			r.Backgrounds[b].Y += r.Backgrounds[b].VSpeed
+		}
 		if r.Sleep == 0 {
 			r.Paused, r.PausedG = nil, nil
 		}
