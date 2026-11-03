@@ -236,3 +236,64 @@ func TestSteloScriptAgainstHandPort(t *testing.T) {
 		})
 	}
 }
+
+// Pacmanio's pu_1a_nivelo against the hand port with the ghosts taken out
+// (they move at random): Pacman's position, score, lives and the dots left
+// at every step of a key script ($GAMEVIBER_PAC_TRACE).
+func TestPacmanioAgainstHandPort(t *testing.T) {
+	tp := os.Getenv("GAMEVIBER_PAC_TRACE")
+	if tp == "" {
+		t.Skip("no hand-port trace ($GAMEVIBER_PAC_TRACE)")
+	}
+	js, err := os.ReadFile(tp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var want [][5]float64
+	json.Unmarshal(js, &want)
+	d, err := os.ReadFile("../../pacmanio/win/pacmanio.exe")
+	if err != nil {
+		t.Skip("Pacmanio's exe is not checked out next to this repo")
+	}
+	e, _ := gmfile.OpenExe(d)
+	p, err := e.ReadProject()
+	if err != nil {
+		t.Fatal(err)
+	}
+	g, err := FromProject(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := g.Room("pu_1a_nivelo", &runner.Globals{Lives: 3, Vars: map[string]float64{"murigxu": 2}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, m := range r.All("monster") {
+		m.Destroyed = true
+	}
+	script := []struct {
+		keys  []runner.Key
+		steps int
+	}{
+		{[]runner.Key{runner.KeyLeft}, 30}, {[]runner.Key{runner.KeyUp}, 25}, {[]runner.Key{runner.KeyRight}, 40}, {[]runner.Key{runner.KeyDown}, 30},
+		{nil, 5}, {[]runner.Key{runner.KeyLeft}, 60}, {[]runner.Key{runner.KeyUp}, 40}, {[]runner.Key{runner.KeyRight}, 80},
+	}
+	k := &keySet{held: map[runner.Key]bool{}, prev: map[runner.Key]bool{}}
+	i := 0
+	for _, s := range script {
+		for range s.steps {
+			k.prev, k.held = k.held, map[runner.Key]bool{}
+			for _, c := range s.keys {
+				k.held[c] = true
+			}
+			r.Step(k)
+			pm := r.All("pacman")[0]
+			got := [5]float64{pm.X, pm.Y, float64(r.G.Score), float64(r.G.Lives), float64(len(r.All("point")))}
+			if got != want[i] {
+				t.Fatalf("step %d: GameViber %v, hand port %v (x, y, score, lives, dots); errors %v", i+1, got, want[i], g.Errors)
+			}
+			i++
+		}
+	}
+	t.Logf("%d steps identical (ends at %v); errors %v", i, want[i-1], g.Errors)
+}
