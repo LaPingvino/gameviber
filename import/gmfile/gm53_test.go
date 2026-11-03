@@ -108,4 +108,63 @@ func TestReadProjectStelo(t *testing.T) {
 		}
 	}
 	t.Logf("%d sounds, %d sprites", len(p.Sounds), len(p.Sprites))
+	var rest struct {
+		Objects []*struct {
+			Name   string `json:"name"`
+			Events []struct {
+				Type    string `json:"type"`
+				Actions []struct {
+					Function string   `json:"function"`
+					Args     []string `json:"args"`
+				} `json:"actions"`
+			} `json:"events"`
+		} `json:"objects"`
+		Rooms []*struct {
+			Name      string `json:"name"`
+			Instances []any  `json:"instances"`
+		} `json:"rooms"`
+		Scripts []*struct {
+			Name string `json:"name"`
+		} `json:"scripts"`
+		Timelines []*struct {
+			Name string `json:"name"`
+		} `json:"timelines"`
+		RoomOrder []int32 `json:"room_order"`
+	}
+	json.Unmarshal(js, &rest)
+	if len(p.Objects) != len(rest.Objects) || len(p.Rooms) != len(rest.Rooms) || len(p.Scripts) != len(rest.Scripts) || len(p.Timelines) != len(rest.Timelines) {
+		t.Fatalf("objects %d/%d rooms %d/%d scripts %d/%d timelines %d/%d", len(p.Objects), len(rest.Objects), len(p.Rooms), len(rest.Rooms), len(p.Scripts), len(rest.Scripts), len(p.Timelines), len(rest.Timelines))
+	}
+	actions := 0
+	for i, o := range rest.Objects {
+		g := p.Objects[i]
+		if (o == nil) != (g == nil) || o == nil {
+			continue
+		}
+		if g.Name != o.Name || len(g.Events) != len(o.Events) {
+			t.Errorf("object %d: %s %d events; want %s %d", i, g.Name, len(g.Events), o.Name, len(o.Events))
+			continue
+		}
+		for j, ev := range o.Events {
+			if g.Events[j].Type != ev.Type || len(g.Events[j].Actions) != len(ev.Actions) {
+				t.Errorf("%s event %d: %s %d actions; want %s %d", o.Name, j, g.Events[j].Type, len(g.Events[j].Actions), ev.Type, len(ev.Actions))
+				continue
+			}
+			for k, a := range ev.Actions {
+				actions++
+				if g.Events[j].Actions[k].Function != a.Function || len(g.Events[j].Actions[k].Args) != len(a.Args) {
+					t.Errorf("%s event %d action %d: %s, want %s", o.Name, j, k, g.Events[j].Actions[k].Function, a.Function)
+				}
+			}
+		}
+	}
+	for i, rm := range rest.Rooms {
+		if rm != nil && (p.Rooms[i].Name != rm.Name || len(p.Rooms[i].Instances) != len(rm.Instances)) {
+			t.Errorf("room %d: %s %d instances; want %s %d", i, p.Rooms[i].Name, len(p.Rooms[i].Instances), rm.Name, len(rm.Instances))
+		}
+	}
+	if len(p.RoomOrder) != len(rest.RoomOrder) {
+		t.Errorf("room order %v, want %v", p.RoomOrder, rest.RoomOrder)
+	}
+	t.Logf("%d objects (%d actions), %d rooms, %d scripts, %d timelines", len(p.Objects), actions, len(p.Rooms), len(p.Scripts), len(p.Timelines))
 }

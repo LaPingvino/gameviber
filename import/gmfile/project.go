@@ -5,10 +5,21 @@ import "fmt"
 // Project is a GM 5.3 game's contents, as gm53-reader reads them (same
 // fields; image and sound data kept as the bytes stored).
 type Project struct {
-	GameID   int32
-	Settings Settings
-	Sounds   []*Sound  // by id; nil where a resource was deleted
-	Sprites  []*Sprite // by id
+	GameID                     int32
+	Settings                   Settings
+	Sounds                     []*Sound  // by id; nil where a resource was deleted
+	Sprites                    []*Sprite // by id
+	Backgrounds                []*Background
+	Paths                      []*Path
+	Scripts                    []*Script
+	DataFiles                  []*DataFile
+	Timelines                  []*Timeline
+	Objects                    []*GMObject
+	Rooms                      []*Room
+	LastInstanceID, LastTileID int32
+	InfoCaption, Information   string // the game information (RTF)
+	LibraryInit                []string
+	RoomOrder                  []int32
 }
 
 // Settings are the game's global settings (the subset the runner uses is
@@ -159,6 +170,7 @@ func (e *Exe) ReadProject() (*Project, error) {
 	})
 	must(func() error { return p.readSounds(r) })
 	must(func() error { return p.readSprites(r) })
+	must(func() error { return p.readRest(r) })
 	return p, err
 }
 
