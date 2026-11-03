@@ -41,11 +41,12 @@ func (in *input) MouseReleased(b int) bool  { return inpututil.IsMouseButtonJust
 
 // Game is a game in the window.
 type Game struct {
-	play   *load.Play
-	assets *render.Assets
-	proj   *gmfile.Project
-	in     input
-	frame  *image.RGBA
+	play    *load.Play
+	assets  *render.Assets
+	proj    *gmfile.Project
+	in      input
+	frame   *image.RGBA
+	touches []eb.TouchID
 	// MaxFrames ends the run after so many frames (0: run until closed) —
 	// for checks under a virtual display.
 	MaxFrames int
@@ -66,6 +67,27 @@ func (g *Game) Update() error {
 	for k, e := range keys {
 		if eb.IsKeyPressed(e) {
 			g.in.held[k] = true
+		}
+	}
+	// Touch (phones, tablets, touch screens): a finger held on the screen
+	// holds the arrow towards it — from the screen's centre, along the
+	// stronger direction — so arrow-key games play without a keyboard and
+	// nothing covers the play area.
+	if ids := eb.AppendTouchIDs(g.touches[:0]); len(ids) > 0 {
+		g.touches = ids
+		w, h := g.size()
+		tx, ty := eb.TouchPosition(ids[0])
+		dx, dy := float64(tx)-float64(w)/2, float64(ty)-float64(h)/2
+		switch {
+		case dx*dx+dy*dy < 24*24: // the very centre: no direction
+		case dx*dx > dy*dy && dx < 0:
+			g.in.held[37] = true
+		case dx*dx > dy*dy:
+			g.in.held[39] = true
+		case dy < 0:
+			g.in.held[38] = true
+		default:
+			g.in.held[40] = true
 		}
 	}
 	cx, cy := eb.CursorPosition() // in the frame (Layout's size): + the view's position = the room
