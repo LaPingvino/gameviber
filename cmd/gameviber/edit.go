@@ -120,6 +120,7 @@ func editHandler(dir string) http.Handler {
 	rooms := editRooms{dir}
 	mux.HandleFunc("GET /api/room", rooms.room)
 	mux.HandleFunc("PUT /api/room", rooms.saveRoom)
+	mux.HandleFunc("PUT /api/room-settings", rooms.saveRoomSettings)
 	mux.HandleFunc("GET /api/strip", rooms.strip)
 	mux.HandleFunc("GET /api/sprite", rooms.sprite)
 	mux.HandleFunc("PUT /api/sprite", rooms.saveSprite)

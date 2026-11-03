@@ -47,6 +47,7 @@ func (h editRooms) room(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, map[string]any{
 		"width": room["width"], "height": room["height"], "background": room["background_colour"],
+		"caption": room["caption"], "speed": room["speed"], "persistent": room["persistent"],
 		"instances": insts, "objects": h.objects(), "sprites": h.sprites(),
 	})
 }
@@ -389,6 +390,53 @@ func (h editRooms) saveObject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	err = toml.NewEncoder(f).Encode(o)
+	f.Close()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, checkReport(h.dir))
+}
+
+// saveRoomSettings (the room view's settings): caption, size, speed,
+// persistent, background colour — the instances and other keys kept.
+func (h editRooms) saveRoomSettings(w http.ResponseWriter, r *http.Request) {
+	p, ok := projectPath(h.dir, r.URL.Query().Get("path"))
+	if !ok {
+		http.Error(w, "not a room of this project", http.StatusBadRequest)
+		return
+	}
+	file := filepath.Join(p, "room.toml")
+	var room map[string]any
+	if _, err := toml.DecodeFile(file, &room); err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	var in map[string]any
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if v, ok := in["caption"].(string); ok {
+		room["caption"] = v
+	}
+	for _, k := range []string{"width", "height", "speed"} {
+		if v, ok := in[k].(float64); ok && v >= 1 && v <= 10000 {
+			room[k] = int64(v)
+		}
+	}
+	if v, ok := in["persistent"].(bool); ok {
+		room["persistent"] = v
+	}
+	if v, ok := in["background_colour"].(string); ok && len(v) == 7 && v[0] == '#' {
+		room["background_colour"] = strings.ToUpper(v)
+	}
+	f, err := os.Create(file)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	err = toml.NewEncoder(f).Encode(room)
 	f.Close()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

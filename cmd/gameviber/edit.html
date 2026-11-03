@@ -24,6 +24,9 @@ button.new { background: transparent; color: var(--ink); border: 1px solid var(-
 #palette button { display: flex; align-items: center; gap: 8px; background: transparent; color: var(--ink); border: 1px solid var(--line); text-align: left; padding: 4px 6px; }
 #palette button.on { border-color: var(--accent); background: var(--line); }
 #palette canvas { width: 24px; height: 24px; image-rendering: pixelated; }
+#roomset { display: grid; grid-template-columns: auto 1fr; gap: 4px 6px; margin-top: 10px; font-size: 12px; align-items: center; }
+#roomset input { width: 100%; font: inherit; background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 4px; padding: 1px 3px; }
+#roomset input[type=checkbox] { width: auto; }
 #stage { overflow: auto; padding: 10px; }
 #stage canvas { image-rendering: pixelated; border: 1px solid var(--line); cursor: crosshair; }
 .hint { color: var(--muted); font-size: 12px; }
@@ -186,7 +189,24 @@ function drawRoom() {
   for (let y = 0; y < c.height; y += 32) { ctx.beginPath(); ctx.moveTo(0, y + .5); ctx.lineTo(c.width, y + .5); ctx.stroke(); }
   for (const i of room.instances) { const sp = spriteOf(i.object); if (sp) drawSprite(ctx, sp, i.x, i.y); else { ctx.fillStyle = "#fff8"; ctx.fillRect(i.x, i.y, 8, 8); } }
 }
-function roomDirty() { return room && JSON.stringify(room.instances) !== roomSaved; }
+function roomState() { return JSON.stringify([room.instances, room.settings]); }
+function roomDirty() { return room && roomState() !== roomSaved; }
+const roomFields = [["caption", "caption", "text"], ["width", "width", "number"], ["height", "height", "number"], ["speed", "speed", "number"], ["colour", "background_colour", "color"], ["persistent", "persistent", "checkbox"]];
+function roomSettingsForm() { // the room's own settings, under the palette
+  const f = document.createElement("div"); f.id = "roomset";
+  for (const [label, key, type] of roomFields) {
+    const inp = Object.assign(document.createElement("input"), { type });
+    if (type === "checkbox") inp.checked = !!room.settings[key]; else inp.value = room.settings[key] ?? "";
+    inp.addEventListener(type === "checkbox" ? "change" : "input", () => {
+      room.settings[key] = type === "checkbox" ? inp.checked : type === "number" ? Number(inp.value) || 1 : inp.value;
+      if (key === "width" || key === "height") { room.width = room.settings.width; room.height = room.settings.height; }
+      if (key === "background_colour") room.background = inp.value;
+      drawRoom(); markRoom();
+    });
+    f.append(Object.assign(document.createElement("label"), { textContent: label }), inp);
+  }
+  return f;
+}
 function at(e) {
   const c = $("canvas"), r = c.getBoundingClientRect();
   return [Math.floor((e.clientX - r.left) * c.width / r.width), Math.floor((e.clientY - r.top) * c.height / r.height)];
@@ -209,7 +229,8 @@ $("canvas").addEventListener("contextmenu", (e) => e.preventDefault());
 function markRoom() { $("save").disabled = !roomDirty(); $("status").textContent = roomDirty() ? "· unsaved" : ""; }
 async function openRoom(dir, a) {
   room = await (await call("api/room?path=" + encodeURIComponent(dir))).json();
-  roomPath = dir; roomSaved = JSON.stringify(room.instances); current = null;
+  room.settings = { caption: room.caption || "", width: room.width, height: room.height, speed: room.speed, background_colour: room.background || "#000000", persistent: !!room.persistent };
+  roomPath = dir; roomSaved = roomState(); current = null;
   $("path").textContent = dir + " (room)"; $("text").style.display = "none"; $("room").classList.add("on");
   const pal = $("palette"); pal.textContent = "";
   for (const o of room.objects) {
@@ -220,6 +241,7 @@ async function openRoom(dir, a) {
     b.onclick = () => { chosen = o.name; pal.querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b)); };
     pal.append(b);
   }
+  pal.append(roomSettingsForm());
   document.querySelectorAll("nav a.on").forEach((x) => x.classList.remove("on"));
   a.classList.add("on"); drawRoom(); markRoom();
 }
@@ -227,7 +249,9 @@ async function saveRoom() {
   if (!roomDirty()) return;
   const r = await call("api/room?path=" + encodeURIComponent(roomPath), { method: "PUT", body: JSON.stringify(room.instances) });
   if (!r.ok) { $("check").className = "bad"; $("check").textContent = await r.text(); return; }
-  roomSaved = JSON.stringify(room.instances); markRoom(); showCheck(await r.json());
+  const r2 = await call("api/room-settings?path=" + encodeURIComponent(roomPath), { method: "PUT", body: JSON.stringify(room.settings) });
+  if (!r2.ok) { $("check").className = "bad"; $("check").textContent = await r2.text(); return; }
+  roomSaved = roomState(); markRoom(); showCheck(await r2.json());
 }
 $("astext").onclick = (e) => { e.preventDefault(); const a = document.querySelector("nav a.on"); room = null; open(roomPath + "/room.toml", a, true); };
 window.addEventListener("resize", drawRoom);

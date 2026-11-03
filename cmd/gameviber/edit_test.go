@@ -317,3 +317,29 @@ func TestEditSound(t *testing.T) {
 		}
 	}
 }
+
+// A room's own settings saved: caption, size, colour; its instances kept.
+func TestEditRoomSettings(t *testing.T) {
+	dir := t.TempDir() + "/game"
+	if err := cmdNew([]string{dir}); err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(editHandler(dir))
+	defer srv.Close()
+	get := func() map[string]any {
+		r, _ := http.Get(srv.URL + "/api/room?path=rooms/level")
+		var m map[string]any
+		json.NewDecoder(r.Body).Decode(&m)
+		r.Body.Close()
+		return m
+	}
+	n := len(get()["instances"].([]any))
+	req, _ := http.NewRequest(http.MethodPut, srv.URL+"/api/room-settings?path=rooms/level", strings.NewReader(`{"caption":"Big room","width":800,"height":600,"background_colour":"#102030","persistent":true}`))
+	if r, err := http.DefaultClient.Do(req); err != nil || r.StatusCode != 200 {
+		t.Fatalf("save: %v", err)
+	}
+	m := get()
+	if m["caption"] != "Big room" || m["width"] != float64(800) || m["background"] != "#102030" || m["persistent"] != true || len(m["instances"].([]any)) != n {
+		t.Errorf("after: %v", m)
+	}
+}
