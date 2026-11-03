@@ -5,8 +5,9 @@ import (
 	"image"
 	"image/draw"
 	"image/png"
+	"io/fs"
 	"os"
-	"path/filepath"
+	"path"
 	"sort"
 	"strconv"
 	"strings"
@@ -17,16 +18,21 @@ import (
 // ReadDir reads a GameViber text project (Export's format) back into a
 // Project, so the same loader runs it: each event's .gml becomes one code
 // action; sprite strips are cut into frames (Images, not BMP bytes).
-func ReadDir(dir string) (*Project, error) {
+func ReadDir(dir string) (*Project, error) { return ReadFS(os.DirFS(dir), ".") }
+
+// ReadFS is ReadDir on any file system (the web build reads the project
+// packed into the page).
+func ReadFS(fsys fs.FS, dir string) (*Project, error) {
 	p := &Project{}
 	var game struct {
 		Name      string            `toml:"name"`
 		RoomOrder []string          `toml:"room_order"`
 		Constants map[string]string `toml:"constants"`
 	}
-	if _, err := toml.DecodeFile(filepath.Join(dir, "game.toml"), &game); err != nil {
+	if _, err := decodeTOML(fsys, path.Join(dir, "game.toml"), &game); err != nil {
 		return nil, fmt.Errorf("game.toml: %w", err)
 	}
+	p.name = game.Name
 	keys := make([]string, 0, len(game.Constants))
 	for k := range game.Constants {
 		keys = append(keys, k)
@@ -36,7 +42,7 @@ func ReadDir(dir string) (*Project, error) {
 		p.Settings.Constants = append(p.Settings.Constants, [2]string{k, game.Constants[k]})
 	}
 	names := func(sub string) []string {
-		ents, _ := os.ReadDir(filepath.Join(dir, sub))
+		ents, _ := fs.ReadDir(fsys, path.Join(dir, sub))
 		var out []string
 		for _, e := range ents {
 			out = append(out, e.Name())
@@ -45,14 +51,14 @@ func ReadDir(dir string) (*Project, error) {
 		return out
 	}
 	for _, n := range names("sprites") {
-		s, err := readSprite(filepath.Join(dir, "sprites", n), n, len(p.Sprites))
+		s, err := readSprite(fsys, path.Join(dir, "sprites", n), n, len(p.Sprites))
 		if err != nil {
 			return nil, err
 		}
 		p.Sprites = append(p.Sprites, s)
 	}
 	for _, f := range names("backgrounds") {
-		img, err := readPNG(filepath.Join(dir, "backgrounds", f))
+		img, err := readPNG(fsys, path.Join(dir, "backgrounds", f))
 		if err != nil {
 			return nil, err
 		}
@@ -60,15 +66,15 @@ func ReadDir(dir string) (*Project, error) {
 		p.Backgrounds = append(p.Backgrounds, &Background{ID: len(p.Backgrounds), Name: strings.TrimSuffix(f, ".png"), W: int32(b.Dx()), H: int32(b.Dy()), Img: img})
 	}
 	for _, f := range names("sounds") {
-		data, err := os.ReadFile(filepath.Join(dir, "sounds", f))
+		data, err := fs.ReadFile(fsys, path.Join(dir, "sounds", f))
 		if err != nil {
 			return nil, err
 		}
-		ext := filepath.Ext(f)
+		ext := path.Ext(f)
 		p.Sounds = append(p.Sounds, &Sound{ID: len(p.Sounds), Name: strings.TrimSuffix(f, ext), Ext: ext, Data: data})
 	}
 	for _, f := range names("scripts") {
-		code, err := os.ReadFile(filepath.Join(dir, "scripts", f))
+		code, err := fs.ReadFile(fsys, path.Join(dir, "scripts", f))
 		if err != nil {
 			return nil, err
 		}
@@ -76,12 +82,12 @@ func ReadDir(dir string) (*Project, error) {
 	}
 	for _, n := range names("timelines") {
 		t := &Timeline{ID: len(p.Timelines), Name: n}
-		for _, f := range names(filepath.Join("timelines", n)) {
+		for _, f := range names(path.Join("timelines", n)) {
 			step, err := strconv.Atoi(strings.TrimSuffix(strings.TrimPrefix(f, "moment-"), ".gml"))
 			if err != nil {
 				continue
 			}
-			code, err := os.ReadFile(filepath.Join(dir, "timelines", n, f))
+			code, err := fs.ReadFile(fsys, path.Join(dir, "timelines", n, f))
 			if err != nil {
 				return nil, err
 			}
@@ -111,12 +117,12 @@ func ReadDir(dir string) (*Project, error) {
 			Solid, Visible, Persistent bool
 			Depth                      int32
 		}
-		if _, err := toml.DecodeFile(filepath.Join(dir, "objects", n, "object.toml"), &meta); err != nil {
+		if _, err := decodeTOML(fsys, path.Join(dir, "objects", n, "object.toml"), &meta); err != nil {
 			return nil, fmt.Errorf("objects/%s/object.toml: %w", n, err)
 		}
 		o := &GMObject{ID: len(p.Objects), Name: n, Sprite: lookup(sprID, meta.Sprite), Solid: meta.Solid, Visible: meta.Visible,
 			Persistent: meta.Persistent, Depth: meta.Depth, Parent: lookup(objID, meta.Parent), Mask: lookup(sprID, meta.Mask)}
-		for _, f := range names(filepath.Join("objects", n)) {
+		for _, f := range names(path.Join("objects", n)) {
 			if !strings.HasSuffix(f, ".gml") {
 				continue
 			}
@@ -124,7 +130,7 @@ func ReadDir(dir string) (*Project, error) {
 			if !ok {
 				return nil, fmt.Errorf("objects/%s/%s: not an event file name", n, f)
 			}
-			code, err := os.ReadFile(filepath.Join(dir, "objects", n, f))
+			code, err := fs.ReadFile(fsys, path.Join(dir, "objects", n, f))
 			if err != nil {
 				return nil, err
 			}
@@ -135,7 +141,7 @@ func ReadDir(dir string) (*Project, error) {
 	}
 	roomID := map[string]int32{}
 	for _, n := range names("rooms") {
-		r, err := readRoom(filepath.Join(dir, "rooms", n), n, len(p.Rooms), objID, p)
+		r, err := readRoom(fsys, path.Join(dir, "rooms", n), n, len(p.Rooms), objID, p)
 		if err != nil {
 			return nil, err
 		}
@@ -182,22 +188,22 @@ func parseEventFile(name string, objID map[string]int32) (Event, bool) {
 	return Event{Type: typ, Sub: int32(n)}, err == nil
 }
 
-func readPNG(path string) (*image.NRGBA, error) {
-	f, err := os.Open(path)
+func readPNG(fsys fs.FS, file string) (*image.NRGBA, error) {
+	f, err := fsys.Open(file)
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
 	img, err := png.Decode(f)
 	if err != nil {
-		return nil, fmt.Errorf("%s: %w", path, err)
+		return nil, fmt.Errorf("%s: %w", file, err)
 	}
 	n := image.NewNRGBA(img.Bounds())
 	draw.Draw(n, n.Bounds(), img, img.Bounds().Min, draw.Src)
 	return n, nil
 }
 
-func readSprite(dir, name string, id int) (*Sprite, error) {
+func readSprite(fsys fs.FS, dir, name string, id int) (*Sprite, error) {
 	var meta struct {
 		Frames         int     `toml:"frames"`
 		FrameW, FrameH int32   `toml:"frame_w"`
@@ -206,13 +212,13 @@ func readSprite(dir, name string, id int) (*Sprite, error) {
 		Precise        bool    `toml:"precise"`
 		Transparent    bool    `toml:"transparent"`
 	}
-	if _, err := toml.DecodeFile(filepath.Join(dir, "sprite.toml"), &meta); err != nil {
+	if _, err := decodeTOML(fsys, path.Join(dir, "sprite.toml"), &meta); err != nil {
 		return nil, fmt.Errorf("sprites/%s/sprite.toml: %w", name, err)
 	}
 	var fh struct {
 		FrameH int32 `toml:"frame_h"`
 	}
-	toml.DecodeFile(filepath.Join(dir, "sprite.toml"), &fh)
+	decodeTOML(fsys, path.Join(dir, "sprite.toml"), &fh)
 	s := &Sprite{ID: id, Name: name, W: meta.FrameW, H: fh.FrameH, Precise: meta.Precise, Transparent: meta.Transparent}
 	copy(s.BBox[:], meta.BBox)
 	if len(meta.Origin) == 2 {
@@ -221,7 +227,7 @@ func readSprite(dir, name string, id int) (*Sprite, error) {
 	if meta.Frames == 0 {
 		return s, nil
 	}
-	strip, err := readPNG(filepath.Join(dir, "strip.png"))
+	strip, err := readPNG(fsys, path.Join(dir, "strip.png"))
 	if err != nil {
 		return nil, err
 	}
@@ -233,7 +239,7 @@ func readSprite(dir, name string, id int) (*Sprite, error) {
 	return s, nil
 }
 
-func readRoom(dir, name string, id int, objID map[string]int32, p *Project) (*Room, error) {
+func readRoom(fsys fs.FS, dir, name string, id int, objID map[string]int32, p *Project) (*Room, error) {
 	var meta struct {
 		Caption              string `toml:"caption"`
 		Width, Height, Speed int32
@@ -257,7 +263,7 @@ func readRoom(dir, name string, id int, objID map[string]int32, p *Project) (*Ro
 			Follow                    string
 		} `toml:"view"`
 	}
-	if _, err := toml.DecodeFile(filepath.Join(dir, "room.toml"), &meta); err != nil {
+	if _, err := decodeTOML(fsys, path.Join(dir, "room.toml"), &meta); err != nil {
 		return nil, fmt.Errorf("rooms/%s/room.toml: %w", name, err)
 	}
 	r := &Room{ID: id, Name: name, Caption: meta.Caption, W: meta.Width, H: meta.Height, Speed: meta.Speed, Persistent: meta.Persistent,
@@ -303,8 +309,17 @@ func readRoom(dir, name string, id int, objID map[string]int32, p *Project) (*Ro
 		}
 		r.Views = append(r.Views, vw)
 	}
-	if code, err := os.ReadFile(filepath.Join(dir, "creation.gml")); err == nil {
+	if code, err := fs.ReadFile(fsys, path.Join(dir, "creation.gml")); err == nil {
 		r.CreationCode = string(code)
 	}
 	return r, nil
+}
+
+// decodeTOML reads a TOML file from the file system.
+func decodeTOML(fsys fs.FS, file string, v any) (toml.MetaData, error) {
+	data, err := fs.ReadFile(fsys, file)
+	if err != nil {
+		return toml.MetaData{}, err
+	}
+	return toml.Decode(string(data), v)
 }

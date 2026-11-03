@@ -9,6 +9,7 @@
 package main
 
 import (
+	"archive/tar"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -41,10 +42,12 @@ func main() {
 		err = cmdCheck(os.Args[2:])
 	case "run":
 		err = cmdRun(os.Args[2:])
+	case "web":
+		err = cmdWeb(os.Args[2:])
 	case "help", "-h", "--help":
 		usage()
 	default:
-		err = fmt.Errorf("unknown command %q (import, play, check, run)", os.Args[1])
+		err = fmt.Errorf("unknown command %q (import, play, check, run, web)", os.Args[1])
 	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "gameviber:", err)
@@ -59,6 +62,8 @@ func usage() {
   gameviber check DIR               check a project: every .gml parses, every function called exists
                                     (file:line:col: message; exit 1 when there is anything)
   gameviber run [-room R] GAME      play it in a window (arrow keys, space, enter)
+  gameviber web DIR OUT             a web page that plays the project DIR (OUT: index.html, game.wasm, project.tar)
+                                    (PARTIAL: run it inside the GameViber source; it builds the wasm with go)
   gameviber play [flags] GAME       run a game headless (GAME: a GameMaker 5.3 .exe or a project folder)
       -room NAME      start in this room (default: the first in the room order)
       -steps N        steps to run (default 300)
@@ -332,4 +337,88 @@ func cmdRun(args []string) error {
 	cmd := exec.Command(path, args...)
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
 	return cmd.Run()
+}
+
+const webPage = `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>%s — GameViber</title>
+<style>html,body{margin:0;height:100%%;background:#111;color:#ddd;font:14px system-ui,sans-serif}
+#msg{position:fixed;inset:auto 0 8px 0;text-align:center;opacity:.7}</style></head>
+<body><div id="msg">loading…</div>
+<script src="wasm_exec.js"></script>
+<script>
+const go = new Go();
+WebAssembly.instantiateStreaming(fetch("game.wasm", {cache: "no-cache"}), go.importObject)
+  .then(r => { document.getElementById("msg").remove(); go.run(r.instance); })
+  .catch(e => { document.getElementById("msg").textContent = "could not start: " + e; });
+</script></body></html>
+`
+
+func cmdWeb(args []string) error {
+	if len(args) != 2 {
+		return fmt.Errorf("usage: gameviber web DIR OUT")
+	}
+	dir, out := args[0], args[1]
+	p, err := gmfile.ReadDir(dir) // it must read before it's shipped
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(out, 0o755); err != nil {
+		return err
+	}
+	// The project, packed.
+	f, err := os.Create(filepath.Join(out, "project.tar"))
+	if err != nil {
+		return err
+	}
+	tw := tar.NewWriter(f)
+	err = filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return err
+		}
+		rel, _ := filepath.Rel(dir, path)
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		if err := tw.WriteHeader(&tar.Header{Name: filepath.ToSlash(rel), Mode: 0o644, Size: int64(len(data))}); err != nil {
+			return err
+		}
+		_, err = tw.Write(data)
+		return err
+	})
+	if err == nil {
+		err = tw.Close()
+	}
+	f.Close()
+	if err != nil {
+		return err
+	}
+	// The player, for the browser.
+	build := exec.Command("go", "build", "-o", filepath.Join(out, "game.wasm"), "./cmd/gameviber-run")
+	build.Env = append(os.Environ(), "GOOS=js", "GOARCH=wasm")
+	build.Stdout, build.Stderr = os.Stdout, os.Stderr
+	if err := build.Run(); err != nil {
+		return fmt.Errorf("building the wasm (run gameviber web inside the GameViber source): %w", err)
+	}
+	root, err := exec.Command("go", "env", "GOROOT").Output()
+	if err != nil {
+		return err
+	}
+	shim, err := os.ReadFile(filepath.Join(strings.TrimSpace(string(root)), "lib", "wasm", "wasm_exec.js"))
+	if err != nil {
+		return err
+	}
+	if err := os.WriteFile(filepath.Join(out, "wasm_exec.js"), shim, 0o644); err != nil {
+		return err
+	}
+	name := p.Name()
+	if name == "" {
+		name = filepath.Base(dir)
+	}
+	if err := os.WriteFile(filepath.Join(out, "index.html"), []byte(fmt.Sprintf(webPage, name)), 0o644); err != nil {
+		return err
+	}
+	fmt.Printf("web page for %s in %s (index.html, game.wasm, project.tar, wasm_exec.js)\n", name, out)
+	return nil
 }

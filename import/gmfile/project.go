@@ -26,6 +26,7 @@ type Project struct {
 	// LibCode is the code of library actions that carry it (exec type 2),
 	// as scripts by name (ActionsToGML fills it).
 	LibCode map[string]string
+	name    string // game.toml's name (ReadFS)
 }
 
 // Settings are the game's global settings (the subset the runner uses is
@@ -382,3 +383,6 @@ func ReadActions(r *Reader) ([]Action, error) {
 	}
 	return acts, nil
 }
+
+// Name is the game's name as game.toml has it (empty for an executable).
+func (p *Project) Name() string { return p.name }

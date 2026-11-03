@@ -13,6 +13,7 @@ go run ./cmd/gameviber play -steps 300 -keys "right:40,right+up:25" -shot frame.
 go run ./cmd/gameviber play -json GAME.exe          # the state as JSON, for scripts and agents
 go run ./cmd/gameviber-run GAME.exe                 # play it in a window (arrow keys)
 go run ./cmd/gameviber check mygame                 # every .gml parses, every function exists
+go run ./cmd/gameviber web mygame site              # a web page that plays it (index.html, game.wasm, project.tar)
 go run ./cmd/gameviber run GAME.exe                 # play it in a window (arrow keys)
 go run ./cmd/gameviber check mygame                 # every .gml parses, every function exists
 ```

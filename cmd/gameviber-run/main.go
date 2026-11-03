@@ -11,7 +11,6 @@ import (
 	"path/filepath"
 
 	ebbackend "github.com/LaPingvino/gameviber/backend/ebiten"
-	"github.com/LaPingvino/gameviber/import/gmfile"
 	"github.com/LaPingvino/gameviber/load"
 )
 
@@ -22,21 +21,6 @@ func main() {
 	}
 }
 
-func open(path string) (*gmfile.Project, error) {
-	if fi, err := os.Stat(path); err == nil && fi.IsDir() {
-		return gmfile.ReadDir(path)
-	}
-	d, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-	e, err := gmfile.OpenExe(d)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", path, err)
-	}
-	return e.ReadProject()
-}
-
 func run(args []string) error {
 	fs := flag.NewFlagSet("run", flag.ContinueOnError)
 	room := fs.String("room", "", "start room")
@@ -44,7 +28,7 @@ func run(args []string) error {
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	if fs.NArg() != 1 {
+	if fs.NArg() != 1 && !inBrowser {
 		return fmt.Errorf("usage: gameviber run [-room R] GAME.exe|DIR")
 	}
 	p, err := open(fs.Arg(0))
@@ -66,7 +50,7 @@ func run(args []string) error {
 	}
 	w := ebbackend.New(p, pl)
 	w.MaxFrames = *frames
-	if err := w.Run("GameViber — " + filepath.Base(fs.Arg(0))); err != nil {
+	if err := w.Run("GameViber — " + filepath.Base(fs.Arg(0)+p.Name())); err != nil {
 		return err
 	}
 	fmt.Printf("%d frames; room %s, score %d, lives %d\n", w.Frames(), pl.Room.Name, pl.Globals.Score, pl.Globals.Lives)
