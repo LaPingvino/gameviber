@@ -131,3 +131,39 @@ func TestIntersectBoundary(t *testing.T) {
 		t.Errorf("edges %v, want 2", in.Vars["edges"])
 	}
 }
+
+// Instance ids: instance_create returns one; n.var, with (n) and
+// instance_exists(n) reach that instance only; id is its own.
+func TestInstanceIDs(t *testing.T) {
+	maker := &Object{Name: "maker"}
+	ball := &Object{Name: "ball"}
+	g := &Game{Objects: []*Object{maker, ball}}
+	h, err := g.Code(`
+a = instance_create(10, 10, ball)
+b = instance_create(20, 20, ball)
+b.hspeed = 3
+with (a) { mine = id }
+alive = instance_exists(b)
+with (b) instance_destroy()
+gone = instance_exists(b)
+any = instance_exists(ball)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	maker.Events.Create = h
+	r := &Room{W: 64, H: 64, G: &Globals{Vars: map[string]float64{}}}
+	m := r.Create(maker, 0, 0)
+	if len(g.Errors) > 0 {
+		t.Fatal(g.Errors)
+	}
+	a, b := r.Instances[1], r.Instances[2]
+	if m.ID != 100001 || m.Vars["a"] != 100002 || m.Vars["b"] != 100003 {
+		t.Errorf("ids: maker %d, a %v, b %v", m.ID, m.Vars["a"], m.Vars["b"])
+	}
+	if b.HSpeed != 3 || a.HSpeed != 0 || a.Vars["mine"] != 100002 {
+		t.Errorf("b.hspeed %v, a.hspeed %v, a's id %v", b.HSpeed, a.HSpeed, a.Vars["mine"])
+	}
+	if m.Vars["alive"] != 1 || m.Vars["gone"] != 0 || m.Vars["any"] != 1 {
+		t.Errorf("exists: before %v, after %v, any ball %v", m.Vars["alive"], m.Vars["gone"], m.Vars["any"])
+	}
+}

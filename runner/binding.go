@@ -81,6 +81,8 @@ func (in *Instance) Set(name string, idx []int, v gml.Value) {
 
 func (in *Instance) builtin(name string) (float64, bool) {
 	switch name {
+	case "id":
+		return float64(in.ID), true
 	case "x":
 		return in.X, true
 	case "y":

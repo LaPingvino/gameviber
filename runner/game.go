@@ -242,9 +242,13 @@ func (g *Game) interp(r *Room) *gml.Interp {
 				}
 				return out
 			}
-			// PARTIAL: instance ids (100001 …) come with the importer; ids
-			// here are object indices.
-			if i := int(id); i >= 0 && i < len(g.Objects) {
+			if int(id) >= FirstInstanceID { // an instance's id
+				if in := g.room.ByID(int(id)); in != nil {
+					out = append(out, in)
+				}
+				return out
+			}
+			if i := int(id); i >= 0 && i < len(g.Objects) { // an object: all its instances
 				for _, in := range g.room.All(g.Objects[i].Name) {
 					out = append(out, in)
 				}
@@ -283,8 +287,7 @@ func (g *Game) runnerFuncs() map[string]gml.Func {
 			if err != nil {
 				return gml.Value{}, err
 			}
-			g.room.Create(o, a[0].N, a[1].N)
-			return gml.RealV(0), nil // PARTIAL: the new instance's id (instance ids come with the importer)
+			return gml.RealV(float64(g.room.Create(o, a[0].N, a[1].N).ID)), nil
 		},
 		"instance_destroy": func(in *gml.Interp, a []gml.Value) (gml.Value, error) {
 			g.room.Destroy(g.self())
@@ -316,6 +319,19 @@ func (g *Game) runnerFuncs() map[string]gml.Func {
 				return gml.Value{}, err
 			}
 			return b(g.room.PlaceMeeting(g.self(), a[0].N, a[1].N, o.Name) != nil), nil
+		},
+		"instance_exists": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (object or instance id)
+			if len(a) == 0 {
+				return b(false), nil
+			}
+			if id := int(a[0].N); !a[0].IsStr && id >= FirstInstanceID {
+				return b(g.room.ByID(id) != nil), nil
+			}
+			o, err := g.obj(a[0])
+			if err != nil {
+				return b(false), nil
+			}
+			return b(len(g.room.All(o.Name)) > 0), nil
 		},
 		"instance_number": func(in *gml.Interp, a []gml.Value) (gml.Value, error) {
 			if len(a) < 1 {

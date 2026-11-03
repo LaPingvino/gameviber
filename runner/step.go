@@ -57,6 +57,10 @@ type Events struct {
 // Create places a new instance and runs its create event (instance_create).
 func (r *Room) Create(obj *Object, x, y float64) *Instance {
 	in := NewInstance(obj, x, y)
+	if r.G != nil {
+		r.G.lastID++
+		in.ID = FirstInstanceID + r.G.lastID - 1
+	}
 	r.Instances = append(r.Instances, in)
 	if h := obj.handler(func(e *Events) Handler { return e.Create }); h != nil {
 		h(r, in)
@@ -457,3 +461,17 @@ func (o *Object) mouseHandlers() map[int]Handler {
 
 // Every runs an event of every instance (game start / end …).
 func (r *Room) Every(get func(*Events) Handler) { r.every(get) }
+
+// FirstInstanceID is the first instance id (GM 5: 100001; below it, numbers
+// name objects).
+const FirstInstanceID = 100001
+
+// ByID finds a live instance by its id.
+func (r *Room) ByID(id int) *Instance {
+	for _, in := range r.Instances {
+		if in.ID == id && !in.Destroyed {
+			return in
+		}
+	}
+	return nil
+}

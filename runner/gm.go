@@ -79,6 +79,11 @@ type Instance struct {
 	Sprite     string
 	ImageIndex float64
 	ImageSpeed float64
+	// ID is the instance's id (100001 … in creation order; `id` in code,
+	// and a target for other.x / with). ASSUMPTION [engine]: GM 5 numbers the
+	// room's placed instances from its file; here they count in creation
+	// order too — no Stelo / Pacmanio code names a placed instance's id.
+	ID int
 	// Depth orders the drawing (higher first, under); the object's to start
 	// with, `depth` in code.
 	Depth float64
@@ -150,6 +155,8 @@ type Room struct {
 // Globals are Game Maker's game-wide state.
 type Globals struct {
 	Score, Lives int
+	// lastID is the last instance id handed out (game-wide, as in GM 5).
+	lastID int
 	// NoMoreLives is set when lives drop to 0 or below: the "no more lives"
 	// event is due (the game runs it after the step).
 	NoMoreLives bool

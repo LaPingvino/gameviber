@@ -27,7 +27,7 @@ abs, arccos, arcsin, arctan, arctan2, ceil, chr, cos, degtorad, exp, floor, frac
 
 ## Game functions (instances, rooms, sound, highscores …)
 
-cd_init, cd_number, cd_play, cd_playing, cd_present, cd_stop, cd_track, draw_highscore, event_user, game_end, game_restart, get_string, highscore_add, highscore_clear, highscore_name, highscore_value, instance_change, instance_create, instance_destroy, instance_number, io_handle, keyboard_wait, place_free, place_meeting, room_goto, room_goto_next, room_goto_previous, screen_redraw, screen_refresh, set_graphics_mode, show_error, sound_isplaying, sound_loop, sound_play, sound_stop, sound_stop_all
+cd_init, cd_number, cd_play, cd_playing, cd_present, cd_stop, cd_track, draw_highscore, event_user, game_end, game_restart, get_string, highscore_add, highscore_clear, highscore_name, highscore_value, instance_change, instance_create, instance_destroy, instance_exists, instance_number, io_handle, keyboard_wait, place_free, place_meeting, room_goto, room_goto_next, room_goto_previous, screen_redraw, screen_refresh, set_graphics_mode, show_error, sound_isplaying, sound_loop, sound_play, sound_stop, sound_stop_all
 
 ## Drag-and-drop actions (the last argument is "relative" when the action has one)
 
@@ -44,7 +44,7 @@ background_color, background_foreground, background_hspeed, background_htiled, b
 ## Instance variables
 
 x, y, xprevious, yprevious, xstart, ystart, hspeed, vspeed, speed, direction, gravity, gravity_direction,
-image_index (image_single), image_speed, depth, sprite_index, object_index, solid, alarm[0–11], timeline_index,
+id, image_index (image_single), image_speed, depth, sprite_index, object_index, solid, alarm[0–11], timeline_index,
 timeline_position — and any variable the code sets. global.name for game-wide ones; var for a script's locals;
 argument0 … argument9 in scripts.
 
