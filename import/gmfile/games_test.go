@@ -171,3 +171,30 @@ func collectCalls(list []gml.Stmt, out map[string]bool) {
 		stmt(s)
 	}
 }
+
+// A sprite read back from the text project has its frame size (a tag on two
+// fields once left it 0 × h, frames cut empty).
+func TestReadDirSpriteSize(t *testing.T) {
+	d, err := os.ReadFile("../../../stelo/win/stelo.exe")
+	if err != nil {
+		t.Skip("Stelo's exe is not checked out next to this repo")
+	}
+	e, _ := OpenExe(d)
+	p, err := e.ReadProject()
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	if _, err := p.Export(dir, "Stelo"); err != nil {
+		t.Fatal(err)
+	}
+	q, err := ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, s := range q.Sprites {
+		if len(s.Images) > 0 && (s.W == 0 || s.H == 0 || s.Images[0].Bounds().Dx() != int(s.W)) {
+			t.Fatalf("sprite %s: %dx%d, frame %v", s.Name, s.W, s.H, s.Images[0].Bounds())
+		}
+	}
+}

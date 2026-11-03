@@ -205,21 +205,18 @@ func readPNG(fsys fs.FS, file string) (*image.NRGBA, error) {
 
 func readSprite(fsys fs.FS, dir, name string, id int) (*Sprite, error) {
 	var meta struct {
-		Frames         int     `toml:"frames"`
-		FrameW, FrameH int32   `toml:"frame_w"`
-		BBox           []int32 `toml:"bbox_lrbt"`
-		Origin         []int32 `toml:"origin"`
-		Precise        bool    `toml:"precise"`
-		Transparent    bool    `toml:"transparent"`
+		Frames      int     `toml:"frames"`
+		FrameW      int32   `toml:"frame_w"`
+		FrameH      int32   `toml:"frame_h"`
+		BBox        []int32 `toml:"bbox_lrbt"`
+		Origin      []int32 `toml:"origin"`
+		Precise     bool    `toml:"precise"`
+		Transparent bool    `toml:"transparent"`
 	}
 	if _, err := decodeTOML(fsys, path.Join(dir, "sprite.toml"), &meta); err != nil {
 		return nil, fmt.Errorf("sprites/%s/sprite.toml: %w", name, err)
 	}
-	var fh struct {
-		FrameH int32 `toml:"frame_h"`
-	}
-	decodeTOML(fsys, path.Join(dir, "sprite.toml"), &fh)
-	s := &Sprite{ID: id, Name: name, W: meta.FrameW, H: fh.FrameH, Precise: meta.Precise, Transparent: meta.Transparent}
+	s := &Sprite{ID: id, Name: name, W: meta.FrameW, H: meta.FrameH, Precise: meta.Precise, Transparent: meta.Transparent}
 	copy(s.BBox[:], meta.BBox)
 	if len(meta.Origin) == 2 {
 		s.OriginX, s.OriginY = meta.Origin[0], meta.Origin[1]

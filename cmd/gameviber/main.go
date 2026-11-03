@@ -44,10 +44,12 @@ func main() {
 		err = cmdRun(os.Args[2:])
 	case "web":
 		err = cmdWeb(os.Args[2:])
+	case "new":
+		err = cmdNew(os.Args[2:])
 	case "help", "-h", "--help":
 		usage()
 	default:
-		err = fmt.Errorf("unknown command %q (import, play, check, run, web)", os.Args[1])
+		err = fmt.Errorf("unknown command %q (new, import, play, check, run, web)", os.Args[1])
 	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "gameviber:", err)
@@ -58,6 +60,7 @@ func main() {
 func usage() {
 	fmt.Fprint(os.Stderr, `gameviber — a GameMaker-style engine and toolset
 
+  gameviber new DIR                 a small starter game to build on (collect the coins)
   gameviber import GAME.exe DIR     turn a GameMaker 5.3 game into a GameViber project in DIR
   gameviber check DIR               check a project: every .gml parses, every function called exists
                                     (file:line:col: message; exit 1 when there is anything)
