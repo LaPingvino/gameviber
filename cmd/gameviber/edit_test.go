@@ -1,0 +1,74 @@
+package main
+
+import (
+	"encoding/json"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+)
+
+// The editor's API over a starter project: the file list, reading, saving
+// (with gameviber check after), and no way out of the project.
+func TestEditAPI(t *testing.T) {
+	dir := t.TempDir() + "/game"
+	if err := cmdNew([]string{dir}); err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(editHandler(dir))
+	defer srv.Close()
+	get := func(path string) (int, string) {
+		r, err := http.Get(srv.URL + path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer r.Body.Close()
+		b, _ := io.ReadAll(r.Body)
+		return r.StatusCode, string(b)
+	}
+	put := func(path, body string) (int, string) {
+		req, _ := http.NewRequest(http.MethodPut, srv.URL+path, strings.NewReader(body))
+		r, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer r.Body.Close()
+		b, _ := io.ReadAll(r.Body)
+		return r.StatusCode, string(b)
+	}
+	if code, page := get("/"); code != 200 || !strings.Contains(page, "GameViber editor") {
+		t.Fatalf("page: %d", code)
+	}
+	_, list := get("/api/files")
+	var files struct{ Files []string }
+	json.Unmarshal([]byte(list), &files)
+	if !strings.Contains(strings.Join(files.Files, " "), "objects/player/step.gml") {
+		t.Fatalf("files: %v", files.Files)
+	}
+	if code, _ := get("/api/file?path=objects/player/step.gml"); code != 200 {
+		t.Fatalf("read: %d", code)
+	}
+	var c struct {
+		Problems int
+		Report   string
+	}
+	_, res := put("/api/file?path=objects/player/step.gml", "x = (1 +\n")
+	json.Unmarshal([]byte(res), &c)
+	if c.Problems == 0 || !strings.Contains(c.Report, "objects/player/step.gml") {
+		t.Errorf("a syntax error not reported: %+v", c)
+	}
+	_, res = put("/api/file?path=objects/player/step.gml", "x += 1\n")
+	json.Unmarshal([]byte(res), &c)
+	if c.Problems != 0 {
+		t.Errorf("fixed but still: %+v", c)
+	}
+	for _, p := range []string{"../../etc/passwd", "/etc/passwd", "objects/../../x.gml"} {
+		if code, _ := get("/api/file?path=" + p); code != http.StatusBadRequest {
+			t.Errorf("read %s: %d, want refused", p, code)
+		}
+	}
+	if code, _ := put("/api/file?path=game.exe", "x"); code != http.StatusBadRequest {
+		t.Errorf("writing a non-text file: %d, want refused", code)
+	}
+}

@@ -18,6 +18,7 @@ import (
 	"github.com/LaPingvino/gameviber/gml"
 	"image"
 	"image/png"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -42,6 +43,8 @@ func main() {
 		err = cmdPlay(os.Args[2:])
 	case "check":
 		err = cmdCheck(os.Args[2:])
+	case "edit":
+		err = cmdEdit(os.Args[2:])
 	case "run":
 		err = cmdRun(os.Args[2:])
 	case "web":
@@ -65,6 +68,7 @@ func usage() {
 	fmt.Fprint(os.Stderr, `gameviber — a GameMaker-style engine and toolset
 
   gameviber reference [FILE]        what GameViber's GML understands: events, functions, variables
+  gameviber edit DIR                the editor, in your browser (served on this machine only)
   gameviber new DIR                 a small starter game to build on (collect the coins)
   gameviber import GAME.exe DIR     turn a GameMaker 5.3 game into a GameViber project in DIR
   gameviber check DIR               check a project: every .gml parses, every function called exists
@@ -275,7 +279,19 @@ func cmdCheck(args []string) error {
 	if len(args) != 1 {
 		return fmt.Errorf("usage: gameviber check DIR")
 	}
-	dir := args[0]
+	problems, err := checkProject(args[0], os.Stdout)
+	if err != nil {
+		return err
+	}
+	if problems > 0 {
+		os.Exit(1)
+	}
+	return nil
+}
+
+// checkProject is gameviber check: syntax per file, then the calls against
+// what the project knows; the report goes to w (the editor shows it too).
+func checkProject(dir string, w io.Writer) (int, error) {
 	// First every file on its own (syntax, with its path), then the calls
 	// against what the loaded project knows.
 	type parsed struct {
@@ -295,7 +311,7 @@ func cmdCheck(args []string) error {
 		}
 		list, err := gml.Parse(string(src))
 		if err != nil {
-			fmt.Printf("%s:%v\n", path, err)
+			fmt.Fprintf(w, "%s:%v\n", path, err)
 			problems++
 			return nil
 		}
@@ -303,16 +319,16 @@ func cmdCheck(args []string) error {
 		return nil
 	})
 	if walkErr != nil {
-		return walkErr
+		return 0, walkErr
 	}
 	if problems == 0 {
 		p, err := gmfile.ReadDir(dir)
 		if err != nil {
-			return err
+			return 0, err
 		}
 		g, err := load.FromProject(p)
 		if err != nil {
-			return err
+			return 0, err
 		}
 		known := g.KnownFuncs()
 		for _, f := range ok {
@@ -322,17 +338,14 @@ func cmdCheck(args []string) error {
 					if h := hint(c.Fn, known); h != "" {
 						msg += " — " + h
 					}
-					fmt.Println(msg)
+					fmt.Fprintln(w, msg)
 					problems++
 				}
 			}
 		}
 	}
-	fmt.Printf("%d .gml files, %d problems\n", files, problems)
-	if problems > 0 {
-		os.Exit(1)
-	}
-	return nil
+	fmt.Fprintf(w, "%d .gml files, %d problems\n", files, problems)
+	return problems, nil
 }
 
 func cmdRun(args []string) error {

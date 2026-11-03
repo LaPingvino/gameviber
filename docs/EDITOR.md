@@ -1,4 +1,4 @@
-# GameViber editor — proposal (waiting for Joop's yes)
+# GameViber editor — proposal (building since 2026-11-04 on Joop's "decide, correct later")
 
 DESIGN.md §6 left a GUI editor out of the first version ("later, a web editor on the same engine"). The first
 version now runs both sample games from their 2006 data, so this is the proposal for the next step. Nothing is
@@ -38,7 +38,14 @@ E3. Play inside the editor (room or game), with step / pause.
 E4. Sprites and backgrounds: view, origin, box, PNG import.
 E5. (later) Drawing pixels; sounds; timelines; the assistant panel.
 
-## Questions for Joop
+## Decided for now (2026-11-04) — say otherwise and it changes
+
+1. Web first: `gameviber edit DIR` serves the editor on this machine (127.0.0.1) and edits the files.
+2. HTML around the editing (native text boxes, copy and paste); the game drawn by the engine inside it (E3).
+3. E1–E3 as the first slice. E1 is built: the resource tree, every text file opened and saved,
+   `gameviber check` after each save shown under the editor.
+
+## Questions for Joop (as first asked)
 
 1. Web first (one editor for the desktop, the Chromebook and phones; the desktop via a local page) — or a
    desktop window first?
