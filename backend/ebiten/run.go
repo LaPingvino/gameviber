@@ -8,6 +8,7 @@ import (
 	"image"
 
 	eb "github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/inpututil"
 
 	"github.com/LaPingvino/gameviber/import/gmfile"
 	"github.com/LaPingvino/gameviber/load"
@@ -21,10 +22,22 @@ var keys = map[runner.Key]eb.Key{
 	32: eb.KeySpace, 13: eb.KeyEnter, 27: eb.KeyEscape, 33: eb.KeyPageUp, 34: eb.KeyPageDown,
 }
 
-type input struct{ held, prev map[runner.Key]bool }
+type input struct {
+	held, prev map[runner.Key]bool
+	mx, my     float64 // the cursor in the room
+}
 
-func (in *input) Held(k runner.Key) bool    { return in.held[k] }
-func (in *input) Pressed(k runner.Key) bool { return in.held[k] && !in.prev[k] }
+func (in *input) Held(k runner.Key) bool     { return in.held[k] }
+func (in *input) Pressed(k runner.Key) bool  { return in.held[k] && !in.prev[k] }
+func (in *input) Released(k runner.Key) bool { return !in.held[k] && in.prev[k] }
+
+// The mouse: 1 left, 2 right, 3 middle (GM's numbering).
+var buttons = map[int]eb.MouseButton{1: eb.MouseButtonLeft, 2: eb.MouseButtonRight, 3: eb.MouseButtonMiddle}
+
+func (in *input) Mouse() (float64, float64) { return in.mx, in.my }
+func (in *input) MouseHeld(b int) bool      { return eb.IsMouseButtonPressed(buttons[b]) }
+func (in *input) MousePressed(b int) bool   { return inpututil.IsMouseButtonJustPressed(buttons[b]) }
+func (in *input) MouseReleased(b int) bool  { return inpututil.IsMouseButtonJustReleased(buttons[b]) }
 
 // Game is a game in the window.
 type Game struct {
@@ -54,6 +67,12 @@ func (g *Game) Update() error {
 		if eb.IsKeyPressed(e) {
 			g.in.held[k] = true
 		}
+	}
+	cx, cy := eb.CursorPosition() // in the frame (Layout's size): + the view's position = the room
+	g.in.mx, g.in.my = float64(cx), float64(cy)
+	if r := g.play.Room; r.ViewsEnabled && len(r.Views) > 0 && r.Views[0].Visible {
+		g.in.mx += float64(r.Views[0].X)
+		g.in.my += float64(r.Views[0].Y)
 	}
 	if err := g.play.Step(&g.in); err != nil {
 		return err

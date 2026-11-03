@@ -226,8 +226,18 @@ func (g *Game) event(ro *runner.Object, o *gmfile.GMObject, ev gmfile.Event) err
 		e.Destroy = h
 	case "draw":
 		e.Draw = h
+	case "keyrelease":
+		if e.KeyRelease == nil {
+			e.KeyRelease = map[runner.Key]runner.Handler{}
+		}
+		e.KeyRelease[runner.Key(ev.Sub)] = h
+	case "mouse":
+		if e.Mouse == nil {
+			e.Mouse = map[int]runner.Handler{}
+		}
+		e.Mouse[int(ev.Sub)] = h
 	default:
-		unsupported() // mouse, key release
+		unsupported()
 	}
 	return nil
 }

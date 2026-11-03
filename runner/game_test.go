@@ -39,3 +39,46 @@ func TestGameGML(t *testing.T) {
 		t.Errorf("steps %v", b.Vars["steps"])
 	}
 }
+
+// mouseKeys is an Input with a mouse and key releases.
+type mouseKeys struct {
+	x, y                   float64
+	held, pressed, release map[int]bool
+	keyUp                  map[Key]bool
+}
+
+func (m mouseKeys) Held(Key) bool             { return false }
+func (m mouseKeys) Pressed(Key) bool          { return false }
+func (m mouseKeys) Released(k Key) bool       { return m.keyUp[k] }
+func (m mouseKeys) Mouse() (float64, float64) { return m.x, m.y }
+func (m mouseKeys) MouseHeld(b int) bool      { return m.held[b] }
+func (m mouseKeys) MousePressed(b int) bool   { return m.pressed[b] }
+func (m mouseKeys) MouseReleased(b int) bool  { return m.release[b] }
+
+// Mouse events on and off an instance, the global ones, key release, and
+// mouse_x / mouse_y in the globals.
+func TestMouseAndKeyRelease(t *testing.T) {
+	btn := &Object{Name: "button", BBox: Box{0, 31, 0, 31}, Mask: true}
+	g := &Game{Objects: []*Object{btn}}
+	code := func(src string) Handler {
+		h, err := g.Code(src)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return h
+	}
+	btn.Events.Mouse = map[int]Handler{4: code("clicks += 1"), 53: code("anywhere += 1"), 3: code("idle += 1")}
+	btn.Events.KeyRelease = map[Key]Handler{KeySpace: code("ups += 1; mx = mouse_x")}
+	r := &Room{W: 640, H: 480, G: &Globals{Vars: map[string]float64{}}}
+	b := r.Create(btn, 100, 100)
+	b.Vars["clicks"], b.Vars["anywhere"], b.Vars["idle"], b.Vars["ups"] = 0, 0, 0, 0
+	r.Step(mouseKeys{x: 110, y: 110, pressed: map[int]bool{1: true}, held: map[int]bool{1: true}})
+	r.Step(mouseKeys{x: 300, y: 300, pressed: map[int]bool{1: true}, held: map[int]bool{1: true}})
+	r.Step(mouseKeys{x: 105, y: 120, keyUp: map[Key]bool{KeySpace: true}})
+	if len(g.Errors) > 0 {
+		t.Fatal(g.Errors)
+	}
+	if b.Vars["clicks"] != 1 || b.Vars["anywhere"] != 2 || b.Vars["idle"] != 1 || b.Vars["ups"] != 1 || b.Vars["mx"] != 105 {
+		t.Errorf("%v", b.Vars)
+	}
+}

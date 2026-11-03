@@ -44,6 +44,11 @@ type Events struct {
 	BeginStep, Destroy, RoomStart, RoomEnd, NoMoreLives Handler
 	// Draw replaces the default drawing (the sprite) when set.
 	Draw Handler
+	// KeyRelease runs when a key goes up; Mouse by GM's mouse event numbers
+	// (0–2 a button held on the instance, 4–6 pressed, 7–9 released, 3 none;
+	// 50–52 / 53–55 / 56–58 the same anywhere).
+	KeyRelease map[Key]Handler
+	Mouse      map[int]Handler
 }
 
 // Create places a new instance and runs its create event (instance_create).
@@ -124,6 +129,9 @@ func (r *Room) Step(in Input) {
 		r.Backgrounds[b].X += r.Backgrounds[b].HSpeed
 		r.Backgrounds[b].Y += r.Backgrounds[b].VSpeed
 	}
+	if m, ok := in.(MouseInput); ok {
+		r.mouseVars(m)
+	}
 	each(func(i *Instance) { // begin step
 		if h := i.Obj.handler(func(e *Events) Handler { return e.BeginStep }); h != nil {
 			h(r, i)
@@ -160,6 +168,18 @@ func (r *Room) Step(in Input) {
 			}
 		}
 	})
+	if rel, ok := in.(KeyReleaser); ok { // key release events
+		each(func(i *Instance) {
+			for k, h := range i.Obj.keyHandlers(func(e *Events) map[Key]Handler { return e.KeyRelease }) {
+				if rel.Released(k) {
+					h(r, i)
+				}
+			}
+		})
+	}
+	if m, ok := in.(MouseInput); ok { // mouse events
+		r.mouse(m, each)
+	}
 	each(func(i *Instance) {
 		if h := i.Obj.handler(func(e *Events) Handler { return e.Step }); h != nil {
 			h(r, i)
@@ -316,4 +336,87 @@ func (r *Room) NoMoreLivesDue() {
 	}
 	r.G.NoMoreLives = false
 	r.every(func(e *Events) Handler { return e.NoMoreLives })
+}
+
+// KeyReleaser is an Input that also tells which keys went up this step.
+type KeyReleaser interface{ Released(Key) bool }
+
+// MouseInput is an Input with the mouse: its position in the room and the
+// buttons (1 left, 2 right, 3 middle) held, pressed and released this step.
+type MouseInput interface {
+	Mouse() (x, y float64)
+	MouseHeld(b int) bool
+	MousePressed(b int) bool
+	MouseReleased(b int) bool
+}
+
+// mouseVars keeps mouse_x / mouse_y / mouse_button in the globals (read at
+// the start of the step, before any event, as GM 5 does).
+func (r *Room) mouseVars(m MouseInput) {
+	if r.G == nil || r.G.Vars == nil {
+		return
+	}
+	x, y := m.Mouse()
+	r.G.Vars["mouse_x"], r.G.Vars["mouse_y"] = x, y
+	r.G.Vars["mouse_button"] = 0
+	for b := 1; b <= 3; b++ {
+		if m.MouseHeld(b) {
+			r.G.Vars["mouse_button"] = float64(b)
+		}
+	}
+}
+
+// mouse runs the mouse events (after the key events, as GM 5 does).
+func (r *Room) mouse(m MouseInput, each func(func(*Instance))) {
+	x, y := m.Mouse()
+	pt := Box{int(x), int(x), int(y), int(y)}
+	each(func(i *Instance) {
+		hs := i.Obj.mouseHandlers()
+		if len(hs) == 0 {
+			return
+		}
+		on := i.Obj.Mask && i.BoxAt(i.X, i.Y).Overlaps(pt)
+		run := func(ev int) {
+			if h := hs[ev]; h != nil {
+				h(r, i)
+			}
+		}
+		none := true
+		for b := 1; b <= 3; b++ {
+			if m.MouseHeld(b) {
+				none = false
+				if on {
+					run(b - 1)
+				}
+				run(49 + b)
+			}
+			if m.MousePressed(b) {
+				if on {
+					run(3 + b)
+				}
+				run(52 + b)
+			}
+			if m.MouseReleased(b) {
+				if on {
+					run(6 + b)
+				}
+				run(55 + b)
+			}
+		}
+		if none && on {
+			run(3)
+		}
+	})
+}
+
+// mouseHandlers merges the mouse events up the parent chain.
+func (o *Object) mouseHandlers() map[int]Handler {
+	m := map[int]Handler{}
+	ch := o.chain()
+	for i := len(ch) - 1; i >= 0; i-- {
+		for k, h := range ch[i].Events.Mouse {
+			m[k] = h
+		}
+	}
+	return m
 }

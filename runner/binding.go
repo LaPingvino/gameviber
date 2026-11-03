@@ -270,6 +270,9 @@ func (gv *GlobalVars) Get(name string, idx []int) (gml.Value, bool) {
 	if v, ok := gv.G.Vars[k]; ok {
 		return gml.RealV(v), true
 	}
+	if v, ok := gv.G.Vars[name]; ok && idx == nil && inputDefaults[name] {
+		return gml.RealV(v), true
+	}
 	if idx == nil && inputDefaults[name] { // the input backend sets them; until then: nothing pressed
 		return gml.RealV(0), true
 	}
