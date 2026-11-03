@@ -115,6 +115,11 @@ func FromProject(p *gmfile.Project) (*Game, error) {
 			}
 		}
 	}
+	for name, code := range p.LibCode { // library actions' own code (filled while converting)
+		if err := g.Script(name, code); err != nil {
+			return nil, fmt.Errorf("%s: %w", name, err)
+		}
+	}
 	return g, nil
 }
 
@@ -198,6 +203,14 @@ func (g *Game) Room(name string, glob *runner.Globals) (*runner.Room, error) {
 			continue
 		}
 		rr := &runner.Room{Name: r.Name, W: int(r.W), H: int(r.H), Speed: int(r.Speed), G: glob}
+		for _, b := range r.Backgrounds {
+			name := ""
+			if b.BG >= 0 && int(b.BG) < len(g.Project.Backgrounds) && g.Project.Backgrounds[b.BG] != nil {
+				name = g.Project.Backgrounds[b.BG].Name
+			}
+			rr.Backgrounds = append(rr.Backgrounds, runner.Background{Name: name, Visible: b.Visible, Foreground: b.Foreground,
+				X: float64(b.X), Y: float64(b.Y), HSpeed: float64(b.HSpeed), VSpeed: float64(b.VSpeed), TileH: b.TileH, TileV: b.TileV, Stretch: b.Stretch})
+		}
 		// GM 5's order: each instance's create event, then its creation code;
 		// then the room's creation code; then every room start event.
 		for _, in := range r.Instances {

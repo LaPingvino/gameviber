@@ -362,7 +362,7 @@ func (in *Interp) assign(s *Assign) error {
 			in.locals[name] = v
 			return nil
 		}
-		if in.globals[name] || GlobalBuiltins[name] && idx == nil {
+		if in.globals[name] || GlobalBuiltins[name] {
 			in.Global.Set(name, idx, v)
 			return nil
 		}
@@ -404,13 +404,17 @@ var GlobalBuiltins = map[string]bool{
 	"score": true, "lives": true, "health": true, "keyboard_string": true, "keyboard_key": true,
 	"keyboard_lastkey": true, "keyboard_lastchar": true, "mouse_x": true, "mouse_y": true, "mouse_button": true,
 	"room": true, "room_speed": true, "room_caption": true, "room_width": true, "room_height": true,
-	"background_color": true, "show_score": true, "show_lives": true, "caption_score": true, "caption_lives": true,
+	"background_color": true, "background_x": true, "background_y": true, "background_hspeed": true,
+	"background_vspeed": true, "background_visible": true, "background_foreground": true, "background_index": true,
+	"background_htiled": true, "background_vtiled": true, "show_score": true, "show_lives": true, "caption_score": true, "caption_lives": true,
 }
 
 // constants are GM 5's built-in constants (the rest come from Lookup).
 var constants = map[string]float64{
 	"true": 1, "false": 0, "self": SelfID, "other": OtherID, "all": AllID, "noone": NooneID, "global": GlobalID,
 	"pi": math.Pi,
+	// GameViber has no unregistered mode (GM 5's library actions check it).
+	"gamemaker_registered": 1,
 	// Mouse buttons and virtual keys (GM 5's constants; Windows key codes).
 	"mb_any": -1, "mb_none": 0, "mb_left": 1, "mb_right": 2, "mb_middle": 3,
 	"vk_nokey": 0, "vk_anykey": 1, "vk_backspace": 8, "vk_tab": 9, "vk_enter": 13, "vk_shift": 16, "vk_control": 17,
@@ -613,7 +617,7 @@ func (in *Interp) lookup(n *Name, idx []int) (Value, error) {
 			return v, nil
 		}
 	}
-	if in.globals[n.Name] || GlobalBuiltins[n.Name] && idx == nil {
+	if in.globals[n.Name] || GlobalBuiltins[n.Name] {
 		if v, ok := in.Global.Get(n.Name, idx); ok {
 			return v, nil
 		}

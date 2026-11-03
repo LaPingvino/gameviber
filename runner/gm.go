@@ -118,8 +118,10 @@ type Room struct {
 	Name string
 	W, H int
 	// Speed is the room's steps per second (action_sleep counts in steps).
-	Speed     int
-	Instances []*Instance
+	Speed int
+	// Backgrounds are the room's background layers (GM 5 has 8).
+	Backgrounds []Background
+	Instances   []*Instance
 	// Goto asks the game to change rooms after this step (room_goto); "" = stay.
 	Goto string
 	// Sleep is action_sleep: steps during which the game is frozen (nothing
@@ -350,4 +352,14 @@ func (r *Room) PlaceEmpty(in *Instance, x, y float64) bool {
 		}
 	}
 	return true
+}
+
+// Background is one of a room's background layers: which image, where,
+// tiling, its scrolling speed (moved each step), shown or not.
+type Background struct {
+	Name                 string
+	Visible, Foreground  bool
+	X, Y, HSpeed, VSpeed float64
+	TileH, TileV         bool
+	Stretch              bool
 }

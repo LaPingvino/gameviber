@@ -208,6 +208,7 @@ func (g *Game) interp(r *Room) *gml.Interp {
 			return out
 		}
 	}
+	gv.Room = r
 	g.in.Global = gv
 	return g.in
 }
@@ -308,6 +309,13 @@ func (g *Game) runnerFuncs() map[string]gml.Func {
 		},
 		"sound_isplaying": func(in *gml.Interp, a []gml.Value) (gml.Value, error) {
 			return b(g.Sound != nil && len(a) > 0 && g.Sound.Playing(g.soundName(a[0]))), nil
+		},
+		"show_error": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (message, abort)
+			msg := ""
+			if len(a) > 0 {
+				msg = a[0].String()
+			}
+			return gml.RealV(0), fmt.Errorf("show_error: %s", msg)
 		},
 		"highscore_clear": func(in *gml.Interp, a []gml.Value) (gml.Value, error) {
 			g.ClearHighscores()

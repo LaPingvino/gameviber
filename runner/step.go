@@ -117,6 +117,10 @@ func (r *Room) Step(in Input) {
 			}
 		}
 	}
+	for b := range r.Backgrounds { // the backgrounds scroll
+		r.Backgrounds[b].X += r.Backgrounds[b].HSpeed
+		r.Backgrounds[b].Y += r.Backgrounds[b].VSpeed
+	}
 	each(func(i *Instance) { // begin step
 		if h := i.Obj.handler(func(e *Events) Handler { return e.BeginStep }); h != nil {
 			h(r, i)

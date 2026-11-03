@@ -92,6 +92,9 @@ func (p *Project) Export(dir, name string) (notes []string, err error) {
 			w.room(r)
 		}
 	}
+	for name, code := range p.LibCode { // after the events (which fill it)
+		w.file(filepath.Join("scripts", name+".gml"), []byte(code))
+	}
 	w.file("AGENTS.md", []byte(fmt.Sprintf(`# %s — for agents
 
 Imported by GameViber from a GameMaker 5.3 game. The game's logic is in objects/<name>/<event>.gml (one

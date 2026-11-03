@@ -3,6 +3,7 @@ package runner
 import (
 	"fmt"
 	"math"
+	"strings"
 
 	"github.com/LaPingvino/gameviber/gml"
 )
@@ -165,10 +166,70 @@ func b2f(b bool) float64 {
 type GlobalVars struct {
 	G   *Globals
 	str map[string]string
+	// Room is the current room (its background_* arrays).
+	Room *Room
+}
+
+// background reads or writes background_<field>[i] of the current room.
+func (gv *GlobalVars) background(name string, idx []int, set *gml.Value) (gml.Value, bool) {
+	if idx == nil && strings.HasPrefix(name, "background_") && name != "background_color" {
+		idx = []int{0} // background_x alone is background_x[0]
+	}
+	if gv.Room == nil || len(idx) != 1 || idx[0] < 0 || idx[0] > 7 {
+		return gml.Value{}, false
+	}
+	field, ok := strings.CutPrefix(name, "background_")
+	if !ok {
+		return gml.Value{}, false
+	}
+	for len(gv.Room.Backgrounds) <= idx[0] {
+		gv.Room.Backgrounds = append(gv.Room.Backgrounds, Background{})
+	}
+	b := &gv.Room.Backgrounds[idx[0]]
+	var f *float64
+	var flag *bool
+	switch field {
+	case "x":
+		f = &b.X
+	case "y":
+		f = &b.Y
+	case "hspeed":
+		f = &b.HSpeed
+	case "vspeed":
+		f = &b.VSpeed
+	case "visible":
+		flag = &b.Visible
+	case "foreground":
+		flag = &b.Foreground
+	case "htiled":
+		flag = &b.TileH
+	case "vtiled":
+		flag = &b.TileV
+	case "index":
+		if set != nil {
+			b.Name = set.String()
+		}
+		return gml.StrV(b.Name), true // PARTIAL: by name until ids
+	default:
+		return gml.Value{}, false
+	}
+	if f != nil {
+		if set != nil {
+			*f = set.N
+		}
+		return gml.RealV(*f), true
+	}
+	if set != nil {
+		*flag = set.True()
+	}
+	return gml.RealV(b2f(*flag)), true
 }
 
 // Get reads a global variable.
 func (gv *GlobalVars) Get(name string, idx []int) (gml.Value, bool) {
+	if v, ok := gv.background(name, idx, nil); ok {
+		return v, true
+	}
 	if idx == nil {
 		switch name {
 		case "score":
@@ -199,6 +260,9 @@ var inputDefaults = map[string]bool{"mouse_button": true, "mouse_x": true, "mous
 // Set writes a global variable (lives through AddLives, so "no more lives"
 // is noticed).
 func (gv *GlobalVars) Set(name string, idx []int, v gml.Value) {
+	if _, ok := gv.background(name, idx, &v); ok {
+		return
+	}
 	if idx == nil {
 		switch name {
 		case "score":

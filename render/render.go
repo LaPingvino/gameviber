@@ -48,7 +48,8 @@ func LoadAssets(p *gmfile.Project) *Assets {
 // Frame draws the room: the background colour (background_color when the
 // game set it, else the room's), then the instances, deepest first, each its
 // sprite's frame at floor(image_index).
-// PARTIAL: room background layers, views and draw events come next.
+// Background layers (behind, then foreground in front) tile and scroll.
+// PARTIAL: views, stretched layers and draw events come next.
 func Frame(dst *image.RGBA, r *runner.Room, a *Assets, roomColour int32, drawColour bool) {
 	if drawColour {
 		c := roomColour
@@ -58,6 +59,17 @@ func Frame(dst *image.RGBA, r *runner.Room, a *Assets, roomColour int32, drawCol
 		u := uint32(c)
 		draw.Draw(dst, dst.Bounds(), image.NewUniform(color.RGBA{uint8(u), uint8(u >> 8), uint8(u >> 16), 255}), image.Point{}, draw.Src)
 	}
+	layers := func(fore bool) {
+		for _, b := range r.Backgrounds {
+			img := a.BGs[b.Name]
+			if !b.Visible || b.Foreground != fore || img == nil {
+				continue
+			}
+			drawLayer(dst, img, b)
+		}
+	}
+	layers(false)
+	defer layers(true)
 	insts := make([]*runner.Instance, 0, len(r.Instances))
 	for _, in := range r.Instances {
 		if !in.Destroyed && in.Obj.Visible {
@@ -78,5 +90,29 @@ func Frame(dst *image.RGBA, r *runner.Room, a *Assets, roomColour int32, drawCol
 		o := a.Origins[in.Sprite]
 		at := image.Pt(int(math.Round(in.X))-o.X, int(math.Round(in.Y))-o.Y)
 		draw.Draw(dst, f.Bounds().Add(at), f, image.Point{}, draw.Over)
+	}
+}
+
+// drawLayer draws a background layer at its position, tiled as set.
+func drawLayer(dst *image.RGBA, img *image.NRGBA, b runner.Background) {
+	w, h := img.Bounds().Dx(), img.Bounds().Dy()
+	x0, y0 := int(math.Floor(b.X)), int(math.Floor(b.Y))
+	xs, ys := []int{x0}, []int{y0}
+	if b.TileH && w > 0 {
+		xs = xs[:0]
+		for x := ((x0%w)+w)%w - w; x < dst.Bounds().Dx(); x += w {
+			xs = append(xs, x)
+		}
+	}
+	if b.TileV && h > 0 {
+		ys = ys[:0]
+		for y := ((y0%h)+h)%h - h; y < dst.Bounds().Dy(); y += h {
+			ys = append(ys, y)
+		}
+	}
+	for _, y := range ys {
+		for _, x := range xs {
+			draw.Draw(dst, img.Bounds().Add(image.Pt(x, y)), img, image.Point{}, draw.Over)
+		}
 	}
 }

@@ -20,6 +20,9 @@ type Project struct {
 	InfoCaption, Information   string // the game information (RTF)
 	LibraryInit                []string
 	RoomOrder                  []int32
+	// LibCode is the code of library actions that carry it (exec type 2),
+	// as scripts by name (ActionsToGML fills it).
+	LibCode map[string]string
 }
 
 // Settings are the game's global settings (the subset the runner uses is

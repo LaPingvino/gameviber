@@ -91,8 +91,24 @@ func (c *converter) stmt() (string, error) {
 	if a.Lib == 1 && a.ID == 605 { // the comment action
 		return "// " + strings.ReplaceAll(arg(a, 0), "\n", " "), nil
 	}
+	if a.ExecType == 2 && a.Code == "" && a.Function == "" {
+		// Its code is in GameMaker's own action library, not stored in the
+		// game (Pacmanio's 1/809 and 1/813 in room end: the CD-track
+		// bookkeeping, nothing to do without a CD drive).
+		return fmt.Sprintf("// (library action %d/%d: its code is not in the game file)", a.Lib, a.ID), nil
+	}
 	if a.ExecType == 0 && a.Function == "" {
 		return fmt.Sprintf("// (action %d/%d does nothing when run)", a.Lib, a.ID), nil
+	}
+	if a.ExecType == 2 && a.Code != "" && a.Function == "" {
+		// A library action that carries its own code: a script of its own
+		// (an inline copy would let its exit / return leave the whole event).
+		name := fmt.Sprintf("action_lib_%d_%d", a.Lib, a.ID)
+		if c.p.LibCode == nil {
+			c.p.LibCode = map[string]string{}
+		}
+		c.p.LibCode[name] = a.Code
+		a.Function = name
 	}
 	call := c.call(a)
 	if !a.IsQuestion {
