@@ -88,6 +88,7 @@ type Game struct {
 	img     *eb.Image
 	caption string
 	view    frameView
+	sw, sh  int // the screen's size (the buttons' place)
 	touches []eb.TouchID
 	// MaxFrames ends the run after so many frames (0: run until closed) —
 	// for checks under a virtual display.
@@ -110,6 +111,7 @@ func (g *Game) Update() error {
 		return eb.Termination
 	}
 	g.shortcuts()
+	g.buttonPress()
 	if c := g.play.G.Caption(g.play.Room); c != g.caption && c != "" { // the window's caption (GM's)
 		g.caption = c
 		setTitle(c)
@@ -125,7 +127,7 @@ func (g *Game) Update() error {
 	// holds the arrow towards it — from the screen's centre, along the
 	// stronger direction — so arrow-key games play without a keyboard and
 	// nothing covers the play area.
-	if ids := eb.AppendTouchIDs(g.touches[:0]); len(ids) > 0 {
+	if ids := eb.AppendTouchIDs(g.touches[:0]); len(ids) > 0 && !g.onButton(eb.TouchPosition(ids[0])) {
 		g.touches = ids
 		w, h := g.size() // the frame's centre on the screen
 		tx, ty := eb.TouchPosition(ids[0])
@@ -186,6 +188,8 @@ func (g *Game) Draw(screen *eb.Image) {
 	op.GeoM.Scale(g.view.scale, g.view.scale)
 	op.GeoM.Translate(g.view.ox, g.view.oy)
 	screen.DrawImage(g.img, op)
+	g.sw, g.sh = sw, sh
+	g.drawButtons(screen)
 }
 
 // Sharp scaling (the export options; as Stelo and Pacmanio): the frame on the
