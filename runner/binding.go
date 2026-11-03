@@ -55,6 +55,10 @@ func (in *Instance) Set(name string, idx []int, v gml.Value) {
 	if idx == nil && !v.IsStr && in.setBuiltin(name, v.N) {
 		return
 	}
+	if idx == nil && name == "sprite_index" && v.IsStr { // PARTIAL: sprites by name
+		in.Sprite = v.S
+		return
+	}
 	if name == "alarm" && len(idx) == 1 && idx[0] >= 0 && idx[0] < len(in.Alarm) {
 		in.Alarm[idx[0]] = int(v.N)
 		return
@@ -100,7 +104,7 @@ func (in *Instance) builtin(name string) (float64, bool) {
 	case "image_speed":
 		return in.ImageSpeed, true
 	case "solid":
-		return b2f(in.Obj.Solid), true
+		return b2f(in.Solid), true
 	case "timeline_position":
 		return float64(in.TimelinePos), true
 	}
@@ -141,6 +145,8 @@ func (in *Instance) setBuiltin(name string, v float64) bool {
 		in.ImageSpeed = v
 	case "timeline_position":
 		in.TimelinePos = int(v)
+	case "solid":
+		in.Solid = v > 0.5
 	default:
 		return false
 	}

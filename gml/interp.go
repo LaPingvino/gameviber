@@ -411,6 +411,11 @@ var GlobalBuiltins = map[string]bool{
 var constants = map[string]float64{
 	"true": 1, "false": 0, "self": SelfID, "other": OtherID, "all": AllID, "noone": NooneID, "global": GlobalID,
 	"pi": math.Pi,
+	// GM 5's colours, Windows order (0xBBGGRR).
+	"c_aqua": 16776960, "c_black": 0, "c_blue": 16711680, "c_dkgray": 4210752, "c_fuchsia": 16711935,
+	"c_gray": 8421504, "c_green": 32768, "c_lime": 65280, "c_ltgray": 12632256, "c_maroon": 128,
+	"c_navy": 8388608, "c_olive": 32896, "c_purple": 8388736, "c_red": 255, "c_silver": 12632256,
+	"c_teal": 8421376, "c_white": 16777215, "c_yellow": 65535,
 }
 
 func (in *Interp) eval(e Expr) (Value, error) {

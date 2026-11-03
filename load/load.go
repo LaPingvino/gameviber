@@ -5,7 +5,9 @@ package load
 
 import (
 	"fmt"
+	"strings"
 
+	"github.com/LaPingvino/gameviber/gml"
 	"github.com/LaPingvino/gameviber/import/gmfile"
 	"github.com/LaPingvino/gameviber/runner"
 )
@@ -47,6 +49,48 @@ func FromProject(p *gmfile.Project) (*Game, error) {
 		objs[i] = ro
 	}
 	g.Objects = objs
+	// The game's constants: each value is GML (an expression), evaluated
+	// once here.
+	g.Constants = map[string]gml.Value{}
+	for _, c := range p.Settings.Constants {
+		list, err := gml.Parse("__c = " + c[1])
+		if err != nil {
+			return nil, fmt.Errorf("constant %s = %s: %w", c[0], c[1], err)
+		}
+		tmp := runner.NewInstance(&runner.Object{Name: "<constants>"}, 0, 0)
+		in := &gml.Interp{Self: tmp, Global: &runner.GlobalVars{G: &runner.Globals{Vars: map[string]float64{}}}}
+		if _, err := in.Run(list); err != nil {
+			return nil, fmt.Errorf("constant %s = %s: %w", c[0], c[1], err)
+		}
+		v, _ := tmp.Get("__c", nil)
+		g.Constants[c[0]] = v
+	}
+	g.Resources = map[string]bool{}
+	for _, x := range p.Sprites {
+		if x != nil {
+			g.Resources[x.Name] = true
+		}
+	}
+	for _, x := range p.Sounds {
+		if x != nil {
+			g.Resources[x.Name] = true
+		}
+	}
+	for _, x := range p.Backgrounds {
+		if x != nil {
+			g.Resources[x.Name] = true
+		}
+	}
+	for _, x := range p.Rooms {
+		if x != nil {
+			g.Resources[x.Name] = true
+		}
+	}
+	for _, x := range p.Timelines {
+		if x != nil {
+			g.Resources[x.Name] = true
+		}
+	}
 	for _, sc := range p.Scripts {
 		name := ""
 		if sc != nil {
@@ -109,10 +153,10 @@ func (g *Game) event(ro *runner.Object, o *gmfile.GMObject, ev gmfile.Event) err
 		switch ev.Sub {
 		case 0:
 			e.Step = h
+		case 1:
+			e.BeginStep = h
 		case 2:
 			e.EndStep = h
-		default:
-			unsupported() // begin step
 		}
 	case "keyboard":
 		if e.Key == nil {
@@ -125,13 +169,22 @@ func (g *Game) event(ro *runner.Object, o *gmfile.GMObject, ev gmfile.Event) err
 		}
 		e.KeyPress[runner.Key(ev.Sub)] = h
 	case "other":
-		if ev.Sub == 0 { // outside the room
+		switch ev.Sub { // GM's numbering of the other events
+		case 0:
 			e.OutsideRoom = h
-		} else {
-			unsupported() // room start / end, no more lives, user events …
+		case 4:
+			e.RoomStart = h
+		case 5:
+			e.RoomEnd = h
+		case 6:
+			e.NoMoreLives = h
+		default:
+			unsupported() // boundary, game start / end, animation / path end, user events
 		}
+	case "destroy":
+		e.Destroy = h
 	default:
-		unsupported() // destroy, draw, mouse, key release
+		unsupported() // draw (the drawing backend), mouse, key release
 	}
 	return nil
 }
@@ -144,12 +197,31 @@ func (g *Game) Room(name string, glob *runner.Globals) (*runner.Room, error) {
 			continue
 		}
 		rr := &runner.Room{Name: r.Name, W: int(r.W), H: int(r.H), G: glob}
+		// GM 5's order: each instance's create event, then its creation code;
+		// then the room's creation code; then every room start event.
 		for _, in := range r.Instances {
 			if in.Obj < 0 || int(in.Obj) >= len(g.Objects) {
 				continue
 			}
-			rr.Create(g.Objects[in.Obj], float64(in.X), float64(in.Y))
+			inst := rr.Create(g.Objects[in.Obj], float64(in.X), float64(in.Y))
+			if strings.TrimSpace(in.Code) != "" {
+				h, err := g.Code(in.Code)
+				if err != nil {
+					return nil, fmt.Errorf("room %s, instance %d's code: %w", r.Name, in.ID, err)
+				}
+				h(rr, inst)
+			}
 		}
+		if strings.TrimSpace(r.CreationCode) != "" {
+			h, err := g.Code(r.CreationCode)
+			if err != nil {
+				return nil, fmt.Errorf("room %s's creation code: %w", r.Name, err)
+			}
+			// It runs as no instance in particular: a stand-in holds its
+			// variables (GM 5 runs it with a dummy self too).
+			h(rr, runner.NewInstance(&runner.Object{Name: "<room>"}, 0, 0))
+		}
+		rr.Start()
 		return rr, nil
 	}
 	return nil, fmt.Errorf("no room %q", name)

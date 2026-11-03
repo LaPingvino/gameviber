@@ -34,13 +34,16 @@ func TestRunPacmanioLevel(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	r, err := g.Room("pu_1a_nivelo", &runner.Globals{Lives: 3, Vars: map[string]float64{}})
+	// As if pu_bildo (the region's title room) came first: its creation code
+	// sets the region.
+	r, err := g.Room("pu_1a_nivelo", &runner.Globals{Lives: 3, Vars: map[string]float64{"murigxu": 2}})
 	if err != nil {
 		t.Fatal(err)
 	}
 	start := len(r.All("point"))
 	for range 200 {
 		r.Step(noKeys{})
+		r.NoMoreLivesDue()
 	}
 	missing := map[string]int{}
 	for _, err := range g.Errors {
@@ -52,7 +55,7 @@ func TestRunPacmanioLevel(t *testing.T) {
 		_ = n
 	}
 	sort.Strings(list)
-	t.Logf("%d instances, %d dots; %d unsupported events; errors: %s", len(r.Instances), start, len(g.Unsupported), strings.Join(list, " | "))
+	t.Logf("%d instances, %d dots; %d unsupported events (%s); errors: %s", len(r.Instances), start, len(g.Unsupported), strings.Join(g.Unsupported, ", "), strings.Join(list, " | "))
 	if start == 0 {
 		t.Error("no dots in the level")
 	}

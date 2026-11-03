@@ -72,6 +72,9 @@ type Instance struct {
 	GravityDirection     float64 // degrees, 270 = down
 	Alarm                [12]int // -1 = off
 	Destroyed            bool
+	// Solid is the instance's own solid flag (GM 5 keeps it per instance:
+	// code may change it — Pacmanio's ghosts toggle walls); from the object.
+	Solid bool
 	// Sprite is sprite_index (starts as the object's); ImageIndex the frame.
 	Sprite     string
 	ImageIndex float64
@@ -96,7 +99,7 @@ type Timeline struct {
 // is placed.
 func NewInstance(obj *Object, x, y float64) *Instance {
 	in := &Instance{Obj: obj, X: x, Y: y, XPrevious: x, YPrevious: y, XStart: x, YStart: y, GravityDirection: 270,
-		Sprite: obj.Sprite, ImageSpeed: 1, Vars: map[string]float64{}, VarsStr: map[string]string{}}
+		Sprite: obj.Sprite, ImageSpeed: 1, Solid: obj.Solid, Vars: map[string]float64{}, VarsStr: map[string]string{}}
 	for i := range in.Alarm {
 		in.Alarm[i] = -1
 	}
@@ -179,7 +182,9 @@ func (g *Globals) Play(name string) {
 // create event (and the old object's destroy event, which no Stelo object
 // has).
 func (r *Room) Change(in *Instance, obj *Object, perform bool) {
-	in.Obj, in.Sprite, in.ImageIndex = obj, obj.Sprite, 0
+	// ASSUMPTION [engine]: the new object's sprite and solid flag come
+	// with the change (as the sprite did in Stelo's engine).
+	in.Obj, in.Sprite, in.ImageIndex, in.Solid = obj, obj.Sprite, 0, obj.Solid
 	if perform {
 		if h := obj.handler(func(e *Events) Handler { return e.Create }); h != nil {
 			h(r, in)
@@ -247,7 +252,7 @@ func (r *Room) PlaceFree(in *Instance, x, y float64) bool {
 		if o.Destroyed {
 			continue
 		}
-		if o != in && o.Obj.Solid && o.Obj.Mask && b.Overlaps(o.BoxAt(o.X, o.Y)) {
+		if o != in && o.Solid && o.Obj.Mask && b.Overlaps(o.BoxAt(o.X, o.Y)) {
 			return false
 		}
 	}

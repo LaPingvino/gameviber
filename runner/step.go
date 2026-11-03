@@ -38,6 +38,10 @@ type Events struct {
 	OutsideRoom Handler
 	Collision   map[string]CollisionHandler // by the other object's name
 	EndStep     Handler
+	// BeginStep runs first in a step; Destroy when the instance is
+	// destroyed; RoomStart / RoomEnd (Room.Start, Room.End); NoMoreLives
+	// after a step in which the lives ran out (other events 4, 5, 6).
+	BeginStep, Destroy, RoomStart, RoomEnd, NoMoreLives Handler
 }
 
 // Create places a new instance and runs its create event (instance_create).
@@ -113,6 +117,11 @@ func (r *Room) Step(in Input) {
 			}
 		}
 	}
+	each(func(i *Instance) { // begin step
+		if h := i.Obj.handler(func(e *Events) Handler { return e.BeginStep }); h != nil {
+			h(r, i)
+		}
+	})
 	each(func(i *Instance) { // alarms
 		for a := range i.Alarm {
 			if i.Alarm[a] < 0 {
@@ -183,7 +192,7 @@ func (r *Room) Step(in Input) {
 				if !i.BoxAt(i.X, i.Y).Overlaps(o.BoxAt(o.X, o.Y)) {
 					continue
 				}
-				if o.Obj.Solid {
+				if o.Solid {
 					i.X, i.Y = i.XPrevious, i.YPrevious
 					h(r, i, o)
 					if nx, ny := i.X+i.HSpeed, i.Y+i.VSpeed; (i.HSpeed != 0 || i.VSpeed != 0) && r.PlaceFree(i, nx, ny) {
@@ -263,4 +272,41 @@ func (o *Object) cached() *objCache {
 		o.cache = c
 	}
 	return o.cache
+}
+
+// Start runs the room start event of every instance (after all were created).
+func (r *Room) Start() { r.every(func(e *Events) Handler { return e.RoomStart }) }
+
+// End runs the room end event of every instance.
+func (r *Room) End() { r.every(func(e *Events) Handler { return e.RoomEnd }) }
+
+func (r *Room) every(get func(*Events) Handler) {
+	for _, i := range r.Instances[:len(r.Instances):len(r.Instances)] {
+		if !i.Destroyed {
+			if h := i.Obj.handler(get); h != nil {
+				h(r, i)
+			}
+		}
+	}
+}
+
+// Destroy destroys an instance, running its destroy event first.
+func (r *Room) Destroy(i *Instance) {
+	if i.Destroyed {
+		return
+	}
+	if h := i.Obj.handler(func(e *Events) Handler { return e.Destroy }); h != nil {
+		h(r, i)
+	}
+	i.Destroyed = true
+}
+
+// NoMoreLivesDue runs the no-more-lives event when the lives ran out this
+// step (GM 5 checks after the step); the flag is cleared.
+func (r *Room) NoMoreLivesDue() {
+	if r.G == nil || !r.G.NoMoreLives {
+		return
+	}
+	r.G.NoMoreLives = false
+	r.every(func(e *Events) Handler { return e.NoMoreLives })
 }

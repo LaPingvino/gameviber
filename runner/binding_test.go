@@ -34,3 +34,24 @@ a = speed; b = sprite_index`)
 		t.Errorf("globals: %+v", g)
 	}
 }
+
+// solid is per instance: code changes one wall, not every wall.
+func TestSolidPerInstance(t *testing.T) {
+	wall := &Object{Name: "murox", Solid: true, BBox: Box{0, 31, 0, 31}, Mask: true}
+	ghost := &Object{Name: "monster", BBox: Box{0, 31, 0, 31}, Mask: true}
+	g := &Game{Objects: []*Object{wall, ghost}}
+	code, err := g.Code("with (murox) solid = false; a = place_free(32, 0); with (murox) solid = true; b = place_free(32, 0)")
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := &Room{W: 640, H: 480, G: &Globals{Vars: map[string]float64{}}}
+	w1 := r.Create(wall, 32, 0)
+	m := r.Create(ghost, 0, 0)
+	code(r, m)
+	if len(g.Errors) > 0 {
+		t.Fatal(g.Errors)
+	}
+	if m.Vars["a"] != 1 || m.Vars["b"] != 0 || !w1.Solid || !wall.Solid {
+		t.Errorf("free while not solid %v, after %v; wall solid %v, object %v", m.Vars["a"], m.Vars["b"], w1.Solid, wall.Solid)
+	}
+}

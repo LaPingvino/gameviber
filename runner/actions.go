@@ -94,6 +94,18 @@ func (g *Game) actionFuncs() map[string]gml.Func {
 			}
 			return in.RunArgs(sc, a[1:])
 		},
+		"action_sound": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (sound, loop)
+			if g.Sound != nil && len(a) > 0 {
+				g.Sound.Play(g.soundName(a[0]), rel(a, 1))
+			}
+			return ok, nil
+		},
+		"action_end_sound": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (sound)
+			if g.Sound != nil && len(a) > 0 {
+				g.Sound.Stop(g.soundName(a[0]))
+			}
+			return ok, nil
+		},
 		"action_move_start": func(in *gml.Interp, a []gml.Value) (gml.Value, error) {
 			s := g.self()
 			s.X, s.Y = s.XStart, s.YStart
@@ -131,7 +143,7 @@ func (g *Game) actionFuncs() map[string]gml.Func {
 		},
 		// instances
 		"action_kill_object": func(in *gml.Interp, a []gml.Value) (gml.Value, error) {
-			g.self().Destroyed = true
+			g.room.Destroy(g.self())
 			return ok, nil
 		},
 		"action_create_object": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (object, x, y, rel)

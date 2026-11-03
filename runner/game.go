@@ -2,6 +2,7 @@ package runner
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/LaPingvino/gameviber/gml"
 )
@@ -19,6 +20,13 @@ type Game struct {
 	// "ignore" did; the first ones are kept).
 	Errors []error
 
+	// Constants are the game's own constants (its global settings).
+	Constants map[string]gml.Value
+	// Sound plays the game's sounds (the backend's); nil: silent.
+	Sound Sound
+	// Resources are the other resources' names (sprites, sounds, rooms …):
+	// they read as their names, as strings, until the importer brings ids.
+	Resources map[string]bool
 	// ScriptNames are the scripts by id (resource ids of action arguments).
 	ScriptNames []string
 
@@ -27,6 +35,21 @@ type Game struct {
 	globals map[*Globals]*GlobalVars
 	in      *gml.Interp
 	room    *Room
+}
+
+// Sound is what the runner asks of the audio backend.
+type Sound interface {
+	Play(name string, loop bool)
+	Stop(name string)
+	StopAll()
+	Playing(name string) bool
+}
+
+func (g *Game) soundName(v gml.Value) string {
+	if v.IsStr {
+		return v.S
+	}
+	return strconv.Itoa(int(v.N))
 }
 
 // Object returns the object of that name (nil if none).
@@ -127,6 +150,12 @@ func (g *Game) interp(r *Room) *gml.Interp {
 			if _, ok := g.scripts[name]; ok { // a script named as a value (action arguments)
 				return gml.StrV(name), true
 			}
+			if g.Resources[name] {
+				return gml.StrV(name), true
+			}
+			if v, ok := g.Constants[name]; ok {
+				return v, true
+			}
 			return gml.Value{}, false
 		}
 		g.in.Instances = func(id float64) []gml.Instance {
@@ -183,7 +212,7 @@ func (g *Game) runnerFuncs() map[string]gml.Func {
 			return gml.RealV(0), nil // PARTIAL: the new instance's id (instance ids come with the importer)
 		},
 		"instance_destroy": func(in *gml.Interp, a []gml.Value) (gml.Value, error) {
-			g.self().Destroyed = true
+			g.room.Destroy(g.self())
 			return gml.RealV(0), nil
 		},
 		"instance_change": func(in *gml.Interp, a []gml.Value) (gml.Value, error) {
@@ -223,6 +252,43 @@ func (g *Game) runnerFuncs() map[string]gml.Func {
 			}
 			return gml.RealV(float64(len(g.room.All(o.Name)))), nil
 		},
+		"sound_play": func(in *gml.Interp, a []gml.Value) (gml.Value, error) {
+			if g.Sound != nil && len(a) > 0 {
+				g.Sound.Play(g.soundName(a[0]), false)
+			}
+			return gml.RealV(0), nil
+		},
+		"sound_loop": func(in *gml.Interp, a []gml.Value) (gml.Value, error) {
+			if g.Sound != nil && len(a) > 0 {
+				g.Sound.Play(g.soundName(a[0]), true)
+			}
+			return gml.RealV(0), nil
+		},
+		"sound_stop": func(in *gml.Interp, a []gml.Value) (gml.Value, error) {
+			if g.Sound != nil && len(a) > 0 {
+				g.Sound.Stop(g.soundName(a[0]))
+			}
+			return gml.RealV(0), nil
+		},
+		"sound_stop_all": func(in *gml.Interp, a []gml.Value) (gml.Value, error) {
+			if g.Sound != nil {
+				g.Sound.StopAll()
+			}
+			return gml.RealV(0), nil
+		},
+		"sound_isplaying": func(in *gml.Interp, a []gml.Value) (gml.Value, error) {
+			return b(g.Sound != nil && len(a) > 0 && g.Sound.Playing(g.soundName(a[0]))), nil
+		},
+		// GM 5's CD functions: GameViber has no CD drive, so they answer as a
+		// machine without one (no CD present, no tracks; play does nothing) —
+		// the games then take their own music, as they did in 2006 then.
+		"cd_present": func(*gml.Interp, []gml.Value) (gml.Value, error) { return gml.RealV(0), nil },
+		"cd_number":  func(*gml.Interp, []gml.Value) (gml.Value, error) { return gml.RealV(0), nil },
+		"cd_playing": func(*gml.Interp, []gml.Value) (gml.Value, error) { return gml.RealV(0), nil },
+		"cd_track":   func(*gml.Interp, []gml.Value) (gml.Value, error) { return gml.RealV(0), nil },
+		"cd_init":    func(*gml.Interp, []gml.Value) (gml.Value, error) { return gml.RealV(0), nil },
+		"cd_play":    func(*gml.Interp, []gml.Value) (gml.Value, error) { return gml.RealV(0), nil },
+		"cd_stop":    func(*gml.Interp, []gml.Value) (gml.Value, error) { return gml.RealV(0), nil },
 		"room_goto_next": func(in *gml.Interp, a []gml.Value) (gml.Value, error) {
 			g.room.Goto = "@next"
 			return gml.RealV(0), nil
