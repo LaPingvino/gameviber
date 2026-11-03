@@ -2,6 +2,7 @@ package runner
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
 
 	"github.com/LaPingvino/gameviber/gml"
@@ -108,6 +109,24 @@ func (g *Game) index() {
 	g.byName = map[string]int{}
 	for i, o := range g.Objects {
 		g.byName[o.Name] = i
+	}
+}
+
+// FuncGroups are the functions GameViber has, by kind (for the reference):
+// GM 5's built-in functions, the runner's, the drag-and-drop actions, the
+// drawing ones.
+func (g *Game) FuncGroups() map[string][]string {
+	names := func(m map[string]gml.Func) []string {
+		var out []string
+		for k := range m {
+			out = append(out, k)
+		}
+		sort.Strings(out)
+		return out
+	}
+	return map[string][]string{
+		"built-in": names(gml.Builtins), "game": names(g.runnerFuncs()),
+		"actions": names(g.actionFuncs()), "drawing": names(g.drawFuncs()),
 	}
 }
 

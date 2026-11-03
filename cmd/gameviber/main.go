@@ -46,10 +46,12 @@ func main() {
 		err = cmdWeb(os.Args[2:])
 	case "new":
 		err = cmdNew(os.Args[2:])
+	case "reference":
+		err = cmdReference(os.Args[2:])
 	case "help", "-h", "--help":
 		usage()
 	default:
-		err = fmt.Errorf("unknown command %q (new, import, play, check, run, web)", os.Args[1])
+		err = fmt.Errorf("unknown command %q (new, import, play, check, run, web, reference)", os.Args[1])
 	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "gameviber:", err)
@@ -60,6 +62,7 @@ func main() {
 func usage() {
 	fmt.Fprint(os.Stderr, `gameviber — a GameMaker-style engine and toolset
 
+  gameviber reference [FILE]        what GameViber's GML understands: events, functions, variables
   gameviber new DIR                 a small starter game to build on (collect the coins)
   gameviber import GAME.exe DIR     turn a GameMaker 5.3 game into a GameViber project in DIR
   gameviber check DIR               check a project: every .gml parses, every function called exists

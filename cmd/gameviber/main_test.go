@@ -1,6 +1,10 @@
 package main
 
-import "testing"
+import (
+	"os"
+	"strings"
+	"testing"
+)
 
 func TestParseKeys(t *testing.T) {
 	sp, err := parseKeys("right:40, right+up:25,:10")
@@ -14,5 +18,16 @@ func TestParseKeys(t *testing.T) {
 		if _, err := parseKeys(bad); err == nil {
 			t.Errorf("%q: no error", bad)
 		}
+	}
+}
+
+// docs/reference.md is what gameviber reference writes (regenerate:
+// go run ./cmd/gameviber reference docs/reference.md).
+func TestReferenceUpToDate(t *testing.T) {
+	var b strings.Builder
+	writeReference(&b)
+	got, err := os.ReadFile("../../docs/reference.md")
+	if err != nil || string(got) != b.String() {
+		t.Error("docs/reference.md is out of date: go run ./cmd/gameviber reference docs/reference.md")
 	}
 }

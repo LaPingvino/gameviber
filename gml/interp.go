@@ -651,3 +651,6 @@ func (in *Interp) field(f *Field, idx []int) (Value, error) {
 	}
 	return Value{}, rerr(f, "unknown variable %s.%s", Format(f.X), f.Name)
 }
+
+// Constants lists the built-in constants (for the reference).
+func Constants() map[string]float64 { return constants }
