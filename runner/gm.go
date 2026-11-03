@@ -329,3 +329,18 @@ func (in *Instance) Direction() float64 {
 	}
 	return d
 }
+
+// PlaceEmpty is place_empty(x, y): no other instance (solid or not) overlaps
+// in at (x, y).
+func (r *Room) PlaceEmpty(in *Instance, x, y float64) bool {
+	if !in.Obj.Mask {
+		return true
+	}
+	b := in.BoxAt(x, y)
+	for _, o := range r.Instances {
+		if !o.Destroyed && o != in && o.Obj.Mask && b.Overlaps(o.BoxAt(o.X, o.Y)) {
+			return false
+		}
+	}
+	return true
+}

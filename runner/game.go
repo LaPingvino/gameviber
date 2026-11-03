@@ -89,6 +89,9 @@ func (g *Game) interp(r *Room) *gml.Interp {
 		for k, f := range g.runnerFuncs() {
 			g.in.Funcs[k] = f
 		}
+		for k, f := range g.actionFuncs() {
+			g.in.Funcs[k] = f
+		}
 		for k, f := range g.Funcs {
 			g.in.Funcs[k] = f
 		}
