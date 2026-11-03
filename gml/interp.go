@@ -102,9 +102,21 @@ func rerr(n Node, format string, args ...any) error {
 
 // Run runs a piece of code (an event or a script) as Self; it returns the
 // value of 'return' (0 when none).
-func (in *Interp) Run(list []Stmt) (Value, error) {
-	saved := in.locals
+func (in *Interp) Run(list []Stmt) (Value, error) { return in.RunArgs(list, nil) }
+
+// RunArgs runs a script with arguments: argument0 … argument9 (and
+// argument[i]) are its locals, as in GM 5.
+func (in *Interp) RunArgs(list []Stmt, args []Value) (Value, error) {
+	saved, savedRet := in.locals, in.returned
+	defer func() { in.returned = savedRet }()
 	in.locals = map[string]Value{}
+	for i := range 10 {
+		v := RealV(0)
+		if i < len(args) {
+			v = args[i]
+		}
+		in.locals["argument"+strconv.Itoa(i)] = v
+	}
 	in.returned = RealV(0)
 	defer func() { in.locals = saved }()
 	_, err := in.block(list)
@@ -580,6 +592,11 @@ func kind(v Value) string {
 func (in *Interp) lookup(n *Name, idx []int) (Value, error) {
 	if v, ok := in.locals[n.Name]; ok && idx == nil {
 		return v, nil
+	}
+	if n.Name == "argument" && len(idx) == 1 {
+		if v, ok := in.locals["argument"+strconv.Itoa(idx[0])]; ok {
+			return v, nil
+		}
 	}
 	if in.globals[n.Name] || GlobalBuiltins[n.Name] && idx == nil {
 		if v, ok := in.Global.Get(n.Name, idx); ok {

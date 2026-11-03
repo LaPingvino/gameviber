@@ -2,6 +2,7 @@ package runner
 
 import (
 	"fmt"
+	"math"
 
 	"github.com/LaPingvino/gameviber/gml"
 )
@@ -38,6 +39,60 @@ func (g *Game) actionFuncs() map[string]gml.Func {
 			set(&s.X, num(a, 0), rel(a, 2))
 			set(&s.Y, num(a, 1), rel(a, 2))
 			return ok, nil
+		},
+		"action_move": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (directions, speed, rel)
+			// directions: nine '0'/'1' in numeric-keypad order, bottom row
+			// first (225 270 315 / 180 stop 0 / 135 90 45); one of the chosen
+			// is picked at random. ASSUMPTION: the order as ENIGMA's
+			// action_move has it; Pacmanio's ghosts ('010101010' = the four
+			// straight directions) agree.
+			dirs := []float64{225, 270, 315, 180, -1, 0, 135, 90, 45}
+			pattern := ""
+			if len(a) > 0 {
+				pattern = a[0].S
+			}
+			var chosen []int
+			for i, c := range pattern {
+				if i < 9 && c == '1' {
+					chosen = append(chosen, i)
+				}
+			}
+			if len(chosen) == 0 {
+				return ok, nil
+			}
+			rv, err := gml.Builtins["random"](in, []gml.Value{gml.RealV(float64(len(chosen)))})
+			if err != nil {
+				return gml.Value{}, err
+			}
+			d := dirs[chosen[int(rv.N)]]
+			s := g.self()
+			speed := num(a, 1)
+			if rel(a, 2) {
+				speed += math.Hypot(s.HSpeed, s.VSpeed)
+			}
+			if d < 0 {
+				s.HSpeed, s.VSpeed = 0, 0
+				return ok, nil
+			}
+			r := d * math.Pi / 180
+			s.HSpeed, s.VSpeed = clean(speed*math.Cos(r)), clean(-speed*math.Sin(r))
+			return ok, nil
+		},
+		"action_execute_script": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (script, arguments …)
+			if len(a) == 0 {
+				return gml.Value{}, fmt.Errorf("needs a script")
+			}
+			name := a[0].S
+			if !a[0].IsStr {
+				if i := int(a[0].N); i >= 0 && i < len(g.ScriptNames) {
+					name = g.ScriptNames[i]
+				}
+			}
+			sc, okk := g.scripts[name]
+			if !okk {
+				return gml.Value{}, fmt.Errorf("no script %q", name)
+			}
+			return in.RunArgs(sc, a[1:])
 		},
 		"action_move_start": func(in *gml.Interp, a []gml.Value) (gml.Value, error) {
 			s := g.self()

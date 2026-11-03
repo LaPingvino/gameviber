@@ -19,6 +19,10 @@ type Game struct {
 	// "ignore" did; the first ones are kept).
 	Errors []error
 
+	// ScriptNames are the scripts by id (resource ids of action arguments).
+	ScriptNames []string
+
+	scripts map[string][]gml.Stmt
 	byName  map[string]int
 	globals map[*Globals]*GlobalVars
 	in      *gml.Interp
@@ -42,6 +46,27 @@ func (g *Game) index() {
 	for i, o := range g.Objects {
 		g.byName[o.Name] = i
 	}
+}
+
+// Script adds a script: callable by name (name(args…)) and by
+// action_execute_script.
+func (g *Game) Script(name, src string) error {
+	list, err := gml.Parse(src)
+	if err != nil {
+		return err
+	}
+	if g.scripts == nil {
+		g.scripts = map[string][]gml.Stmt{}
+	}
+	if g.Funcs == nil {
+		g.Funcs = map[string]gml.Func{}
+	}
+	g.scripts[name] = list
+	g.Funcs[name] = func(in *gml.Interp, a []gml.Value) (gml.Value, error) { return in.RunArgs(list, a) }
+	if g.in != nil {
+		g.in.Funcs[name] = g.Funcs[name]
+	}
+	return nil
 }
 
 // Code compiles a piece of GML into an event handler (create, step, alarm …).
@@ -98,6 +123,9 @@ func (g *Game) interp(r *Room) *gml.Interp {
 		g.in.Lookup = func(name string) (gml.Value, bool) {
 			if i, ok := g.byName[name]; ok {
 				return gml.RealV(float64(i)), true
+			}
+			if _, ok := g.scripts[name]; ok { // a script named as a value (action arguments)
+				return gml.StrV(name), true
 			}
 			return gml.Value{}, false
 		}
