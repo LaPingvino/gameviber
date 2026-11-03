@@ -163,3 +163,76 @@ func TestSteloAgainstHandPort(t *testing.T) {
 	}
 	t.Logf("%d steps identical; errors %v", len(want), g.Errors)
 }
+
+// keySet is the keys held this step and the step before.
+type keySet struct{ held, prev map[runner.Key]bool }
+
+func (k *keySet) Held(c runner.Key) bool    { return k.held[c] }
+func (k *keySet) Pressed(c runner.Key) bool { return k.held[c] && !k.prev[c] }
+
+// steloScript is the script the hand-port traces were made with: keys held
+// for a number of steps (runs, jumps, back, waiting, running into monsters).
+var steloScript = []struct {
+	keys  []runner.Key
+	steps int
+}{
+	{[]runner.Key{runner.KeyRight}, 40}, {[]runner.Key{runner.KeyRight, runner.KeyUp}, 25}, {[]runner.Key{runner.KeyRight}, 60},
+	{[]runner.Key{runner.KeyLeft}, 30}, {[]runner.Key{runner.KeyUp}, 15}, {nil, 10}, {[]runner.Key{runner.KeyRight, runner.KeyUp}, 80}, {[]runner.Key{runner.KeyRight}, 100},
+}
+
+// Levels 1–3 under the script, against the hand port: the player's position,
+// the score and the lives at every step ($GAMEVIBER_STELO_TRACES: a folder
+// with stelo-trace2-<level>.json).
+func TestSteloScriptAgainstHandPort(t *testing.T) {
+	dir := os.Getenv("GAMEVIBER_STELO_TRACES")
+	if dir == "" {
+		t.Skip("no hand-port traces ($GAMEVIBER_STELO_TRACES)")
+	}
+	d, err := os.ReadFile("../../stelo/win/stelo.exe")
+	if err != nil {
+		t.Skip("Stelo's exe is not checked out next to this repo")
+	}
+	e, _ := gmfile.OpenExe(d)
+	p, err := e.ReadProject()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, lv := range []string{"nivelo1", "nivelo2", "nivelo3"} {
+		t.Run(lv, func(t *testing.T) {
+			js, err := os.ReadFile(dir + "/stelo-trace2-" + lv + ".json")
+			if err != nil {
+				t.Skip(err)
+			}
+			var want [][4]float64
+			json.Unmarshal(js, &want)
+			g, err := FromProject(p)
+			if err != nil {
+				t.Fatal(err)
+			}
+			r, err := g.Room(lv, &runner.Globals{Lives: 3, Vars: map[string]float64{}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			k := &keySet{held: map[runner.Key]bool{}, prev: map[runner.Key]bool{}}
+			i := 0
+			for _, s := range steloScript {
+				for range s.steps {
+					k.prev, k.held = k.held, map[runner.Key]bool{}
+					for _, c := range s.keys {
+						k.held[c] = true
+					}
+					r.Step(k)
+					got := [4]float64{-1, -1, float64(r.G.Score), float64(r.G.Lives)}
+					if ps := r.All("character"); len(ps) > 0 {
+						got[0], got[1] = ps[0].X, ps[0].Y
+					}
+					if got != want[i] {
+						t.Fatalf("step %d: GameViber %v, hand port %v (x, y, score, lives); errors %v", i+1, got, want[i], g.Errors)
+					}
+					i++
+				}
+			}
+			t.Logf("%d steps identical (ends at %v)", i, want[i-1])
+		})
+	}
+}

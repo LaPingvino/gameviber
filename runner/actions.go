@@ -229,6 +229,17 @@ func (g *Game) actionFuncs() map[string]gml.Func {
 			}
 			return boolV(g.room.PlaceEmpty(s, x, y)), nil
 		},
+		"action_if_collision": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (x, y, objects, rel): GM's "Check Collision", the opposite of Check Empty
+			s := g.self()
+			x, y := num(a, 0), num(a, 1)
+			if rel(a, 3) {
+				x, y = x+s.X, y+s.Y
+			}
+			if num(a, 2) == 0 {
+				return boolV(!g.room.PlaceFree(s, x, y)), nil
+			}
+			return boolV(!g.room.PlaceEmpty(s, x, y)), nil
+		},
 		"action_if_object": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (object, x, y, rel)
 			o, err := g.obj(a[0])
 			if err != nil {

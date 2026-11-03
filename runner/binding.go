@@ -233,11 +233,20 @@ func (gv *GlobalVars) Get(name string, idx []int) (gml.Value, bool) {
 	if v, ok := gv.view(name, idx, nil); ok {
 		return v, true
 	}
+	if idx == nil && name == "room" && gv.Room != nil { // PARTIAL: rooms by name until ids (room == bonusnivelo works)
+		return gml.StrV(gv.Room.Name), true
+	}
 	if idx == nil && name == "room_caption" && gv.Room != nil {
 		return gml.StrV(gv.Room.Caption), true
 	}
 	if idx == nil && name == "room_persistent" && gv.Room != nil {
 		return gml.RealV(b2f(gv.Room.Persistent)), true
+	}
+	if idx == nil && gv.Room != nil && (name == "room_width" || name == "room_height") {
+		if name == "room_width" {
+			return gml.RealV(float64(gv.Room.W)), true
+		}
+		return gml.RealV(float64(gv.Room.H)), true
 	}
 	if idx == nil {
 		switch name {
