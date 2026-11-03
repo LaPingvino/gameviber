@@ -17,7 +17,7 @@ MIT licensed · [source on GitHub](https://github.com/LaPingvino/gameviber)
 | 3a | GML lexer | **done** — all 42 recovered GML files of Stelo and Pacmanio lex clean (2216 tokens) |
 | 3a | GML parser (one AST, GM 5.3 first) | **done** — every piece of GML code in the two games parses (30 code pieces); the rest of their logic is drag-and-drop actions, read by the importer |
 | 3b | Interpreter | **done** — values, variables (instance / global / var), every statement, `with`, operators, errors with positions, GM 5's math / string / random built-ins (seeded, replayable); the runner's built-ins come with the runner |
-| 3c | Runner (rooms, instances, events in GameMaker's step order), grown from Stelo's engine | **in progress** — Stelo's engine in, its tests pass; instances and globals bound to the interpreter |
+| 3c | Runner (rooms, instances, events in GameMaker's step order), grown from Stelo's engine | **in progress** — Stelo's engine in, its tests pass; instances and globals bound to the interpreter; objects whose events are GML run in GameMaker's step order |
 | 3d | Importer for GameMaker 5.3 games | — |
 | 3e | Pacmanio imported and run, compared step by step with the hand port; then Stelo | — |
 
