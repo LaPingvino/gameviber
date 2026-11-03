@@ -23,6 +23,10 @@ MIT licensed · [source on GitHub](https://github.com/LaPingvino/gameviber)
 
 ## Try it
 
+**[Play the demo](demo/)** — GameViber's own starter game (`gameviber new`), running in your browser: the arrow keys
+collect the coins. It is what `gameviber new` writes, built with `gameviber web`.
+
+
 `gameviber import GAME.exe DIR` turns a GameMaker 5.3 game into a GameViber project; `gameviber play` runs it (or a project folder — edit the .gml and run again)
 headless (`-keys "right:40,right+up:25"`, `-shot frame.png`, `-json` for the state).
 
