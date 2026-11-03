@@ -46,3 +46,26 @@ action_move_start()`)
 		t.Errorf("created relative at x %v, want 160 (96 + 64)", last.X)
 	}
 }
+
+// The window caption: the room's, the score by default; action_set_caption
+// turns the lives on with its own words.
+func TestCaption(t *testing.T) {
+	o := &Object{Name: "o"}
+	g := &Game{Objects: []*Object{o}}
+	r := &Room{W: 64, H: 64, Caption: "Nivelo 1", G: &Globals{Score: 50, Lives: 3, Vars: map[string]float64{}}}
+	if c := g.Caption(r); c != "Nivelo 1  Score: 50" {
+		t.Errorf("default: %q", c)
+	}
+	h, err := g.Code(`action_set_caption(1, "Poentoj: ", 1, "Vivoj: ", 0, "")`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	o.Events.Create = h
+	r.Create(o, 0, 0)
+	if len(g.Errors) > 0 {
+		t.Fatal(g.Errors)
+	}
+	if c := g.Caption(r); c != "Nivelo 1  Poentoj: 50  Vivoj: 3" {
+		t.Errorf("set: %q", c)
+	}
+}

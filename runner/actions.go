@@ -302,7 +302,18 @@ func (g *Game) actionFuncs() map[string]gml.Func {
 			return boolV(g.HasNextRoom == nil || g.HasNextRoom(g.room.Name)), nil
 		},
 		"action_set_caption": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (score, scorecaption, lives, livescaption, health, healthcaption): the window caption's
-			return ok, nil // PARTIAL: the window caption is the backend's
+			gv := g.globalsOf(g.room)
+			for k, n := range []string{"show_score", "", "show_lives", "", "show_health", ""} {
+				if n != "" && k < len(a) {
+					gv.G.Vars[n] = boolF(a[k].True())
+				}
+			}
+			for k, n := range map[int]string{1: "caption_score", 3: "caption_lives", 5: "caption_health"} {
+				if k < len(a) {
+					gv.Set(n, nil, gml.StrV(a[k].String()))
+				}
+			}
+			return ok, nil
 		},
 		"action_set_timeline": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (timeline, position)
 			s := g.self()

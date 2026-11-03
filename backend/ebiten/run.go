@@ -85,6 +85,7 @@ type Game struct {
 	in      input
 	frame   *image.RGBA
 	img     *eb.Image
+	caption string
 	view    frameView
 	touches []eb.TouchID
 	// MaxFrames ends the run after so many frames (0: run until closed) —
@@ -107,6 +108,10 @@ func (g *Game) Update() error {
 		return eb.Termination
 	}
 	g.shortcuts()
+	if c := g.play.G.Caption(g.play.Room); c != g.caption && c != "" { // the window's caption (GM's)
+		g.caption = c
+		setTitle(c)
+	}
 	g.in.prev, g.in.held = g.in.held, map[runner.Key]bool{}
 	alt := eb.IsKeyPressed(eb.KeyAlt)
 	for k, e := range keys {

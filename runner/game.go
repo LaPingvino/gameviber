@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/LaPingvino/gameviber/gml"
 )
@@ -201,11 +202,7 @@ func (g *Game) interp(r *Room) *gml.Interp {
 	if g.globals == nil {
 		g.globals = map[*Globals]*GlobalVars{}
 	}
-	gv := g.globals[r.G]
-	if gv == nil {
-		gv = &GlobalVars{G: r.G}
-		g.globals[r.G] = gv
-	}
+	gv := g.globalsOf(r)
 	if g.in == nil {
 		g.in = &gml.Interp{Seed: g.Seed, Funcs: map[string]gml.Func{}}
 		for k, f := range g.runnerFuncs() {
@@ -463,4 +460,59 @@ func (g *Game) runnerFuncs() map[string]gml.Func {
 			return gml.RealV(0), nil
 		},
 	}
+}
+
+// globalsOf is the game-wide variables of a room's globals.
+func (g *Game) globalsOf(r *Room) *GlobalVars {
+	if g.globals == nil {
+		g.globals = map[*Globals]*GlobalVars{}
+	}
+	gv := g.globals[r.G]
+	if gv == nil {
+		gv = &GlobalVars{G: r.G}
+		g.globals[r.G] = gv
+	}
+	return gv
+}
+
+func boolF(b bool) float64 {
+	if b {
+		return 1
+	}
+	return 0
+}
+
+// Caption is the window's caption: the room's caption, then the score and
+// lives when shown (show_score / show_lives, with caption_score /
+// caption_lives before them). ASSUMPTION [engine]: GM 5 shows the score by
+// default ("Score: "), not the lives ("Lives: "), and parts are two spaces
+// apart.
+func (g *Game) Caption(r *Room) string {
+	if r == nil || r.G == nil {
+		return ""
+	}
+	gv := g.globalsOf(r)
+	str := func(name, def string) string {
+		if v, ok := gv.Get(name, nil); ok && v.IsStr {
+			return v.S
+		}
+		return def
+	}
+	on := func(name string, def bool) bool {
+		if v, ok := r.G.Vars[name]; ok {
+			return v > 0.5
+		}
+		return def
+	}
+	parts := []string{}
+	if r.Caption != "" {
+		parts = append(parts, r.Caption)
+	}
+	if on("show_score", true) {
+		parts = append(parts, fmt.Sprintf("%s%d", str("caption_score", "Score: "), r.G.Score))
+	}
+	if on("show_lives", false) {
+		parts = append(parts, fmt.Sprintf("%s%d", str("caption_lives", "Lives: "), r.G.Lives))
+	}
+	return strings.Join(parts, "  ")
 }
