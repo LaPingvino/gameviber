@@ -71,7 +71,7 @@ func (p *Project) Export(dir, name string) (notes []string, err error) {
 		}
 		w.file(filepath.Join("sounds", s.Name+s.Ext), s.Data)
 		if RenderMIDI && strings.EqualFold(s.Ext, ".mid") { // MIDI music: also as Opus, playable (when the tools are here)
-			if opus, err := midiToOpus(s.Data); err == nil {
+			if opus, err := MIDIToOpus(s.Data); err == nil {
 				w.file(filepath.Join("sounds", s.Name+".opus"), opus)
 			} else if !w.midiNoted {
 				w.notes = append(w.notes, "MIDI music kept as .mid only ("+err.Error()+")")
@@ -260,10 +260,10 @@ var RenderMIDI = true
 // (FluidR3, MIT; Arch: soundfont-fluid).
 var SoundFont = "/usr/share/soundfonts/FluidR3_GM.sf2"
 
-// midiToOpus renders MIDI music to Ogg Opus (48 kHz, 64 kb/s) with
+// MIDIToOpus renders MIDI music to Ogg Opus (48 kHz, 64 kb/s) with
 // fluidsynth and ffmpeg — as Stelo's and Pacmanio's remakes do — so the
 // players need no synthesiser.
-func midiToOpus(mid []byte) ([]byte, error) {
+func MIDIToOpus(mid []byte) ([]byte, error) {
 	if _, err := os.Stat(SoundFont); err != nil {
 		return nil, fmt.Errorf("no sound font at %s", SoundFont)
 	}

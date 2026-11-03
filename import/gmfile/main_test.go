@@ -27,7 +27,7 @@ func TestMIDIToOpus(t *testing.T) {
 		if s == nil || s.Name != "finavenko" {
 			continue
 		}
-		opus, err := midiToOpus(s.Data)
+		opus, err := MIDIToOpus(s.Data)
 		if err != nil {
 			t.Skip(err) // no fluidsynth / ffmpeg / sound font here
 		}
