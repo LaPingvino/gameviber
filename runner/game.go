@@ -348,6 +348,17 @@ func (g *Game) runnerFuncs() map[string]gml.Func {
 		"set_graphics_mode": func(*gml.Interp, []gml.Value) (gml.Value, error) { return gml.RealV(0), nil },
 		"io_handle":         func(*gml.Interp, []gml.Value) (gml.Value, error) { return gml.RealV(0), nil },
 		"keyboard_wait":     func(*gml.Interp, []gml.Value) (gml.Value, error) { return gml.RealV(0), nil },
+		"event_user": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (n 0–15): self's user event n
+			if len(a) == 0 {
+				return gml.RealV(0), nil
+			}
+			n := int(a[0].N)
+			s := g.self()
+			if h := s.Obj.handler(func(e *Events) Handler { return e.Other[10+n] }); h != nil {
+				h(g.room, s)
+			}
+			return gml.RealV(0), nil
+		},
 		"show_error": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (message, abort)
 			msg := ""
 			if len(a) > 0 {

@@ -82,3 +82,31 @@ func TestMouseAndKeyRelease(t *testing.T) {
 		t.Errorf("%v", b.Vars)
 	}
 }
+
+// Animation end (other 7) when image_index passes the last frame (and wraps),
+// and user events through event_user.
+func TestAnimationEndAndUserEvents(t *testing.T) {
+	spin := &Object{Name: "spin", Sprite: "four"}
+	g := &Game{Objects: []*Object{spin}}
+	code := func(src string) Handler {
+		h, err := g.Code(src)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return h
+	}
+	spin.Events.Other = map[int]Handler{7: code("ends += 1; event_user(2)"), 12: code("user2 += 1")}
+	r := &Room{W: 640, H: 480, G: &Globals{Vars: map[string]float64{}},
+		FrameCount: func(s string) int { return map[string]int{"four": 4}[s] }}
+	in := r.Create(spin, 0, 0)
+	in.Vars["ends"], in.Vars["user2"] = 0, 0
+	for range 9 { // image_speed 1, 4 frames: the end after steps 4 and 8
+		r.Step(noKeys)
+	}
+	if len(g.Errors) > 0 {
+		t.Fatal(g.Errors)
+	}
+	if in.Vars["ends"] != 2 || in.Vars["user2"] != 2 || in.ImageIndex != 1 {
+		t.Errorf("ends %v, user2 %v, image_index %v", in.Vars["ends"], in.Vars["user2"], in.ImageIndex)
+	}
+}

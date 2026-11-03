@@ -49,6 +49,9 @@ type Events struct {
 	// 50–52 / 53–55 / 56–58 the same anywhere).
 	KeyRelease map[Key]Handler
 	Mouse      map[int]Handler
+	// Other holds the other events by GM's number not given a field above:
+	// 2 game start, 3 game end, 7 animation end, 10–25 user events 0–15.
+	Other map[int]Handler
 }
 
 // Create places a new instance and runs its create event (instance_create).
@@ -238,6 +241,17 @@ func (r *Room) Step(in Input) {
 	})
 	each(func(i *Instance) { // animation: image_index advances by image_speed
 		i.ImageIndex += i.ImageSpeed
+		if r.FrameCount == nil {
+			return
+		}
+		// Past the last frame: back round, and the animation end event
+		// (other 7) — GM 5 wraps image_index the same way.
+		if n := float64(r.FrameCount(i.Sprite)); n > 0 && i.ImageIndex >= n {
+			i.ImageIndex -= n
+			if h := i.Obj.handler(func(e *Events) Handler { return e.Other[7] }); h != nil {
+				h(r, i)
+			}
+		}
 	})
 	live := r.Instances[:0]
 	for _, i := range r.Instances {
@@ -420,3 +434,6 @@ func (o *Object) mouseHandlers() map[int]Handler {
 	}
 	return m
 }
+
+// Every runs an event of every instance (game start / end …).
+func (r *Room) Every(get func(*Events) Handler) { r.every(get) }

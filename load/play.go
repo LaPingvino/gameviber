@@ -42,7 +42,20 @@ func (g *Game) Start() (*Play, error) {
 	if len(p.order) == 0 {
 		return nil, fmt.Errorf("the game has no rooms")
 	}
-	return p, p.enter(p.order[0])
+	if err := p.enterGame(p.order[0]); err != nil {
+		return nil, err
+	}
+	return p, nil
+}
+
+// enterGame enters the first room with the game start event.
+func (p *Play) enterGame(name string) error {
+	r, err := p.G.room(name, p.Globals, true)
+	if err != nil {
+		return err
+	}
+	p.Room = r
+	return nil
 }
 
 func (p *Play) enter(name string) error {
@@ -96,9 +109,13 @@ func (p *Play) Step(in runner.Input) error {
 		}
 		to = p.order[i-1]
 	case "@restart":
+		p.Room.Every(func(e *runner.Events) runner.Handler { return e.Other[3] }) // game end
+		p.Room.End()
 		p.Globals = &runner.Globals{Vars: map[string]float64{}}
-		to = p.order[0]
+		p.kept = nil
+		return p.enterGame(p.order[0])
 	case "@end":
+		p.Room.Every(func(e *runner.Events) runner.Handler { return e.Other[3] }) // game end
 		p.Ended = true
 		return nil
 	}

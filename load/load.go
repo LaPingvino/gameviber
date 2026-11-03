@@ -219,8 +219,13 @@ func (g *Game) event(ro *runner.Object, o *gmfile.GMObject, ev gmfile.Event) err
 			e.RoomEnd = h
 		case 6:
 			e.NoMoreLives = h
+		case 2, 3, 7, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25:
+			if e.Other == nil {
+				e.Other = map[int]runner.Handler{}
+			}
+			e.Other[int(ev.Sub)] = h
 		default:
-			unsupported() // boundary, game start / end, animation / path end, user events
+			unsupported() // boundary (1), path end (8)
 		}
 	case "destroy":
 		e.Destroy = h
@@ -245,11 +250,18 @@ func (g *Game) event(ro *runner.Object, o *gmfile.GMObject, ev gmfile.Event) err
 // Room makes the project's room into a runner room with its instances
 // (each one's create event run, in placement order).
 func (g *Game) Room(name string, glob *runner.Globals) (*runner.Room, error) {
+	return g.room(name, glob, false)
+}
+
+// room makes a room; gameStart runs the game start event (the first room)
+// after the creation code, before the room start — GM 5's order.
+func (g *Game) room(name string, glob *runner.Globals, gameStart bool) (*runner.Room, error) {
 	for _, r := range g.Project.Rooms {
 		if r == nil || r.Name != name {
 			continue
 		}
-		rr := &runner.Room{Name: r.Name, Caption: r.Caption, W: int(r.W), H: int(r.H), Speed: int(r.Speed), G: glob}
+		rr := &runner.Room{Name: r.Name, Caption: r.Caption, W: int(r.W), H: int(r.H), Speed: int(r.Speed), G: glob,
+			FrameCount: g.frameCount}
 		rr.ViewsEnabled, rr.Persistent = r.ViewsEnabled, r.Persistent
 		for _, v := range r.Views {
 			follow := ""
@@ -292,8 +304,21 @@ func (g *Game) Room(name string, glob *runner.Globals) (*runner.Room, error) {
 			// variables (GM 5 runs it with a dummy self too).
 			h(rr, runner.NewInstance(&runner.Object{Name: "<room>"}, 0, 0))
 		}
+		if gameStart {
+			rr.Every(func(e *runner.Events) runner.Handler { return e.Other[2] })
+		}
 		rr.Start()
 		return rr, nil
 	}
 	return nil, fmt.Errorf("no room %q", name)
+}
+
+// frameCount is a sprite's number of frames.
+func (g *Game) frameCount(sprite string) int {
+	for _, s := range g.Project.Sprites {
+		if s != nil && s.Name == sprite {
+			return max(len(s.Frames), len(s.Images))
+		}
+	}
+	return 0
 }
