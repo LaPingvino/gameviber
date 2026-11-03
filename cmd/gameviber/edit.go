@@ -116,6 +116,7 @@ func editHandler(dir string) http.Handler {
 	mux.HandleFunc("GET /api/strip", rooms.strip)
 	mux.HandleFunc("GET /api/sprite", rooms.sprite)
 	mux.HandleFunc("PUT /api/sprite", rooms.saveSprite)
+	mux.HandleFunc("POST /api/sprite-png", rooms.importPNG)
 	mux.HandleFunc("GET /api/check", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, checkReport(dir))
 	})

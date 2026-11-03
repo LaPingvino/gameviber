@@ -1,11 +1,16 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
+	"fmt"
+	"image/png"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/BurntSushi/toml"
@@ -188,6 +193,59 @@ func (h editRooms) saveSprite(w http.ResponseWriter, r *http.Request) {
 		s["precise"] = *in.Precise
 	}
 	f, err := os.Create(file)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	err = toml.NewEncoder(f).Encode(s)
+	f.Close()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, checkReport(h.dir))
+}
+
+// importPNG (step E4b) takes a PNG as sprite name's picture: the strip
+// (frames side by side, as many as asked; frame width = width / frames),
+// sprite.toml made or updated — a new sprite gets its origin at 0, 0 and the
+// whole frame as its box.
+func (h editRooms) importPNG(w http.ResponseWriter, r *http.Request) {
+	name := r.URL.Query().Get("name")
+	if name == "" || strings.Trim(name, "abcdefghijklmnopqrstuvwxyz0123456789_") != "" {
+		http.Error(w, "a sprite name is letters a–z, digits and _", http.StatusBadRequest)
+		return
+	}
+	frames, _ := strconv.Atoi(r.URL.Query().Get("frames"))
+	frames = max(frames, 1)
+	data, err := io.ReadAll(io.LimitReader(r.Body, 8<<20))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	cfg, err := png.DecodeConfig(bytes.NewReader(data))
+	if err != nil {
+		http.Error(w, "not a PNG: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	if cfg.Width%frames != 0 {
+		http.Error(w, fmt.Sprintf("the picture is %d wide: not %d frames of equal width", cfg.Width, frames), http.StatusBadRequest)
+		return
+	}
+	fw, fh := cfg.Width/frames, cfg.Height
+	dir := filepath.Join(h.dir, "sprites", name)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	s := map[string]any{"origin": []int64{0, 0}, "bbox_lrbt": []int64{0, int64(fw - 1), int64(fh - 1), 0}, "precise": false, "transparent": true}
+	toml.DecodeFile(filepath.Join(dir, "sprite.toml"), &s) // an existing sprite keeps its settings
+	s["frames"], s["frame_w"], s["frame_h"] = int64(frames), int64(fw), int64(fh)
+	if err := os.WriteFile(filepath.Join(dir, "strip.png"), data, 0o644); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	f, err := os.Create(filepath.Join(dir, "sprite.toml"))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

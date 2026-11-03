@@ -32,6 +32,9 @@ func main() {
 		var body []byte
 		if len(args) > 2 && args[2].Type() == js.TypeString {
 			body = []byte(args[2].String())
+		} else if len(args) > 2 && args[2].InstanceOf(js.Global().Get("Uint8Array")) { // a picture
+			body = make([]byte, args[2].Get("length").Int())
+			js.CopyBytesToGo(body, args[2])
 		}
 		return js.Global().Get("Promise").New(js.FuncOf(func(this js.Value, pr []js.Value) any {
 			resolve := pr[0]

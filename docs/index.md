@@ -35,8 +35,9 @@ headless (`-keys "right:40,right+up:25"`, `-shot frame.png`, `-json` for the sta
 **[Open the editor](editor/)** — GameViber's editor, running entirely in your browser (the same editor
 `gameviber edit DIR` serves on your own machine): the starter game's files in a tree, each object's events
 as GML text checked as you save, rooms drawn with their sprites — click to place things, right click to
-remove — sprites with their origin and bounding box, and **▶ Play** to run what you saved. Your changes stay
-in this browser (Reset brings back the starter game). Still to come: importing pictures, step / pause.
+remove — sprites with their origin and bounding box, new sprites from PNG pictures (+ Sprite), and **▶ Play** to run what you
+saved. Your changes stay
+in this browser (Reset brings back the starter game). Still to come: step / pause, sounds, new objects and rooms.
 
 ## Playing: the window and the browser
 

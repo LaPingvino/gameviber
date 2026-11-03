@@ -37,7 +37,7 @@ footer pre { margin: 0; font: 12px/1.45 ui-monospace, monospace; white-space: pr
 .ok { color: var(--ok); } .bad { color: var(--bad); }
 </style></head>
 <body>
-<header><b>GameViber</b><span id="name"></span><span id="status"></span><span style="flex:1"></span><button id="reset" style="display:none;background:transparent;color:var(--muted);border:1px solid var(--line)">Reset to the starter game</button><button id="play">▶ Play</button></header>
+<header><b>GameViber</b><span id="name"></span><span id="status"></span><span style="flex:1"></span><button id="reset" style="display:none;background:transparent;color:var(--muted);border:1px solid var(--line)">Reset to the starter game</button><button id="newspr" style="background:transparent;color:var(--ink);border:1px solid var(--line)">+ Sprite</button><button id="play">▶ Play</button></header>
 <nav id="tree"></nav>
 <main>
   <div class="bar"><code id="path">pick a file on the left</code><button id="save" disabled>Save (Ctrl+S)</button></div>
@@ -49,7 +49,10 @@ footer pre { margin: 0; font: 12px/1.45 ui-monospace, monospace; white-space: pr
       <label>box left</label><input type="number" id="bl"><label>box top</label><input type="number" id="bt">
       <label>box right</label><input type="number" id="br"><label>box bottom</label><input type="number" id="bb">
       <label>precise</label><input type="checkbox" id="precise">
-      <span class="hint" style="grid-column: 1 / 3">red: the origin · green: the bounding box</span></fieldset></div>
+      <span class="hint" style="grid-column: 1 / 3">red: the origin · green: the bounding box</span>
+      <label>frames in a picture</label><input type="number" id="nframes" min="1" value="1">
+      <label style="grid-column: 1 / 3"><button type="button" id="replace">Replace picture…</button></label></fieldset></div>
+  <input type="file" id="pngfile" accept="image/png" style="display:none">
   <div id="room"><div id="palette"></div><div id="stage"><canvas id="canvas"></canvas>
     <p class="hint">Click: place the chosen object (on the 32 px grid; Shift: free) · right click: remove · <a href="#" id="astext">as text</a></p></div></div>
 </main>
@@ -259,6 +262,30 @@ $("play").onclick = () => {
     $("play").textContent = "▶ Play"; $("path").textContent = current || (roomPath ? roomPath + " (room)" : "pick a file on the left");
   }
 };
+// --- pictures (step E4b): a PNG as a sprite's frames (side by side) ---
+let importName = null;
+async function importPNG(name, file, frames) {
+  const data = new Uint8Array(await file.arrayBuffer());
+  const r = await call("api/sprite-png?name=" + encodeURIComponent(name) + "&frames=" + frames, { method: "POST", body: data });
+  if (!r.ok) { $("check").className = "bad"; $("check").textContent = await r.text(); return; }
+  showCheck(await r.json());
+  delete strips[name];
+  await load();
+  const link = [...document.querySelectorAll("nav a")].find((a) => a.textContent === "sprite.toml" && a.parentElement.querySelector("summary")?.textContent === "sprites/" + name);
+  if (link) openSprite("sprites/" + name, link);
+}
+$("pngfile").addEventListener("change", () => {
+  const f = $("pngfile").files[0];
+  if (f && importName) importPNG(importName, f, Math.max(1, Number($("nframes").value) || 1));
+  $("pngfile").value = "";
+});
+$("replace").onclick = () => { importName = spr.name; $("pngfile").click(); };
+$("newspr").onclick = () => {
+  const name = (window.prompt("The new sprite's name (a–z, 0–9, _):") || "").trim().toLowerCase();
+  if (!name) return;
+  importName = name; $("nframes").value = 1; $("pngfile").click();
+};
+
 if (window.gameviberStatic) { // the published page: the project lives in this browser
   $("reset").style.display = "";
   $("reset").onclick = () => { if (window.confirm("Throw away your changes and start again from the starter game?")) { window.gameviberWait.then(() => window.gameviberReset()); } };

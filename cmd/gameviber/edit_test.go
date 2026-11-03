@@ -1,7 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
+	"image"
+	"image/png"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -182,5 +185,36 @@ func TestEditSprite(t *testing.T) {
 	o, _ := s["origin"].([]any)
 	if len(o) != 2 || o[0] != float64(16) || s["precise"] != true || s["frame_w"] != float64(32) {
 		t.Errorf("after save: %v", s)
+	}
+}
+
+// A PNG imported as a new sprite of two frames: strip.png written, sprite.toml
+// made (frame size from the picture); a picture that doesn't divide is refused.
+func TestEditImportPNG(t *testing.T) {
+	dir := t.TempDir() + "/game"
+	if err := cmdNew([]string{dir}); err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(editHandler(dir))
+	defer srv.Close()
+	var buf bytes.Buffer
+	png.Encode(&buf, image.NewNRGBA(image.Rect(0, 0, 32, 16)))
+	r, err := http.Post(srv.URL+"/api/sprite-png?name=star&frames=2", "image/png", bytes.NewReader(buf.Bytes()))
+	if err != nil || r.StatusCode != 200 {
+		t.Fatalf("import: %v %v", err, r.Status)
+	}
+	r.Body.Close()
+	r, _ = http.Get(srv.URL + "/api/sprite?path=sprites/star")
+	var s map[string]any
+	json.NewDecoder(r.Body).Decode(&s)
+	r.Body.Close()
+	if s["frames"] != float64(2) || s["frame_w"] != float64(16) || s["frame_h"] != float64(16) {
+		t.Errorf("sprite: %v", s)
+	}
+	if r, _ := http.Post(srv.URL+"/api/sprite-png?name=star&frames=3", "image/png", bytes.NewReader(buf.Bytes())); r.StatusCode != http.StatusBadRequest {
+		t.Errorf("32 px in 3 frames: %d", r.StatusCode)
+	}
+	if r, _ := http.Post(srv.URL+"/api/sprite-png?name=../x&frames=1", "image/png", bytes.NewReader(buf.Bytes())); r.StatusCode != http.StatusBadRequest {
+		t.Errorf("a name with a path: %d", r.StatusCode)
 	}
 }
