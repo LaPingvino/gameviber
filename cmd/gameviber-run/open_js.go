@@ -24,7 +24,15 @@ func open(string) (*gmfile.Project, error) {
 	if err != nil {
 		return nil, err
 	}
-	u := base.ResolveReference(&url.URL{Path: "project.tar"})
+	ref := "project.tar" // the page names it with its content hash (a fresh copy after a deploy)
+	if v := js.Global().Get("gameviberProject"); v.Type() == js.TypeString {
+		ref = v.String()
+	}
+	rel, err := url.Parse(ref)
+	if err != nil {
+		return nil, err
+	}
+	u := base.ResolveReference(rel)
 	resp, err := http.Get(u.String())
 	if err != nil {
 		return nil, err

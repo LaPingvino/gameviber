@@ -10,6 +10,8 @@ package main
 
 import (
 	"archive/tar"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -351,10 +353,13 @@ const webPage = `<!doctype html>
 <style>html,body{margin:0;height:100%%;background:#111;color:#ddd;font:14px system-ui,sans-serif}
 #msg{position:fixed;inset:auto 0 8px 0;text-align:center;opacity:.7}</style></head>
 <body><div id="msg">loading…</div>
-<script src="wasm_exec.js"></script>
+<script src="wasm_exec.js?v=%s"></script>
 <script>
+// Each file's URL carries its content hash: a new build has new URLs, an
+// unchanged one stays cached.
+window.gameviberProject = "project.tar?v=%s";
 const go = new Go();
-WebAssembly.instantiateStreaming(fetch("game.wasm", {cache: "no-cache"}), go.importObject)
+WebAssembly.instantiateStreaming(fetch("game.wasm?v=%s"), go.importObject)
   .then(r => { document.getElementById("msg").remove(); go.run(r.instance); })
   .catch(e => { document.getElementById("msg").textContent = "could not start: " + e; });
 </script></body></html>
@@ -422,9 +427,22 @@ func cmdWeb(args []string) error {
 	if name == "" {
 		name = filepath.Base(dir)
 	}
-	if err := os.WriteFile(filepath.Join(out, "index.html"), []byte(fmt.Sprintf(webPage, name)), 0o644); err != nil {
+	page := fmt.Sprintf(webPage, name, fileHash(filepath.Join(out, "wasm_exec.js")),
+		fileHash(filepath.Join(out, "project.tar")), fileHash(filepath.Join(out, "game.wasm")))
+	if err := os.WriteFile(filepath.Join(out, "index.html"), []byte(page), 0o644); err != nil {
 		return err
 	}
 	fmt.Printf("web page for %s in %s (index.html, game.wasm, project.tar, wasm_exec.js)\n", name, out)
 	return nil
+}
+
+// fileHash is the first 12 hex digits of a file's SHA-256 (the cache key in
+// the page's URLs).
+func fileHash(path string) string {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "0"
+	}
+	sum := sha256.Sum256(data)
+	return hex.EncodeToString(sum[:6])
 }
