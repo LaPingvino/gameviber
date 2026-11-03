@@ -318,7 +318,11 @@ func cmdCheck(args []string) error {
 		for _, f := range ok {
 			for _, c := range gml.Calls(f.list) {
 				if !known[c.Fn] {
-					fmt.Printf("%s:%s: %s is not a function GameViber knows (nor a script of this project)\n", f.path, c.P, c.Fn)
+					msg := fmt.Sprintf("%s:%s: %s is not a function GameViber knows (nor a script of this project)", f.path, c.P, c.Fn)
+					if h := hint(c.Fn, known); h != "" {
+						msg += " — " + h
+					}
+					fmt.Println(msg)
 					problems++
 				}
 			}

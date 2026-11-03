@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/LaPingvino/gameviber/runner"
 	"os"
 	"strings"
 	"testing"
@@ -29,5 +30,26 @@ func TestReferenceUpToDate(t *testing.T) {
 	got, err := os.ReadFile("../../docs/reference.md")
 	if err != nil || string(got) != b.String() {
 		t.Error("docs/reference.md is out of date: go run ./cmd/gameviber reference docs/reference.md")
+	}
+}
+
+// check's hints: later GameMaker names get their 5.3 form, typos the nearest
+// known name, and every 5.3 form named is a function GameViber has.
+func TestHints(t *testing.T) {
+	known := map[string]bool{"instance_create": true, "sound_play": true, "floor": true, "random": true}
+	if h := hint("irandom", known); !strings.Contains(h, "floor(random(n + 1))") {
+		t.Errorf("irandom: %q", h)
+	}
+	if h := hint("instance_crate", known); h != "did you mean instance_create?" {
+		t.Errorf("typo: %q", h)
+	}
+	if h := hint("something_else_entirely", known); h != "" {
+		t.Errorf("far: %q", h)
+	}
+	real := (&runner.Game{}).KnownFuncs()
+	for fn := range laterGM {
+		if real[fn] {
+			t.Errorf("%s is in laterGM but GameViber knows it", fn)
+		}
 	}
 }
