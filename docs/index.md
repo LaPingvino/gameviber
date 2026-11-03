@@ -18,8 +18,8 @@ MIT licensed · [source on GitHub](https://github.com/LaPingvino/gameviber)
 | 3a | GML parser (one AST, GM 5.3 first) | **done** — every piece of GML code in the two games parses (30 code pieces); the rest of their logic is drag-and-drop actions, read by the importer |
 | 3b | Interpreter | **done** — values, variables (instance / global / var), every statement, `with`, operators, errors with positions, GM 5's math / string / random built-ins (seeded, replayable); the runner's built-ins come with the runner |
 | 3c | Runner (rooms, instances, events in GameMaker's step order), grown from Stelo's engine | **in progress** — Stelo's engine in, its tests pass; instances and globals bound to the interpreter; objects whose events are GML run in GameMaker's step order |
-| 3d | Importer for GameMaker 5.3 games | **in progress** — reads a whole GameMaker 5.3 game from its executable — settings, sounds, sprites, backgrounds, scripts, timelines, objects with their events and actions, rooms — matching gm53-reader on Stelo; its drag-and-drop actions become readable GML (all 55 of Stelo's events parse); next: writing the project in GameViber's format |
-| 3e | Pacmanio imported and run, compared step by step with the hand port; then Stelo | — |
+| 3d | Importer for GameMaker 5.3 games | **in progress** — reads a whole GameMaker 5.3 game from its executable — settings, sounds, sprites, backgrounds, scripts, timelines, objects with their events and actions, rooms — matching gm53-reader on Stelo; drag-and-drop actions become readable GML; the game is written out in GameViber's text format (Stelo: 56 GML files, 22 PNGs, rooms in order) |
+| 3e | Pacmanio imported and run, compared step by step with the hand port; then Stelo | next |
 
 ## The sample games
 
