@@ -6,6 +6,7 @@ package ebiten
 
 import (
 	"image"
+	"image/color"
 	"os"
 	"runtime"
 	"strings"
@@ -83,6 +84,8 @@ type Game struct {
 	proj    *gmfile.Project
 	in      input
 	frame   *image.RGBA
+	img     *eb.Image
+	view    frameView
 	touches []eb.TouchID
 	// MaxFrames ends the run after so many frames (0: run until closed) —
 	// for checks under a virtual display.
@@ -117,9 +120,11 @@ func (g *Game) Update() error {
 	// nothing covers the play area.
 	if ids := eb.AppendTouchIDs(g.touches[:0]); len(ids) > 0 {
 		g.touches = ids
-		w, h := g.size()
+		w, h := g.size() // the frame's centre on the screen
 		tx, ty := eb.TouchPosition(ids[0])
-		dx, dy := float64(tx)-float64(w)/2, float64(ty)-float64(h)/2
+		fx, fy := g.view.toFrame(tx, ty)
+		dx, dy := float64(fx)-float64(w)/2, float64(fy)-float64(h)/2
+		dx, dy = dx*g.view.scale, dy*g.view.scale // the dead centre in screen pixels
 		switch {
 		case dx*dx+dy*dy < 24*24: // the very centre: no direction
 		case dx*dx > dy*dy && dx < 0:
@@ -132,7 +137,7 @@ func (g *Game) Update() error {
 			g.in.held[40] = true
 		}
 	}
-	cx, cy := eb.CursorPosition() // in the frame (Layout's size): + the view's position = the room
+	cx, cy := g.view.toFrame(eb.CursorPosition()) // screen → frame; + the view's position = the room
 	g.in.mx, g.in.my = float64(cx), float64(cy)
 	if r := g.play.Room; r.ViewsEnabled && len(r.Views) > 0 && r.Views[0].Visible {
 		g.in.mx += float64(r.Views[0].X)
@@ -163,7 +168,40 @@ func (g *Game) Draw(screen *eb.Image) {
 		}
 	}
 	render.Frame(g.frame, g.play.G.Game, r, g.assets, colour, drawColour)
-	screen.WritePixels(g.frame.Pix)
+	if g.img == nil || g.img.Bounds().Dx() != w || g.img.Bounds().Dy() != h {
+		g.img = eb.NewImage(w, h)
+	}
+	g.img.WritePixels(g.frame.Pix)
+	sw, sh := screen.Bounds().Dx(), screen.Bounds().Dy()
+	g.view = fit(w, h, sw, sh)
+	screen.Fill(color.Black)
+	op := &eb.DrawImageOptions{Filter: eb.FilterNearest}
+	op.GeoM.Scale(g.view.scale, g.view.scale)
+	op.GeoM.Translate(g.view.ox, g.view.oy)
+	screen.DrawImage(g.img, op)
+}
+
+// Sharp scaling (the export options; as Stelo and Pacmanio): the frame on the
+// real screen by whole steps, never smoothed — a black border where the
+// screen doesn't divide evenly — as long as whole steps fill at least 90%;
+// otherwise by the largest fraction that fits, still unsmoothed.
+type frameView struct{ scale, ox, oy float64 }
+
+// fit places a fw×fh frame on an sw×sh screen.
+func fit(fw, fh, sw, sh int) frameView {
+	k := min(float64(sw)/float64(fw), float64(sh)/float64(fh))
+	if w := float64(int(k)); w >= 1 && w/k >= 0.9 {
+		k = w
+	}
+	return frameView{scale: k, ox: (float64(sw) - float64(fw)*k) / 2, oy: (float64(sh) - float64(fh)*k) / 2}
+}
+
+// toFrame turns a screen position (mouse, touch) into frame coordinates.
+func (v frameView) toFrame(x, y int) (int, int) {
+	if v.scale == 0 {
+		return x, y
+	}
+	return int((float64(x) - v.ox) / v.scale), int((float64(y) - v.oy) / v.scale)
 }
 
 func (g *Game) size() (int, int) {
@@ -174,8 +212,11 @@ func (g *Game) size() (int, int) {
 	return r.W, r.H
 }
 
-// Layout is the room (or view) size; Ebitengine scales it to the window.
-func (g *Game) Layout(_, _ int) (int, int) { return g.size() }
+// Layout is the screen's real resolution; Draw scales the frame onto it.
+func (g *Game) Layout(outW, outH int) (int, int) {
+	s := eb.Monitor().DeviceScaleFactor() // the screen's real resolution
+	return int(float64(outW) * s), int(float64(outH) * s)
+}
 
 // Frames is how many frames were drawn.
 func (g *Game) Frames() int { return g.frames }
