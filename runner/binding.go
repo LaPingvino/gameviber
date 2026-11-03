@@ -230,6 +230,12 @@ func (gv *GlobalVars) Get(name string, idx []int) (gml.Value, bool) {
 	if v, ok := gv.background(name, idx, nil); ok {
 		return v, true
 	}
+	if len(idx) == 1 && (name == "view_left" || name == "view_top") {
+		return gml.RealV(0), true // PARTIAL: no views yet — the view is the room's top-left
+	}
+	if idx == nil && name == "room_caption" && gv.Room != nil {
+		return gml.StrV(gv.Room.Caption), true
+	}
 	if idx == nil {
 		switch name {
 		case "score":

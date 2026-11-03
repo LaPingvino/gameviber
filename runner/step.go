@@ -42,6 +42,8 @@ type Events struct {
 	// destroyed; RoomStart / RoomEnd (Room.Start, Room.End); NoMoreLives
 	// after a step in which the lives ran out (other events 4, 5, 6).
 	BeginStep, Destroy, RoomStart, RoomEnd, NoMoreLives Handler
+	// Draw replaces the default drawing (the sprite) when set.
+	Draw Handler
 }
 
 // Create places a new instance and runs its create event (instance_create).

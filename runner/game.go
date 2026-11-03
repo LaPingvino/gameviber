@@ -20,6 +20,11 @@ type Game struct {
 	// "ignore" did; the first ones are kept).
 	Errors []error
 
+	// Drawer is set while a draw event runs (RunDraw).
+	Drawer Drawer
+	// SpriteWidth gives a sprite's width (the loader's; life images).
+	SpriteWidth func(name string) int
+	draw        drawState
 	// Highscores is GM's ten-entry table, best first (Clear fills it).
 	Highscores [10]Highscore
 	// AskString answers get_string (the input backend's); nil: the default.
@@ -168,6 +173,9 @@ func (g *Game) interp(r *Room) *gml.Interp {
 			g.in.Funcs[k] = f
 		}
 		for k, f := range g.actionFuncs() {
+			g.in.Funcs[k] = f
+		}
+		for k, f := range g.drawFuncs() {
 			g.in.Funcs[k] = f
 		}
 		for k, f := range g.Funcs {

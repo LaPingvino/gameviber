@@ -121,7 +121,9 @@ type Room struct {
 	Speed int
 	// Backgrounds are the room's background layers (GM 5 has 8).
 	Backgrounds []Background
-	Instances   []*Instance
+	// Caption is room_caption.
+	Caption   string
+	Instances []*Instance
 	// Goto asks the game to change rooms after this step (room_goto); "" = stay.
 	Goto string
 	// Sleep is action_sleep: steps during which the game is frozen (nothing

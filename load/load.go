@@ -24,6 +24,14 @@ type Game struct {
 func FromProject(p *gmfile.Project) (*Game, error) {
 	g := &Game{Game: &runner.Game{}, Project: p}
 	g.ClearHighscores()
+	g.SpriteWidth = func(name string) int {
+		for _, s := range p.Sprites {
+			if s != nil && s.Name == name {
+				return int(s.W)
+			}
+		}
+		return 0
+	}
 	objs := make([]*runner.Object, len(p.Objects))
 	for i, o := range p.Objects {
 		if o == nil {
@@ -189,8 +197,10 @@ func (g *Game) event(ro *runner.Object, o *gmfile.GMObject, ev gmfile.Event) err
 		}
 	case "destroy":
 		e.Destroy = h
+	case "draw":
+		e.Draw = h
 	default:
-		unsupported() // draw (the drawing backend), mouse, key release
+		unsupported() // mouse, key release
 	}
 	return nil
 }
@@ -202,7 +212,7 @@ func (g *Game) Room(name string, glob *runner.Globals) (*runner.Room, error) {
 		if r == nil || r.Name != name {
 			continue
 		}
-		rr := &runner.Room{Name: r.Name, W: int(r.W), H: int(r.H), Speed: int(r.Speed), G: glob}
+		rr := &runner.Room{Name: r.Name, Caption: r.Caption, W: int(r.W), H: int(r.H), Speed: int(r.Speed), G: glob}
 		for _, b := range r.Backgrounds {
 			name := ""
 			if b.BG >= 0 && int(b.BG) < len(g.Project.Backgrounds) && g.Project.Backgrounds[b.BG] != nil {

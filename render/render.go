@@ -50,7 +50,7 @@ func LoadAssets(p *gmfile.Project) *Assets {
 // sprite's frame at floor(image_index).
 // Background layers (behind, then foreground in front) tile and scroll.
 // PARTIAL: views, stretched layers and draw events come next.
-func Frame(dst *image.RGBA, r *runner.Room, a *Assets, roomColour int32, drawColour bool) {
+func Frame(dst *image.RGBA, g *runner.Game, r *runner.Room, a *Assets, roomColour int32, drawColour bool) []TextCall {
 	if drawColour {
 		c := roomColour
 		if v, ok := r.G.Vars["background_color"]; ok {
@@ -77,7 +77,12 @@ func Frame(dst *image.RGBA, r *runner.Room, a *Assets, roomColour int32, drawCol
 		}
 	}
 	sort.SliceStable(insts, func(i, j int) bool { return insts[i].Obj.Depth > insts[j].Obj.Depth })
+	fd := &frameDrawer{dst: dst, a: a}
 	for _, in := range insts {
+		if g != nil && runner.HasDraw(in) {
+			g.RunDraw(r, in, fd)
+			continue
+		}
 		frames := a.Frames[in.Sprite]
 		if len(frames) == 0 {
 			continue
@@ -91,6 +96,66 @@ func Frame(dst *image.RGBA, r *runner.Room, a *Assets, roomColour int32, drawCol
 		at := image.Pt(int(math.Round(in.X))-o.X, int(math.Round(in.Y))-o.Y)
 		draw.Draw(dst, f.Bounds().Add(at), f, image.Point{}, draw.Over)
 	}
+	return fd.texts
+}
+
+// TextCall is a text the draw events drew: where, what, with which font.
+// PARTIAL: text is recorded, not rasterised — a font rasteriser needs a new
+// module (golang.org/x/image), which waits for Joop's OK.
+type TextCall struct {
+	X, Y float64
+	S    string
+	Font runner.Font
+}
+
+// frameDrawer draws draw events into the frame.
+type frameDrawer struct {
+	dst   *image.RGBA
+	a     *Assets
+	texts []TextCall
+}
+
+func bgr(c int32) color.RGBA {
+	u := uint32(c)
+	return color.RGBA{uint8(u), uint8(u >> 8), uint8(u >> 16), 255}
+}
+
+// Rect fills (brush) and outlines (pen) a rectangle, corners inclusive as
+// Windows' Rectangle with GM's +1 (ASSUMPTION, as the hand ports have it).
+func (d *frameDrawer) Rect(x1, y1, x2, y2 float64, fill, outline int32, filled bool) {
+	r := image.Rect(int(math.Round(min(x1, x2))), int(math.Round(min(y1, y2))), int(math.Round(max(x1, x2)))+1, int(math.Round(max(y1, y2)))+1)
+	if filled {
+		draw.Draw(d.dst, r, image.NewUniform(bgr(fill)), image.Point{}, draw.Src)
+	}
+	o := image.NewUniform(bgr(outline))
+	for _, e := range []image.Rectangle{{r.Min, image.Pt(r.Max.X, r.Min.Y+1)}, {image.Pt(r.Min.X, r.Max.Y-1), r.Max},
+		{r.Min, image.Pt(r.Min.X+1, r.Max.Y)}, {image.Pt(r.Max.X-1, r.Min.Y), r.Max}} {
+		draw.Draw(d.dst, e, o, image.Point{}, draw.Src)
+	}
+}
+
+func (d *frameDrawer) Sprite(name string, frame, x, y float64) {
+	frames := d.a.Frames[name]
+	if len(frames) == 0 {
+		return
+	}
+	k := int(math.Floor(frame)) % len(frames)
+	if k < 0 {
+		k += len(frames)
+	}
+	o := d.a.Origins[name]
+	at := image.Pt(int(math.Round(x))-o.X, int(math.Round(y))-o.Y)
+	draw.Draw(d.dst, frames[k].Bounds().Add(at), frames[k], image.Point{}, draw.Over)
+}
+
+func (d *frameDrawer) Background(name string, x, y float64) {
+	if img := d.a.BGs[name]; img != nil {
+		draw.Draw(d.dst, img.Bounds().Add(image.Pt(int(x), int(y))), img, image.Point{}, draw.Over)
+	}
+}
+
+func (d *frameDrawer) Text(x, y float64, s string, f runner.Font) {
+	d.texts = append(d.texts, TextCall{x, y, s, f})
 }
 
 // drawLayer draws a background layer at its position, tiled as set.

@@ -4,6 +4,7 @@ import (
 	"image"
 	"image/png"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/LaPingvino/gameviber/import/gmfile"
@@ -49,7 +50,7 @@ func TestFramePacmanio(t *testing.T) {
 		}
 	}
 	img := image.NewRGBA(image.Rect(0, 0, int(room.W), int(room.H)))
-	Frame(img, r, LoadAssets(p), room.BGColor, room.DrawBGColor)
+	Frame(img, g.Game, r, LoadAssets(p), room.BGColor, room.DrawBGColor)
 	drawn := 0
 	bg := img.RGBAAt(0, 0)
 	for y := 0; y < img.Bounds().Dy(); y += 4 {
@@ -144,7 +145,15 @@ func TestPlayPacmanioIntoLevel(t *testing.T) {
 		}
 	}
 	img := image.NewRGBA(image.Rect(0, 0, int(room.W), int(room.H)))
-	Frame(img, pl.Room, LoadAssets(p), room.BGColor, room.DrawBGColor)
+	texts := Frame(img, g.Game, pl.Room, LoadAssets(p), room.BGColor, room.DrawBGColor)
+	var got []string
+	for _, tc := range texts {
+		got = append(got, tc.S)
+	}
+	t.Logf("texts drawn: %q", got)
+	if len(texts) == 0 || !strings.HasPrefix(texts[0].S, "P A C M A N I O#") {
+		t.Errorf("the HUD's first text: %q", got)
+	}
 	if path := os.Getenv("GAMEVIBER_SHOT2"); path != "" {
 		f, _ := os.Create(path)
 		png.Encode(f, img)
