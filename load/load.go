@@ -310,7 +310,13 @@ func (g *Game) room(name string, glob *runner.Globals, gameStart bool) (*runner.
 		rr.Start()
 		return rr, nil
 	}
-	return nil, fmt.Errorf("no room %q", name)
+	var names []string
+	for _, r := range g.Project.Rooms {
+		if r != nil {
+			names = append(names, r.Name)
+		}
+	}
+	return nil, fmt.Errorf("no room %q (the rooms: %s)", name, strings.Join(names, ", "))
 }
 
 // frameCount is a sprite's number of frames.
