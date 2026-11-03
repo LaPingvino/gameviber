@@ -262,3 +262,31 @@ func TestRoomNextPrevious(t *testing.T) {
 		t.Errorf("vars %v, strings %v", in.Vars, in.VarsStr)
 	}
 }
+
+// Precise masks: two 4×4 triangles whose boxes overlap but whose pixels do
+// not, then do; a non-precise box against a mask touches only on its pixels.
+func TestPreciseCollision(t *testing.T) {
+	tri := func(upper bool) *PixelMask { // the upper-left or lower-right half
+		m := &PixelMask{W: 4, H: 4, Bits: make([]bool, 16)}
+		for y := 0; y < 4; y++ {
+			for x := 0; x < 4; x++ {
+				m.Bits[y*4+x] = (x+y < 3) == upper
+			}
+		}
+		return m
+	}
+	a := &Object{Name: "a", BBox: Box{0, 3, 0, 3}, Mask: true, Pixels: []*PixelMask{tri(true)}}
+	b := &Object{Name: "b", BBox: Box{0, 3, 0, 3}, Mask: true, Pixels: []*PixelMask{tri(false)}}
+	box := &Object{Name: "box", BBox: Box{0, 0, 0, 0}, Mask: true}
+	ia, ib := NewInstance(a, 0, 0), NewInstance(b, 0, 0)
+	if touches(ia, 0, 0, ib) {
+		t.Error("upper-left and lower-right halves on the same square touch")
+	}
+	if !touches(ia, 1, 1, ib) {
+		t.Error("shifted by one they should overlap")
+	}
+	dot := NewInstance(box, 3, 3)
+	if touches(dot, 3, 3, ia) || !touches(dot, 0, 0, ia) {
+		t.Error("a 1-pixel box against the upper-left half: (3,3) is empty, (0,0) solid")
+	}
+}

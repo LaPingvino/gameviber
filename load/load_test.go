@@ -396,3 +396,32 @@ func TestSteloTimeline(t *testing.T) {
 		t.Errorf("b_monsters %v, want 0 / 1 / 2 / 3 × %d spawners", counts, spawners)
 	}
 }
+
+// The precise sprites' objects get pixel masks.
+func TestPreciseMasksLoaded(t *testing.T) {
+	for _, exe := range []string{"../../stelo/win/stelo.exe", "../../pacmanio/win/pacmanio.exe"} {
+		d, err := os.ReadFile(exe)
+		if err != nil {
+			t.Skip("the sample games are not checked out next to this repo")
+		}
+		e, _ := gmfile.OpenExe(d)
+		p, err := e.ReadProject()
+		if err != nil {
+			t.Fatal(err)
+		}
+		g, err := FromProject(p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var with []string
+		for _, o := range g.Objects {
+			if len(o.Pixels) > 0 {
+				with = append(with, o.Name)
+			}
+		}
+		t.Logf("%s: %d objects with pixel masks: %v", exe, len(with), with)
+		if len(with) == 0 {
+			t.Errorf("%s: no object has a pixel mask", exe)
+		}
+	}
+}

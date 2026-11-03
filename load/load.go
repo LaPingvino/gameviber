@@ -5,6 +5,7 @@ package load
 
 import (
 	"fmt"
+	"image"
 	"strings"
 
 	"github.com/LaPingvino/gameviber/gml"
@@ -64,6 +65,9 @@ func FromProject(p *gmfile.Project) (*Game, error) {
 			ro.BBox = runner.Box{L: int(s.BBox[0] - s.OriginX), R: int(s.BBox[1] - s.OriginX),
 				T: int(s.BBox[3] - s.OriginY), B: int(s.BBox[2] - s.OriginY)}
 			ro.Mask = true
+			if s.Precise {
+				ro.Pixels = pixelMasks(s)
+			}
 		}
 		if o.Sprite >= 0 && int(o.Sprite) < len(p.Sprites) && p.Sprites[o.Sprite] != nil {
 			ro.Sprite = p.Sprites[o.Sprite].Name
@@ -368,4 +372,27 @@ func nameOf(ok bool, name func() string) string {
 		return ""
 	}
 	return name()
+}
+
+// pixelMasks are a precise sprite's frames as masks: the pixels that are not
+// transparent, placed relative to the instance (the origin off).
+func pixelMasks(s *gmfile.Sprite) []*runner.PixelMask {
+	imgs := append([]*image.NRGBA(nil), s.Images...)
+	for _, f := range s.Frames {
+		if img, err := gmfile.DecodeBMP(f, s.Transparent); err == nil {
+			imgs = append(imgs, img)
+		}
+	}
+	var out []*runner.PixelMask
+	for _, img := range imgs {
+		b := img.Bounds()
+		m := &runner.PixelMask{X0: -int(s.OriginX), Y0: -int(s.OriginY), W: b.Dx(), H: b.Dy(), Bits: make([]bool, b.Dx()*b.Dy())}
+		for y := 0; y < b.Dy(); y++ {
+			for x := 0; x < b.Dx(); x++ {
+				m.Bits[y*m.W+x] = img.NRGBAAt(b.Min.X+x, b.Min.Y+y).A > 0
+			}
+		}
+		out = append(out, m)
+	}
+	return out
 }

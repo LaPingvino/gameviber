@@ -233,7 +233,7 @@ func (r *Room) Step(in Input) {
 				if o == i || o.Destroyed || i.Destroyed || !o.Obj.IsA(name) || !i.Obj.Mask || !o.Obj.Mask {
 					continue
 				}
-				if !i.BoxAt(i.X, i.Y).Overlaps(o.BoxAt(o.X, o.Y)) {
+				if !touches(i, i.X, i.Y, o) {
 					continue
 				}
 				if o.Solid {

@@ -28,6 +28,9 @@ type Object struct {
 	IDs   *IDs
 	Solid bool
 	BBox  Box
+	// Pixels are the precise masks of its collision sprite, one per frame
+	// (nil: the bounding box is the mask). See mask.go.
+	Pixels []*PixelMask
 	// Mask reports whether the object collides at all (an object without a
 	// sprite has no box).
 	Mask bool
@@ -282,7 +285,7 @@ func (r *Room) PlaceFree(in *Instance, x, y float64) bool {
 		if o.Destroyed {
 			continue
 		}
-		if o != in && o.Solid && o.Obj.Mask && b.Overlaps(o.BoxAt(o.X, o.Y)) {
+		if o != in && o.Solid && o.Obj.Mask && b.Overlaps(o.BoxAt(o.X, o.Y)) && touches(in, x, y, o) {
 			return false
 		}
 	}
@@ -300,7 +303,7 @@ func (r *Room) PlaceMeeting(in *Instance, x, y float64, obj string) *Instance {
 		if o.Destroyed {
 			continue
 		}
-		if o != in && o.Obj.IsA(obj) && o.Obj.Mask && b.Overlaps(o.BoxAt(o.X, o.Y)) {
+		if o != in && o.Obj.IsA(obj) && o.Obj.Mask && b.Overlaps(o.BoxAt(o.X, o.Y)) && touches(in, x, y, o) {
 			return o
 		}
 	}
@@ -373,7 +376,7 @@ func (r *Room) PlaceEmpty(in *Instance, x, y float64) bool {
 	}
 	b := in.BoxAt(x, y)
 	for _, o := range r.Instances {
-		if !o.Destroyed && o != in && o.Obj.Mask && b.Overlaps(o.BoxAt(o.X, o.Y)) {
+		if !o.Destroyed && o != in && o.Obj.Mask && b.Overlaps(o.BoxAt(o.X, o.Y)) && touches(in, x, y, o) {
 			return false
 		}
 	}
