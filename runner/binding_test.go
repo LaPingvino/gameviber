@@ -98,3 +98,37 @@ me = object_index; mine = (object_index = o); sprite_index = "spr_a"`)
 		t.Errorf("%v, sprite %q", v, in.Sprite)
 	}
 }
+
+type playedSounds []string
+
+func (p *playedSounds) Play(name string, loop bool) { *p = append(*p, name) }
+func (p *playedSounds) Stop(string)                 {}
+func (p *playedSounds) StopAll()                    {}
+func (p *playedSounds) Playing(string) bool         { return false }
+
+// Sounds, backgrounds and timelines as ids: names evaluate to ids, and what
+// takes one takes an id (or a name).
+func TestSoundBackgroundTimelineIDs(t *testing.T) {
+	ids := &IDs{Sprites: map[string]int{}, Of: map[string]map[string]int{
+		"sound": {"snd_coin": 0, "snd_win": 1}, "background": {"bg_sky": 0, "bg_sea": 1}, "timeline": {"tl_intro": 0}}}
+	o := &Object{Name: "o"}
+	var played playedSounds
+	g := &Game{Objects: []*Object{o}, IDs: ids, Sound: &played,
+		Timelines: map[string]*Timeline{"tl_intro": {Name: "tl_intro", Moments: map[int]Handler{}}}}
+	h, err := g.Code(`sound_play(snd_win); s = snd_win
+was = background_index[0]; background_index[0] = bg_sea; now = background_index[0]
+action_set_timeline(tl_intro, 0); tl = timeline_index`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	o.Events.Create = h
+	r := &Room{W: 64, H: 64, G: &Globals{Vars: map[string]float64{}}, Backgrounds: []Background{{Name: "bg_sky", Visible: true}}}
+	in := r.Create(o, 0, 0)
+	if len(g.Errors) > 0 {
+		t.Fatal(g.Errors)
+	}
+	v := in.Vars
+	if len(played) != 1 || played[0] != "snd_win" || v["s"] != 1 || v["was"] != 0 || v["now"] != 1 || r.Backgrounds[0].Name != "bg_sea" || v["tl"] != 0 || in.Timeline == nil {
+		t.Errorf("played %v, vars %v, background %q", played, v, r.Backgrounds[0].Name)
+	}
+}

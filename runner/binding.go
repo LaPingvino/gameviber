@@ -32,11 +32,11 @@ func (in *Instance) Get(name string, idx []int) (gml.Value, bool) {
 			return gml.RealV(v), true
 		}
 		switch name {
-		case "timeline_index": // PARTIAL: by name until ids; -1 none
+		case "timeline_index": // its id; -1 none
 			if in.Timeline == nil {
 				return gml.RealV(-1), true
 			}
-			return gml.StrV(in.Timeline.Name), true
+			return in.Obj.IDs.Value("timeline", in.Timeline.Name), true
 		case "sprite_index": // its id (-1: none)
 			if in.Sprite == "" {
 				return gml.RealV(-1), true
@@ -184,6 +184,7 @@ type GlobalVars struct {
 	Room *Room
 	// roomValue is how `room` reads (the game's ids).
 	roomValue func(name string) gml.Value
+	ids       *IDs
 }
 
 // background reads or writes background_<field>[i] of the current room.
@@ -223,9 +224,12 @@ func (gv *GlobalVars) background(name string, idx []int, set *gml.Value) (gml.Va
 		flag = &b.TileV
 	case "index":
 		if set != nil {
-			b.Name = set.String()
+			b.Name = gv.ids.Name("background", *set)
 		}
-		return gml.StrV(b.Name), true // PARTIAL: by name until ids
+		if b.Name == "" {
+			return gml.RealV(-1), true
+		}
+		return gv.ids.Value("background", b.Name), true
 	default:
 		return gml.Value{}, false
 	}

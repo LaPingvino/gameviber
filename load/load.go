@@ -103,10 +103,28 @@ func FromProject(p *gmfile.Project) (*Game, error) {
 			g.Resources[x.Name] = true
 		}
 	}
-	g.IDs = &runner.IDs{Sprites: map[string]int{}}
+	g.IDs = &runner.IDs{Sprites: map[string]int{}, Of: map[string]map[string]int{}}
 	for id, x := range p.Sprites {
 		if x != nil {
 			g.IDs.Sprites[x.Name] = id
+		}
+	}
+	var snd, bg, tl []string
+	for _, x := range p.Sounds {
+		snd = append(snd, nameOf(x != nil, func() string { return x.Name }))
+	}
+	for _, x := range p.Backgrounds {
+		bg = append(bg, nameOf(x != nil, func() string { return x.Name }))
+	}
+	for _, x := range p.Timelines {
+		tl = append(tl, nameOf(x != nil, func() string { return x.Name }))
+	}
+	for kind, names := range map[string][]string{"sound": snd, "background": bg, "timeline": tl} {
+		g.IDs.Of[kind] = map[string]int{}
+		for id, n := range names {
+			if n != "" {
+				g.IDs.Of[kind][n] = id
+			}
 		}
 	}
 	for _, o := range g.Objects {
@@ -342,4 +360,12 @@ func (g *Game) frameCount(sprite string) int {
 		}
 	}
 	return 0
+}
+
+// nameOf is a resource's name ("" for a gap in the ids).
+func nameOf(ok bool, name func() string) string {
+	if !ok {
+		return ""
+	}
+	return name()
 }

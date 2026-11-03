@@ -3,7 +3,6 @@ package runner
 import (
 	"fmt"
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/LaPingvino/gameviber/gml"
@@ -96,12 +95,7 @@ type Sound interface {
 	Playing(name string) bool
 }
 
-func (g *Game) soundName(v gml.Value) string {
-	if v.IsStr {
-		return v.S
-	}
-	return strconv.Itoa(int(v.N))
-}
+func (g *Game) soundName(v gml.Value) string { return g.IDs.Name("sound", v) }
 
 // Object returns the object of that name (nil if none).
 func (g *Game) Object(name string) *Object {
@@ -240,10 +234,8 @@ func (g *Game) interp(r *Room) *gml.Interp {
 			if id, ok := g.RoomIDs[name]; ok {
 				return gml.RealV(float64(id)), true
 			}
-			if g.IDs != nil {
-				if id, ok := g.IDs.Sprites[name]; ok {
-					return gml.RealV(float64(id)), true
-				}
+			if id, ok := g.IDs.Lookup(name); ok { // sprites, sounds, backgrounds, timelines
+				return gml.RealV(float64(id)), true
 			}
 			if g.Resources[name] {
 				return gml.StrV(name), true
@@ -279,6 +271,7 @@ func (g *Game) interp(r *Room) *gml.Interp {
 	}
 	gv.Room = r
 	gv.roomValue = g.RoomValue
+	gv.ids = g.IDs
 	g.in.Global = gv
 	return g.in
 }

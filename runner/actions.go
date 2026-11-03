@@ -320,8 +320,9 @@ func (g *Game) actionFuncs() map[string]gml.Func {
 			if len(a) == 0 {
 				return ok, nil
 			}
-			t := g.Timelines[a[0].String()]
-			if t == nil && a[0].String() != "-1" {
+			name := g.IDs.Name("timeline", a[0])
+			t := g.Timelines[name]
+			if t == nil && name != "" {
 				return gml.Value{}, fmt.Errorf("no timeline %s", a[0].String())
 			}
 			s.Timeline, s.TimelinePos = t, int(num(a, 1))

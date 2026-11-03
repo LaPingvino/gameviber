@@ -183,7 +183,7 @@ func (g *Game) drawFuncs() map[string]gml.Func {
 		},
 		"draw_background": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (background, x, y)
 			if d() != nil && len(a) > 2 {
-				d().Background(a[0].String(), num(a, 1), num(a, 2))
+				d().Background(g.IDs.Name("background", a[0]), num(a, 1), num(a, 2))
 			}
 			return ok, nil
 		},
