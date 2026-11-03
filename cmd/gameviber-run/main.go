@@ -25,6 +25,7 @@ func run(args []string) error {
 	fs := flag.NewFlagSet("run", flag.ContinueOnError)
 	room := fs.String("room", "", "start room")
 	frames := fs.Int("frames", 0, "stop after this many frames (0: until the window closes)")
+	mute := fs.Bool("mute", false, "no sound")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -48,6 +49,7 @@ func run(args []string) error {
 	if err != nil {
 		return err
 	}
+	ebbackend.Mute = *mute
 	w := ebbackend.New(p, pl)
 	w.MaxFrames = *frames
 	if err := w.Run("GameViber — " + filepath.Base(fs.Arg(0)+p.Name())); err != nil {

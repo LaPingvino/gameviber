@@ -6,6 +6,9 @@ package ebiten
 
 import (
 	"image"
+	"os"
+	"runtime"
+	"strings"
 
 	eb "github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
@@ -39,6 +42,25 @@ func (in *input) MouseHeld(b int) bool      { return eb.IsMouseButtonPressed(but
 func (in *input) MousePressed(b int) bool   { return inpututil.IsMouseButtonJustPressed(buttons[b]) }
 func (in *input) MouseReleased(b int) bool  { return inpututil.IsMouseButtonJustReleased(buttons[b]) }
 
+// Mute turns the sound off (gameviber-run -mute).
+var Mute bool
+
+// audioAvailable: Ebitengine's audio stops the game when there is no sound
+// device (a server, CI): on Linux, only with a playback device in /dev/snd
+// (pcmC*p); elsewhere assumed.
+func audioAvailable() bool {
+	if runtime.GOOS != "linux" {
+		return true
+	}
+	ents, _ := os.ReadDir("/dev/snd")
+	for _, e := range ents {
+		if n := e.Name(); strings.HasPrefix(n, "pcmC") && strings.HasSuffix(n, "p") {
+			return true
+		}
+	}
+	return false
+}
+
 // Game is a game in the window.
 type Game struct {
 	play    *load.Play
@@ -55,7 +77,9 @@ type Game struct {
 
 // New prepares a game for the window.
 func New(p *gmfile.Project, pl *load.Play) *Game {
-	pl.G.Sound = newSounds(p)
+	if !Mute && audioAvailable() { // without a sound device the game plays silently
+		pl.G.Sound = newSounds(p)
+	}
 	return &Game{play: pl, assets: render.LoadAssets(p), proj: p, in: input{held: map[runner.Key]bool{}, prev: map[runner.Key]bool{}}}
 }
 
