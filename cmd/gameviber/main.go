@@ -5,8 +5,7 @@
 //	gameviber import GAME.exe DIR       a GameMaker 5.3 game → GameViber's text project
 //	gameviber play [flags] GAME.exe     run it (headless): steps, keys, a screenshot, the state
 //
-// PARTIAL: games are read from their executable; reading the text project
-// back (gameviber check / run DIR) comes next.
+// play takes a GameMaker 5.3 executable or a GameViber project folder.
 package main
 
 import (
@@ -50,7 +49,7 @@ func usage() {
 	fmt.Fprint(os.Stderr, `gameviber — a GameMaker-style engine and toolset
 
   gameviber import GAME.exe DIR     turn a GameMaker 5.3 game into a GameViber project in DIR
-  gameviber play [flags] GAME.exe   run a game headless
+  gameviber play [flags] GAME       run a game headless (GAME: a GameMaker 5.3 .exe or a project folder)
       -room NAME      start in this room (default: the first in the room order)
       -steps N        steps to run (default 300)
       -keys SCRIPT    keys held per span: "right:40,right+up:25,:10,left:30"
@@ -62,6 +61,9 @@ func usage() {
 }
 
 func open(path string) (*gmfile.Project, error) {
+	if fi, err := os.Stat(path); err == nil && fi.IsDir() { // a GameViber text project
+		return gmfile.ReadDir(path)
+	}
 	d, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -157,7 +159,7 @@ func cmdPlay(args []string) error {
 		return err
 	}
 	if fs.NArg() != 1 {
-		return fmt.Errorf("usage: gameviber play [flags] GAME.exe")
+		return fmt.Errorf("usage: gameviber play [flags] GAME.exe|DIR")
 	}
 	p, err := open(fs.Arg(0))
 	if err != nil {

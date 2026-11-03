@@ -260,6 +260,15 @@ func TestPacmanioAgainstHandPort(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	{ // through the text project: exported and read back (the round trip), then run
+		dir := t.TempDir()
+		if _, err := p.Export(dir, "pacmanio"); err != nil {
+			t.Fatal(err)
+		}
+		if p, err = gmfile.ReadDir(dir); err != nil {
+			t.Fatal(err)
+		}
+	}
 	g, err := FromProject(p)
 	if err != nil {
 		t.Fatal(err)

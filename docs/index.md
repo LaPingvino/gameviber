@@ -23,7 +23,7 @@ MIT licensed · [source on GitHub](https://github.com/LaPingvino/gameviber)
 
 ## Try it
 
-`gameviber import GAME.exe DIR` turns a GameMaker 5.3 game into a GameViber project; `gameviber play` runs it
+`gameviber import GAME.exe DIR` turns a GameMaker 5.3 game into a GameViber project; `gameviber play` runs it (or a project folder — edit the .gml and run again)
 headless (`-keys "right:40,right+up:25"`, `-shot frame.png`, `-json` for the state).
 
 ## The sample games

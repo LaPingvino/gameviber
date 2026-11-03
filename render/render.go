@@ -28,6 +28,7 @@ func LoadAssets(p *gmfile.Project) *Assets {
 		if s == nil {
 			continue
 		}
+		a.Frames[s.Name] = append(a.Frames[s.Name], s.Images...)
 		for _, f := range s.Frames {
 			if img, err := gmfile.DecodeBMP(f, s.Transparent); err == nil {
 				a.Frames[s.Name] = append(a.Frames[s.Name], img)
@@ -36,6 +37,10 @@ func LoadAssets(p *gmfile.Project) *Assets {
 		a.Origins[s.Name] = image.Pt(int(s.OriginX), int(s.OriginY))
 	}
 	for _, b := range p.Backgrounds {
+		if b != nil && b.Img != nil {
+			a.BGs[b.Name] = b.Img
+			continue
+		}
 		if b != nil && b.Image != nil {
 			if img, err := gmfile.DecodeBMP(b.Image, false); err == nil {
 				a.BGs[b.Name] = img

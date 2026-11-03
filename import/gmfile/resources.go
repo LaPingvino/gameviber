@@ -1,5 +1,7 @@
 package gmfile
 
+import "image"
+
 // The rest of a GM 5.3 project after the sprites, in gm53-reader's order:
 // backgrounds, paths, scripts, data files, timelines, objects, rooms, game
 // information, library init code, room order.
@@ -73,6 +75,7 @@ type Background struct {
 	Tileset bool
 	Tile    [6]int32
 	Image   []byte
+	Img     *image.NRGBA // decoded (a text project's; nil: decode Image)
 }
 
 // Path is a path resource.

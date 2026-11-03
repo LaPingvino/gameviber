@@ -1,6 +1,9 @@
 package gmfile
 
-import "fmt"
+import (
+	"fmt"
+	"image"
+)
 
 // Project is a GM 5.3 game's contents, as gm53-reader reads them (same
 // fields; image and sound data kept as the bytes stored).
@@ -63,6 +66,8 @@ type Sprite struct {
 	Precise          bool
 	OriginX, OriginY int32
 	Frames           [][]byte
+	// Images are decoded frames (a text project's; nil: decode Frames).
+	Images []*image.NRGBA
 }
 
 // Action is one drag-and-drop action as stored (library, id, its function
