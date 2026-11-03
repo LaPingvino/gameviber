@@ -8,7 +8,7 @@ A GameMaker-style engine and toolset in Go: it runs GML, opens old GameMaker gam
 for the desktop and the browser (WebAssembly), and is made to be driven by people and LLM agents alike.
 MIT licensed · [source on GitHub](https://github.com/LaPingvino/gameviber)
 
-**Status (2026-11-03):** the design is approved; the GML front end (lexer and parser) is done; the interpreter is next.
+**Status (2026-11-03):** the design is approved; the GML front end is done; the interpreter runs GML (built-ins next).
 
 | Step | What | Status |
 |---|---|---|
@@ -16,7 +16,7 @@ MIT licensed · [source on GitHub](https://github.com/LaPingvino/gameviber)
 | 2 | [Design](DESIGN.md): packages, the plain-text project format, the `gameviber` command, how it is proven | approved |
 | 3a | GML lexer | **done** — all 42 recovered GML files of Stelo and Pacmanio lex clean (2216 tokens) |
 | 3a | GML parser (one AST, GM 5.3 first) | **done** — every piece of GML code in the two games parses (30 code pieces); the rest of their logic is drag-and-drop actions, read by the importer |
-| 3b | Interpreter | next |
+| 3b | Interpreter | **in progress** — values, variables (instance / global / var), every statement, `with`, operators, errors with positions; built-ins next |
 | 3c | Runner (rooms, instances, events in GameMaker's step order), grown from Stelo's engine | — |
 | 3d | Importer for GameMaker 5.3 games | — |
 | 3e | Pacmanio imported and run, compared step by step with the hand port; then Stelo | — |
