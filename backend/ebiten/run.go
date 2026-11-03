@@ -7,7 +7,6 @@ package ebiten
 import (
 	"image"
 	"image/color"
-	"log"
 	"os"
 	"runtime"
 	"strings"
@@ -96,12 +95,23 @@ type Game struct {
 	frames    int
 }
 
-// New prepares a game for the window.
-func New(p *gmfile.Project, pl *load.Play) *Game {
-	pl.G.Message = func(m string) { log.Printf("%s", m) } // PARTIAL: printed, not a dialog yet
-	if !Mute && audioAvailable() {                        // without a sound device the game plays silently
-		pl.G.Sound = newSounds(p)
+// Attach gives the game the screen backend's sound, messages and questions —
+// before load's Start, which already runs the first room's create events.
+func Attach(p *gmfile.Project, g *runner.Game) {
+	g.Message = showMessage
+	if hasDialogs {
+		g.AskString = askString
 	}
+	if !Mute && audioAvailable() { // without a sound device the game plays silently
+		g.Sound = newSounds(p)
+	}
+}
+
+// New prepares a game for the window (after Attach and Start).
+//
+// Attach must come first: the first room's create events run as the game
+// starts, and their sounds and questions need the backend already.
+func New(p *gmfile.Project, pl *load.Play) *Game {
 	return &Game{play: pl, assets: render.LoadAssets(p), proj: p, in: input{held: map[runner.Key]bool{}, prev: map[runner.Key]bool{}}}
 }
 

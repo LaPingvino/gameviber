@@ -296,6 +296,10 @@ func (gv *GlobalVars) Set(name string, idx []int, v gml.Value) {
 		gv.Room.Persistent = v.True()
 		return
 	}
+	if idx == nil && name == "room_caption" && gv.Room != nil {
+		gv.Room.Caption = v.String()
+		return
+	}
 	if _, ok := gv.view(name, idx, &v); ok {
 		return
 	}

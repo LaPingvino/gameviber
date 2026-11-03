@@ -69,3 +69,22 @@ func TestCaption(t *testing.T) {
 		t.Errorf("set: %q", c)
 	}
 }
+
+// room_caption can be set, and the window caption follows.
+func TestSetRoomCaption(t *testing.T) {
+	o := &Object{Name: "o"}
+	g := &Game{Objects: []*Object{o}}
+	h, err := g.Code(`room_caption = "Saluton"`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	o.Events.Create = h
+	r := &Room{W: 64, H: 64, Caption: "old", G: &Globals{Vars: map[string]float64{}}}
+	r.Create(o, 0, 0)
+	if len(g.Errors) > 0 {
+		t.Fatal(g.Errors)
+	}
+	if r.Caption != "Saluton" || g.Caption(r) != "Saluton  Score: 0" {
+		t.Errorf("caption %q, window %q", r.Caption, g.Caption(r))
+	}
+}

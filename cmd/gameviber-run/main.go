@@ -40,6 +40,8 @@ func run(args []string) error {
 	if err != nil {
 		return err
 	}
+	ebbackend.Mute = *mute
+	ebbackend.Attach(p, g.Game) // before Start: the first create events may play or ask
 	var pl *load.Play
 	if *room != "" {
 		pl, err = g.StartAt(*room)
@@ -49,7 +51,6 @@ func run(args []string) error {
 	if err != nil {
 		return err
 	}
-	ebbackend.Mute = *mute
 	w := ebbackend.New(p, pl)
 	w.MaxFrames = *frames
 	if err := w.Run("GameViber — " + filepath.Base(fs.Arg(0)+p.Name())); err != nil {
