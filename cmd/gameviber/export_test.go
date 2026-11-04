@@ -183,3 +183,38 @@ func TestVariantCheckPlay(t *testing.T) {
 		t.Error("play with a missing variant ran")
 	}
 }
+
+// TestEditPlayVariant: the editor's play/project.tar packs the chosen variant.
+func TestEditPlayVariant(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "g")
+	if err := cmdNew([]string{dir}); err != nil {
+		t.Fatal(err)
+	}
+	os.WriteFile(filepath.Join(dir, "demo.toml"), []byte("name = \"Demo\"\n"), 0o644)
+	srv := httptest.NewServer(editHandler(dir))
+	defer srv.Close()
+	r, err := http.Get(srv.URL + "/play/project.tar?variant=demo")
+	if err != nil || r.StatusCode != 200 {
+		t.Fatalf("variant demo: %v %v", err, r.Status)
+	}
+	tr := tar.NewReader(r.Body)
+	found := false
+	for {
+		h, err := tr.Next()
+		if err != nil {
+			break
+		}
+		if h.Name == "game.toml" {
+			data, _ := io.ReadAll(tr)
+			found = strings.Contains(string(data), `name = "Demo"`)
+		}
+	}
+	if !found {
+		t.Error("the packed game.toml is not the demo's")
+	}
+	for _, q := range []string{"../x", "nope"} {
+		if r, _ := http.Get(srv.URL + "/play/project.tar?variant=" + q); r.StatusCode != http.StatusBadRequest {
+			t.Errorf("variant %q: %d, want 400", q, r.StatusCode)
+		}
+	}
+}
