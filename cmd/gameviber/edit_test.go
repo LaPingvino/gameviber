@@ -440,8 +440,12 @@ func TestMCP(t *testing.T) {
 	if res(0)["protocolVersion"] != "2025-06-18" || res(0)["capabilities"].(map[string]any)["tools"] == nil {
 		t.Errorf("initialize: %v", r[0])
 	}
-	if n := len(res(1)["tools"].([]any)); n != 3 {
-		t.Errorf("%d tools", n)
+	var names []string
+	for _, tl := range res(1)["tools"].([]any) {
+		names = append(names, tl.(map[string]any)["name"].(string))
+	}
+	if strings.Join(names, ",") != "check,play,outline,read,find,edit,reference" {
+		t.Errorf("tools: %v", names)
 	}
 	check := res(2)["content"].([]any)[0].(map[string]any)["text"].(string)
 	if !strings.Contains(check, "0 problems") || res(2)["isError"] != false {
