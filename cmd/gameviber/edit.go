@@ -135,6 +135,30 @@ func editHandler(dir string) http.Handler {
 		}
 		writeJSON(w, checkReport(dir))
 	})
+	// the assistant's tools (LOOP item 11): search / replace edits, ranged reads, find, the outline
+	mux.HandleFunc("POST /api/edit", func(w http.ResponseWriter, r *http.Request) {
+		blocks, err := io.ReadAll(io.LimitReader(r.Body, 4<<20))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		rep, err := editFile(dir, r.URL.Query().Get("path"), string(blocks))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusConflict)
+			return
+		}
+		writeJSON(w, rep)
+	})
+	mux.HandleFunc("GET /api/read", func(w http.ResponseWriter, r *http.Request) {
+		out, err := readRef(dir, r.URL.Query().Get("ref"))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		io.WriteString(w, out)
+	})
+	mux.HandleFunc("GET /api/find", func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, Find(dir, r.URL.Query().Get("q"), 60)) })
+	mux.HandleFunc("GET /api/outline", func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, Outline(dir)) })
 	(&editPlay{dir: dir}).handle(mux)
 	(&editTerm{dir: dir}).handle(mux)
 	(&editAsk{dir: dir}).handle(mux)

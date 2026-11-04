@@ -53,6 +53,18 @@ var mcpTools = []map[string]any{
 			"shot":    map[string]any{"type": "boolean", "description": "also return the last frame as a PNG image"},
 			"variant": map[string]any{"type": "string", "description": "a build variant: NAME.toml merged over game.toml (e.g. demo)"},
 		}}},
+	{"name": "outline", "description": "The project's shape without its code: objects with their events (and each event's length), scripts, rooms, sprites, sounds. Start here.",
+		"inputSchema": map[string]any{"type": "object", "properties": map[string]any{}}},
+	{"name": "read", "description": "A file's lines, numbered: PATH, PATH:FROM-TO (e.g. objects/player/step.gml:10-30), or OBJECT.EVENT (e.g. player.step).",
+		"inputSchema": map[string]any{"type": "object", "required": []string{"ref"}, "properties": map[string]any{
+			"ref": map[string]any{"type": "string", "description": "PATH, PATH:FROM-TO or OBJECT.EVENT"}}}},
+	{"name": "find", "description": "Every line of the project's text files holding the text (case-insensitive), as path:line: text.",
+		"inputSchema": map[string]any{"type": "object", "required": []string{"text"}, "properties": map[string]any{
+			"text": map[string]any{"type": "string"}}}},
+	{"name": "edit", "description": "Change a file with search / replace blocks — each <<<<<<< SEARCH, the exact old lines, =======, the new lines, >>>>>>> REPLACE — applied only when the old lines are found exactly once (else the nearest lines come back to retry). An empty SEARCH writes a new file. The check report follows.",
+		"inputSchema": map[string]any{"type": "object", "required": []string{"path", "blocks"}, "properties": map[string]any{
+			"path":   map[string]any{"type": "string"},
+			"blocks": map[string]any{"type": "string", "description": "one or more search / replace blocks"}}}},
 	{"name": "reference", "description": "What GameViber understands: the GML language, the functions and actions, the event files.",
 		"inputSchema": map[string]any{"type": "object", "properties": map[string]any{}}},
 }
@@ -149,6 +161,33 @@ func mcpCall(dir, name string, args json.RawMessage) ([]map[string]any, bool, bo
 			return text(err.Error()), true, true
 		}
 		return text(b.String()), problems > 0, true
+	case "outline":
+		return text(Outline(dir)), false, true
+	case "read":
+		var a struct {
+			Ref string `json:"ref"`
+		}
+		json.Unmarshal(args, &a)
+		out, err := readRef(dir, a.Ref)
+		if err != nil {
+			return text(err.Error()), true, true
+		}
+		return text(out), false, true
+	case "find":
+		var a struct {
+			Text string `json:"text"`
+		}
+		json.Unmarshal(args, &a)
+		return text(Find(dir, a.Text, 60)), false, true
+	case "edit":
+		var a struct{ Path, Blocks string }
+		json.Unmarshal(args, &a)
+		rep, err := editFile(dir, a.Path, a.Blocks)
+		if err != nil {
+			return text(err.Error()), true, true
+		}
+		r, _ := rep["report"].(string)
+		return text("edited " + a.Path + "\n" + r), rep["problems"] != 0, true
 	case "reference":
 		var b strings.Builder
 		writeReference(&b)
