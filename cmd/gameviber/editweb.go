@@ -38,6 +38,10 @@ func cmdEditorWeb(args []string) error {
 		return err
 	}
 	page := strings.Replace(string(editPage), "<script>", editorPrelude+"<script>", 1)
+	page = strings.Replace(page, "</head>", pwaRegister+"</head>", 1)
+	if err := writePWA(out); err != nil {
+		return err
+	}
 	if err := os.WriteFile(filepath.Join(out, "index.html"), []byte(page), 0o644); err != nil {
 		return err
 	}

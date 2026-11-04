@@ -70,7 +70,7 @@ footer pre { margin: 0; font: 12px/1.45 ui-monospace, monospace; white-space: pr
 .ok { color: var(--ok); } .bad { color: var(--bad); }
 </style></head>
 <body>
-<header><b>GameViber</b><span id="name"></span><span id="status"></span><span style="flex:1"></span><button id="openfolder" class="new" style="display:none" title="work on a GameViber project folder on your disk — an agent in your own terminal (Claude Code, Antigravity …) can work on it at the same time">Open folder…</button><button id="reset" style="display:none;background:transparent;color:var(--muted);border:1px solid var(--line)">Reset to the starter game</button><button id="newobj" class="new">+ Object</button><button id="newevt" class="new">+ Event</button><button id="newroom" class="new">+ Room</button><button id="newspr" class="new">+ Sprite</button><button id="newsnd" class="new">+ Sound</button><button id="newmom" class="new" title="a timeline's moment">+ Moment</button><button id="pause" class="new" style="display:none">⏸ Pause</button><button id="step" class="new" style="display:none" disabled>⏭ Step</button><button id="askcopy" class="new" title="the project's context on the clipboard, to paste into any assistant (Claude, ChatGPT …)">Copy for an assistant</button><button id="askpaste" class="new" title="write the files from an assistant's answer into the project">Paste an answer</button><button id="askbtn" class="new" style="display:none" title="one question to a coding agent (Claude Code, OpenCode …) — your own login, no key">Ask</button><button id="termbtn" class="new" style="display:none" title="a coding agent (Claude Code, OpenCode, Aider …) in a terminal, in this project's folder">Terminal</button><button id="play">▶ Play</button></header>
+<header><b>GameViber</b><span id="name"></span><span id="status"></span><span style="flex:1"></span><button id="reopenfolder" class="new" style="display:none" title="the folder you worked on last time"></button><button id="openfolder" class="new" style="display:none" title="work on a GameViber project folder on your disk — an agent in your own terminal (Claude Code, Antigravity …) can work on it at the same time">Open folder…</button><button id="reset" style="display:none;background:transparent;color:var(--muted);border:1px solid var(--line)">Reset to the starter game</button><button id="newobj" class="new">+ Object</button><button id="newevt" class="new">+ Event</button><button id="newroom" class="new">+ Room</button><button id="newspr" class="new">+ Sprite</button><button id="newsnd" class="new">+ Sound</button><button id="newmom" class="new" title="a timeline's moment">+ Moment</button><button id="pause" class="new" style="display:none">⏸ Pause</button><button id="step" class="new" style="display:none" disabled>⏭ Step</button><button id="askcopy" class="new" title="the project's context on the clipboard, to paste into any assistant (Claude, ChatGPT …)">Copy for an assistant</button><button id="askpaste" class="new" title="write the files from an assistant's answer into the project">Paste an answer</button><button id="askbtn" class="new" style="display:none" title="one question to a coding agent (Claude Code, OpenCode …) — your own login, no key">Ask</button><button id="termbtn" class="new" style="display:none" title="a coding agent (Claude Code, OpenCode, Aider …) in a terminal, in this project's folder">Terminal</button><button id="play">▶ Play</button></header>
 <dialog id="ask"><b>Ask a coding agent</b>
   <p class="hint" style="margin:6px 0">One question, answered in this project's folder by the agent you have installed (your own login — Claude Code Pro / Max, OpenCode …). The open file is mentioned to it.</p>
   <div class="row"><select id="askagent"><option value="claude">Claude Code</option><option value="agy">Antigravity CLI</option><option value="opencode">OpenCode</option><option value="gemini">Gemini CLI</option><option value="codex">Codex CLI</option><option value="aider">Aider</option></select>
@@ -738,7 +738,7 @@ async function folderSync(first) { // the folder's files into memory: all at fir
 async function openFolder(h) {
   try { await h.getFileHandle("game.toml"); } catch (e) { window.alert(h.name + " is not a GameViber project (no game.toml) — make one with gameviber new, or pick another folder."); return; }
   await window.gameviberWait;
-  folder = h; folderSeen = new Map(); window.gameviberFolderName = h.name;
+  folder = h; folderSeen = new Map(); window.gameviberFolderName = h.name; rememberFolder(h);
   window.GameviberFS.folderMode = true;
   window.GameviberFS.clearProject();
   await folderSync(true);
@@ -756,6 +756,19 @@ async function openFolder(h) {
   $("name").textContent = h.name + " (folder on disk)"; $("reset").style.display = "none";
 }
 window.gameviberOpenFolder = openFolder; // (tests hand it a directory handle)
+// the last folder remembered (IndexedDB keeps the handle; the browser asks again for permission)
+function folderDB() { return new Promise((ok, no) => { const r = indexedDB.open("gameviber", 1); r.onupgradeneeded = () => r.result.createObjectStore("kv"); r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error); }); }
+async function rememberFolder(h) { try { const db = await folderDB(); db.transaction("kv", "readwrite").objectStore("kv").put(h, "folder"); } catch (e) {} }
+async function lastFolder() { try { const db = await folderDB(); return await new Promise((ok) => { const r = db.transaction("kv").objectStore("kv").get("folder"); r.onsuccess = () => ok(r.result || null); r.onerror = () => ok(null); }); } catch (e) { return null; } }
+(async () => {
+  if (!window.gameviberStatic || !window.showDirectoryPicker) return;
+  const h = await lastFolder(); if (!h) return;
+  $("reopenfolder").textContent = "Reopen " + h.name; $("reopenfolder").style.display = "";
+  $("reopenfolder").onclick = async () => {
+    if ((await h.requestPermission({ mode: "readwrite" })) !== "granted") return;
+    $("reopenfolder").style.display = "none"; openFolder(h);
+  };
+})();
 $("openfolder").onclick = async () => {
   if ((dirty() || roomDirty() || sprDirty() || objDirty()) && !window.confirm("Leave without saving?")) return;
   let h; try { h = await window.showDirectoryPicker({ mode: "readwrite", id: "gameviber-project" }); } catch (e) { return; }
