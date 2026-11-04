@@ -93,6 +93,13 @@ footer pre { margin: 0; font: 12px/1.45 ui-monospace, monospace; white-space: pr
   <div class="row"><b>To the chat</b><button id="meatcopy">Copy</button><span id="meatturn" class="hint"></span></div>
   <textarea id="meatout" readonly spellcheck="false" style="height:9em"></textarea>
   <div id="meatshot" class="row" style="display:none;align-items:flex-start"><img id="meatimg" alt="the game's last frame" style="max-width:240px;max-height:180px;image-rendering:pixelated;border:1px solid var(--line)"><button id="meatshotcopy" class="new">Copy picture</button><span class="hint">attach it in the chat with the message</span></div>
+  <div class="row" id="keyrow"><span class="hint">or send it with your own API key:</span>
+    <select id="keyprov"><option value="anthropic">Anthropic</option><option value="openai">OpenAI-compatible</option></select>
+    <input id="keybase" size="26" placeholder="https://api.openai.com/v1" title="the endpoint: OpenAI, https://openrouter.ai/api/v1, http://localhost:11434/v1 (Ollama) …">
+    <input id="keymodel" size="16" placeholder="model">
+    <input id="keykey" type="password" size="16" placeholder="API key" autocomplete="off">
+    <button id="keysend">Send with my key</button></div>
+  <p class="hint" id="keynote" style="margin:0">The key stays in this browser only (its storage for this page) and goes to that endpoint only — never to GameViber or the project.</p>
   <div class="row"><b>The chat's reply</b></div>
   <textarea id="meatin" spellcheck="false" style="height:9em" placeholder="paste the chat's whole reply"></textarea>
   <div class="row"><button id="meatread">Read the reply</button><span id="meatnote" class="hint"></span></div>
@@ -671,7 +678,36 @@ done
   is finished.
 Files are written first, then the requests run. Only .gml, .toml, .txt and .md files inside the project can be
 written. Take one step a reply and wait for the results; read a file before you change it.`;
-let meatTurn = 0, meatPlan = null, meatShot = null;
+let meatTurn = 0, meatPlan = null, meatShot = null, meatHist = [];
+// --- your own key (LOOP item 5g): the session's messages sent to a model from this browser ---
+const keyDefaults = { anthropic: { base: "https://api.anthropic.com/v1", model: "claude-sonnet-5-5" }, openai: { base: "https://api.openai.com/v1", model: "gpt-4o" } };
+function keyLoad() {
+  let c = {}; try { c = JSON.parse(localStorage.getItem("gameviber-key") || "{}"); } catch (e) {}
+  $("keyprov").value = c.prov || "anthropic"; keyFill(c);
+}
+function keyFill(c) {
+  const d = keyDefaults[$("keyprov").value];
+  const mine = c && c.prov === $("keyprov").value;
+  $("keybase").value = (mine && c.base) || d.base; $("keymodel").value = (mine && c.model) || d.model; $("keykey").value = (mine && c.key) || "";
+}
+function keySave() { try { localStorage.setItem("gameviber-key", JSON.stringify({ prov: $("keyprov").value, base: $("keybase").value.trim(), model: $("keymodel").value.trim(), key: $("keykey").value.trim() })); } catch (e) {} }
+async function keyAsk(text, shot) {
+  const prov = $("keyprov").value, base = $("keybase").value.trim().replace(/\/$/, ""), model = $("keymodel").value.trim(), key = $("keykey").value.trim();
+  const msgs = meatHist.concat([{ role: "user", text, shot }]);
+  if (prov === "anthropic") {
+    const body = { model, max_tokens: 8192, messages: msgs.map((m) => ({ role: m.role, content: m.shot ? [{ type: "image", source: { type: "base64", media_type: "image/png", data: m.shot } }, { type: "text", text: m.text }] : m.text })) };
+    const r = await fetch(base + "/messages", { method: "POST", headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" }, body: JSON.stringify(body) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error((j.error && j.error.message) || r.status + " " + r.statusText);
+    return (j.content || []).filter((c) => c.type === "text").map((c) => c.text).join("\n");
+  }
+  const body = { model, messages: msgs.map((m) => ({ role: m.role, content: m.shot ? [{ type: "image_url", image_url: { url: "data:image/png;base64," + m.shot } }, { type: "text", text: m.text }] : m.text })) };
+  const headers = { "content-type": "application/json" }; if (key) headers.authorization = "Bearer " + key;
+  const r = await fetch(base + "/chat/completions", { method: "POST", headers, body: JSON.stringify(body) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error((j.error && (j.error.message || j.error)) || r.status + " " + r.statusText);
+  return j.choices && j.choices[0] && j.choices[0].message ? j.choices[0].message.content || "" : "";
+}
 function meatShowShot() {
   $("meatshot").style.display = meatShot ? "" : "none";
   if (meatShot) $("meatimg").src = "data:image/png;base64," + meatShot;
@@ -685,7 +721,7 @@ async function copyText(text) {
 function meatLog(s) { $("meatlog").textContent += s + "\n"; }
 function meatSet(text) { meatTurn++; $("meatout").value = text; $("meatturn").textContent = "message " + meatTurn + " · " + text.length + " characters"; $("meatin").value = ""; $("meatplan").textContent = ""; $("meatrun").disabled = true; meatPlan = null; }
 async function meatStart() {
-  meatTurn = 0; $("meatlog").textContent = ""; meatShot = null; meatShowShot();
+  meatTurn = 0; $("meatlog").textContent = ""; meatShot = null; meatShowShot(); meatHist = [];
   const ctx = await assistantContext();
   meatSet(ctx.replace(/\nPlease answer with whole files[^\n]*$/, "") + "\n" + meatProtocol);
   meatLog("— started " + new Date().toLocaleTimeString());
@@ -701,6 +737,22 @@ function meatParse(text) {
 }
 $("meatbtn").onclick = async () => { if (!meatTurn) await meatStart(); $("meat").showModal(); };
 $("meatclose").onclick = () => $("meat").close();
+keyLoad();
+$("keyprov").onchange = () => { let c = {}; try { c = JSON.parse(localStorage.getItem("gameviber-key") || "{}"); } catch (e) {} keyFill(c); };
+$("keysend").onclick = async () => {
+  if ($("keyprov").value === "anthropic" && !$("keykey").value.trim()) { $("meatnote").textContent = "an Anthropic key is needed (console.anthropic.com)"; return; }
+  keySave();
+  const text = $("meatout").value, shot = meatShot;
+  $("keysend").disabled = true; $("meatnote").textContent = "asking " + $("keymodel").value + " …";
+  try {
+    const reply = await keyAsk(text, shot);
+    meatHist.push({ role: "user", text, shot }, { role: "assistant", text: reply });
+    meatLog("⇄ message " + meatTurn + " sent with the key; reply " + reply.length + " characters");
+    $("meatin").value = reply;
+    await $("meatread").onclick();
+  } catch (e) { $("meatnote").textContent = "the model didn't answer: " + e.message; }
+  $("keysend").disabled = false;
+};
 $("meatshotcopy").onclick = async () => {
   try {
     const blob = await (await fetch($("meatimg").src)).blob();
