@@ -88,6 +88,13 @@ goal of its own, weighed alongside the LLM-friendly rule.
    c. "Ask Claude": a one-shot `claude -p --output-format stream-json` in the project folder, the answer streamed
       into the editor, files reloaded after;
    d. the API-key panel stays optional (ANTHROPIC_API_KEY), for people without Claude Code.
+6. [ ] **Export** — `gameviber export`: finished builds — a web zip for itch.io / Pages, desktop binaries (Linux,
+   Windows, macOS via Go cross-compiling), the game's title and icon; the export options built in.
+7. [ ] **Sprite drawing tools** — fill, line, rectangle, palette / picked colours, undo; frames added / copied /
+   deleted, an animation preview.
+8. [ ] **Rooms** — background images and tiles, views (a camera following an object), instance creation code.
+9. [ ] **Sound effects generator** — sfxr-style presets (jump, coin, hit, explosion, power-up) with sliders, saved as WAV.
+10. [ ] **Starting points** — `gameviber new` templates (platformer, top-down, shooter) and a short tutorial on Pages.
 
 ## Libraries around it (Joop 2026-11-02: an Opus decoder "would fit right along the gml stuff … and the game
 maker file decoder")
@@ -123,7 +130,7 @@ setting (on by default) rather than per-game code:
 - pauses (action_sleep) that keep the screen alive.
 
 ## Questions for Joop
-- (2026-11-03) DESIGN §5.3, the next proof: "one GM 6–8.1 game to widen the importer". Which game? One of yours from that time, or a public example (LateralGM's test files, a GMC example) — fetched only with your OK. Paths (GM 5) wait for a game that uses them, so they can be checked against something.
+- (ANSWERED 2026-11-04, Joop: "Game Maker 6-8 importers are not super important, what really matters is workable output and useful tools to create nice games" — dropped from the plan) DESIGN §5.3, the next proof: "one GM 6–8.1 game to widen the importer". Which game? One of yours from that time, or a public example (LateralGM's test files, a GMC example) — fetched only with your OK. Paths (GM 5) wait for a game that uses them, so they can be checked against something.
 - (DECIDED 2026-11-04 under 'decide, correct later': web first, HTML around, E1–E3 — building) The editor: docs/EDITOR.md is a proposal (web first via `gameviber edit DIR`, LateralGM-like panels on the same plain-text files, steps E1–E5) with three questions — web or desktop first; drawn with the engine or HTML around the canvas; E1–E3 as the first slice? Nothing is built before a yes.
 - (DECIDED 2026-11-04 under Joop's 'decide, correct later': yes — golang.org/x/image v0.31.0, as Stelo and Pacmanio; say so if not) Drawing text needs a font rasteriser.
 - (ANSWERED 2026-11-02: GameViber) The name.
@@ -250,3 +257,4 @@ setting (on by default) rather than per-game code:
 - 2026-11-04 (export options: the audio unlock) — already covered: Ebitengine's oto resumes the AudioContext on the document's first touchend / keyup / mouseup, and every GameViber sound (WAV, Opus decoded by gopus) plays through it — nothing to add. Every remaining item waits on Joop (the GM 6–8 sample, the keyed assistant, paths with a game that has them), so the tick goes on to goloco.
 - 2026-11-04 — Joop: best effort from here (POLICY above); Stelo and Pacmanio complete, so the rotation is goloco ↔ GameViber.
 - 2026-11-04 (Joop: a terminal approach so Claude Code Pro / Max works, no API key) — queued as item 5 (terminal panel with claude in a pty, .mcp.json for gameviber mcp, a one-shot 'Ask Claude' via claude -p, the key panel optional); local editor only.
+- 2026-11-04 (Joop: GM 6–8 importers not important; workable output and tools to make nice games matter) — the GM 6–8 question closed; queued after item 5 (Claude Code in the editor): 6 export, 7 sprite drawing tools, 8 rooms (backgrounds / tiles / views / creation code), 9 a sound effects generator, 10 templates + a tutorial.
