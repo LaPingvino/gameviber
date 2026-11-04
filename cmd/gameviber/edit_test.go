@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
@@ -10,9 +11,11 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"strings"
 	"testing"
+	"time"
 )
 
 // The editor's API over a starter project: the file list, reading, saving
@@ -451,5 +454,85 @@ func TestMCP(t *testing.T) {
 	}
 	if r[4]["error"] == nil || r[5]["error"].(map[string]any)["code"] != float64(-32601) || r[5]["id"] != "x" {
 		t.Errorf("unknown tool / method: %v / %v", r[4], r[5])
+	}
+}
+
+// guardLocal: another host is refused, a change without the token is
+// refused, with it accepted; the page carries the token.
+func TestGuardLocal(t *testing.T) {
+	dir := t.TempDir() + "/game"
+	if err := cmdNew([]string{dir}); err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(guardLocal(editHandler(dir), "secret"))
+	defer srv.Close()
+	r, _ := http.Get(srv.URL + "/")
+	page, _ := io.ReadAll(r.Body)
+	if !bytes.Contains(page, []byte(`name="gameviber-token" content="secret"`)) {
+		t.Error("the page lacks the token")
+	}
+	req, _ := http.NewRequest(http.MethodGet, srv.URL+"/api/files", nil)
+	req.Host = "evil.example"
+	if r, _ := http.DefaultClient.Do(req); r.StatusCode != http.StatusForbidden {
+		t.Errorf("another host: %d", r.StatusCode)
+	}
+	put := func(token string) int {
+		req, _ := http.NewRequest(http.MethodPut, srv.URL+"/api/file?path=notes.txt", strings.NewReader("hi"))
+		if token != "" {
+			req.Header.Set("X-GameViber-Token", token)
+		}
+		r, _ := http.DefaultClient.Do(req)
+		return r.StatusCode
+	}
+	if c := put(""); c != http.StatusForbidden {
+		t.Errorf("no token: %d", c)
+	}
+	if c := put("secret"); c != 200 {
+		t.Errorf("with the token: %d", c)
+	}
+}
+
+// The terminal panel's backend: a shell on a pty in the project folder —
+// its output streamed (SSE, base64), input sent back, the exit announced.
+func TestEditTerminal(t *testing.T) {
+	if !ptySupported {
+		t.Skip("no pty here")
+	}
+	dir := t.TempDir() + "/game"
+	if err := cmdNew([]string{dir}); err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(editHandler(dir))
+	defer srv.Close()
+	cmd := url.QueryEscape(`sh -c 'echo ready in $(basename $PWD); read x; echo got $x'`)
+	if r, err := http.Post(srv.URL+"/api/term/start?cols=80&rows=24&cmd="+cmd, "", nil); err != nil || r.StatusCode != 200 {
+		t.Fatalf("start: %v", err)
+	}
+	resp, err := http.Get(srv.URL + "/api/term/out")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	var out strings.Builder
+	sc := bufio.NewScanner(resp.Body)
+	sentInput, exited := false, false
+	deadline := time.Now().Add(10 * time.Second)
+	for sc.Scan() && time.Now().Before(deadline) {
+		line := sc.Text()
+		if line == "event: exit" {
+			exited = true
+			break
+		}
+		if b, ok := strings.CutPrefix(line, "data: "); ok && b != "" {
+			d, _ := base64.StdEncoding.DecodeString(b)
+			out.Write(d)
+		}
+		if !sentInput && strings.Contains(out.String(), "ready in game") {
+			sentInput = true
+			http.Post(srv.URL+"/api/term/in", "", strings.NewReader("hello\r"))
+		}
+	}
+	if !strings.Contains(out.String(), "ready in game") || !strings.Contains(out.String(), "got hello") || !exited {
+		t.Errorf("exited %v, output %q", exited, out.String())
 	}
 }

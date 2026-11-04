@@ -19,6 +19,11 @@ main { display: grid; grid-template-rows: auto 1fr; min-width: 0; }
 button { font: inherit; padding: 5px 14px; border: 0; border-radius: 4px; background: var(--accent); color: #fff; cursor: pointer; }
 button:disabled { opacity: .45; cursor: default; }
 button.new { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+#term { display: none; position: fixed; left: 260px; right: 0; bottom: 0; height: 42vh; z-index: 30; background: #111; border-top: 2px solid var(--accent); flex-direction: column; }
+#term.on { display: flex; }
+#term .row { display: flex; gap: 8px; align-items: center; padding: 6px 10px; background: var(--panel); border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+#term select, #term input { font: inherit; background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 4px; padding: 2px 6px; }
+#termview { flex: 1; min-height: 0; padding: 4px; }
 #answer { width: min(760px, 94vw); max-height: 88vh; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--ink); padding: 14px; }
 #answer::backdrop { background: rgba(0,0,0,.35); }
 #answer textarea { width: 100%; height: 34vh; font: 13px ui-monospace, monospace; background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 4px; padding: 6px; }
@@ -59,7 +64,7 @@ footer pre { margin: 0; font: 12px/1.45 ui-monospace, monospace; white-space: pr
 .ok { color: var(--ok); } .bad { color: var(--bad); }
 </style></head>
 <body>
-<header><b>GameViber</b><span id="name"></span><span id="status"></span><span style="flex:1"></span><button id="reset" style="display:none;background:transparent;color:var(--muted);border:1px solid var(--line)">Reset to the starter game</button><button id="newobj" class="new">+ Object</button><button id="newevt" class="new">+ Event</button><button id="newroom" class="new">+ Room</button><button id="newspr" class="new">+ Sprite</button><button id="newsnd" class="new">+ Sound</button><button id="newmom" class="new" title="a timeline's moment">+ Moment</button><button id="pause" class="new" style="display:none">⏸ Pause</button><button id="step" class="new" style="display:none" disabled>⏭ Step</button><button id="askcopy" class="new" title="the project's context on the clipboard, to paste into any assistant (Claude, ChatGPT …)">Copy for an assistant</button><button id="askpaste" class="new" title="write the files from an assistant's answer into the project">Paste an answer</button><button id="play">▶ Play</button></header>
+<header><b>GameViber</b><span id="name"></span><span id="status"></span><span style="flex:1"></span><button id="reset" style="display:none;background:transparent;color:var(--muted);border:1px solid var(--line)">Reset to the starter game</button><button id="newobj" class="new">+ Object</button><button id="newevt" class="new">+ Event</button><button id="newroom" class="new">+ Room</button><button id="newspr" class="new">+ Sprite</button><button id="newsnd" class="new">+ Sound</button><button id="newmom" class="new" title="a timeline's moment">+ Moment</button><button id="pause" class="new" style="display:none">⏸ Pause</button><button id="step" class="new" style="display:none" disabled>⏭ Step</button><button id="askcopy" class="new" title="the project's context on the clipboard, to paste into any assistant (Claude, ChatGPT …)">Copy for an assistant</button><button id="askpaste" class="new" title="write the files from an assistant's answer into the project">Paste an answer</button><button id="termbtn" class="new" style="display:none" title="a coding agent (Claude Code, OpenCode, Aider …) in a terminal, in this project's folder">Terminal</button><button id="play">▶ Play</button></header>
 <dialog id="answer"><b>An assistant's answer</b>
   <p class="hint" style="margin:6px 0">Paste the whole answer: each file as its path on a line, then the file in a code block. You choose which files to write.</p>
   <textarea id="anstext" spellcheck="false" placeholder="objects/player/step.gml&#10;```&#10;…&#10;```"></textarea>
@@ -67,6 +72,7 @@ footer pre { margin: 0; font: 12px/1.45 ui-monospace, monospace; white-space: pr
   <div id="ansfiles"></div>
   <div class="row"><button id="answrite" disabled>Write the chosen files</button><button id="ansclose" class="new">Close</button></div>
 </dialog>
+<div id="term"><div class="row"><b>Terminal</b><select id="termpreset"></select><input id="termcmd" size="28" placeholder="or a command (claude, opencode …)"><button id="termstart">Start</button><button id="termstop" class="new">Stop</button><span id="termnote" class="hint"></span><span style="flex:1"></span><button id="termclose" class="new">Close</button></div><div id="termview"></div></div>
 <nav id="tree"></nav>
 <main>
   <div class="bar"><code id="path">pick a file on the left</code><button id="save" disabled>Save (Ctrl+S)</button></div>
@@ -105,8 +111,9 @@ const $ = (id) => document.getElementById(id);
 // The editor's requests: to the local server (gameviber edit), or — on the
 // published page, where there is none — to the editor running in the page
 // (gameviberAPI, the same Go code as WebAssembly).
+const editToken = document.querySelector('meta[name="gameviber-token"]')?.content || "";
 async function call(path, opts = {}) {
-  if (!window.gameviberStatic) return fetch(path, opts);
+  if (!window.gameviberStatic) return fetch(path, { ...opts, headers: { ...(opts.headers || {}), "X-GameViber-Token": editToken } });
   await window.gameviberWait;
   const r = await window.gameviberAPI(opts.method || "GET", path, opts.body);
   return new Response(r.body, { status: r.status, headers: { "Content-Type": r.type || "text/plain" } });
@@ -591,6 +598,55 @@ $("answrite").onclick = async () => {
     const link = [...document.querySelectorAll("nav a.on")][0]; if (link) open(current, link, true);
   }
 };
+
+// --- the terminal panel (LOOP item 5a): a coding agent in the project folder, on this machine only ---
+let term = null, termFit = null, termES = null, termQuiet = null;
+function loadScript(src) { return new Promise((ok, no) => { const s = Object.assign(document.createElement("script"), { src, onload: ok, onerror: no }); document.head.append(s); }); }
+async function termEnsure() {
+  if (term) return true;
+  try {
+    document.head.append(Object.assign(document.createElement("link"), { rel: "stylesheet", href: "https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.min.css" }));
+    await loadScript("https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js");
+    await loadScript("https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js");
+  } catch (e) { $("termnote").textContent = "could not load the terminal (xterm.js from jsdelivr) — offline?"; return false; }
+  term = new Terminal({ fontSize: 13, cursorBlink: true, theme: { background: "#111111" } });
+  termFit = new FitAddon.FitAddon(); term.loadAddon(termFit);
+  term.open($("termview")); termFit.fit();
+  term.onData((d) => call("api/term/in", { method: "POST", body: d }));
+  new ResizeObserver(() => { if (!termFit) return; termFit.fit(); call("api/term/resize?cols=" + term.cols + "&rows=" + term.rows, { method: "POST" }); }).observe($("termview"));
+  return true;
+}
+function termListen() {
+  if (termES) termES.close();
+  termES = new EventSource("api/term/out");
+  termES.onmessage = (e) => {
+    term.write(Uint8Array.from(atob(e.data), (c) => c.charCodeAt(0)));
+    clearTimeout(termQuiet); termQuiet = setTimeout(() => { if (!dirty()) load(); }, 1500); // an agent may have written files: the tree again
+  };
+  termES.addEventListener("exit", () => { termES.close(); termES = null; term.write("\r\n[ended]\r\n"); $("termnote").textContent = "ended"; load(); });
+}
+(async () => {
+  if (window.gameviberStatic) return;
+  const r = await call("api/term/presets"); if (!r.ok) return;
+  const p = await r.json();
+  if (!p.supported) return; // Linux only for now
+  $("termbtn").style.display = "";
+  for (const x of p.presets) $("termpreset").append(Object.assign(document.createElement("option"), { value: x.Command, textContent: x.Name }));
+  try { const saved = localStorage.getItem("gameviber-agent"); if (saved !== null) $("termpreset").value = saved; } catch (e) {}
+})();
+$("termbtn").onclick = async () => { $("term").classList.add("on"); await termEnsure(); termFit && termFit.fit(); };
+$("termclose").onclick = () => $("term").classList.remove("on");
+$("termstart").onclick = async () => {
+  if (!(await termEnsure())) return;
+  const cmd = $("termcmd").value.trim() || $("termpreset").value;
+  try { localStorage.setItem("gameviber-agent", $("termpreset").value); } catch (e) {}
+  term.reset();
+  const r = await call("api/term/start?cols=" + term.cols + "&rows=" + term.rows + "&cmd=" + encodeURIComponent(cmd), { method: "POST" });
+  if (!r.ok) { $("termnote").textContent = await r.text(); return; }
+  $("termnote").textContent = "running " + (cmd || "a shell") + " in the project folder";
+  termListen(); term.focus();
+};
+$("termstop").onclick = () => call("api/term/stop", { method: "POST" });
 
 if (window.gameviberStatic) { // the published page: the project lives in this browser
   $("reset").style.display = "";

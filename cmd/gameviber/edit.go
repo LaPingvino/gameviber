@@ -2,7 +2,9 @@ package main
 
 import (
 	"bytes"
+	"crypto/rand"
 	_ "embed"
+	"encoding/hex"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -46,7 +48,7 @@ func cmdEdit(args []string) error {
 		return err
 	}
 	fmt.Printf("editing %s at http://%s/ (Ctrl+C to stop)\n", dir, ln.Addr())
-	return http.Serve(ln, editHandler(dir))
+	return http.Serve(ln, guardLocal(editHandler(dir), newToken()))
 }
 
 // editHandler serves the page and its API over the project folder dir.
@@ -117,6 +119,7 @@ func editHandler(dir string) http.Handler {
 		writeJSON(w, checkReport(dir))
 	})
 	(&editPlay{dir: dir}).handle(mux)
+	(&editTerm{dir: dir}).handle(mux)
 	rooms := editRooms{dir}
 	mux.HandleFunc("GET /api/room", rooms.room)
 	mux.HandleFunc("PUT /api/room", rooms.saveRoom)
@@ -210,3 +213,40 @@ func writeJSON(w http.ResponseWriter, v any) {
 
 // soundTypes are the sound files the editor shows, by extension.
 var soundTypes = map[string]string{".wav": "audio/wav", ".ogg": "audio/ogg", ".opus": "audio/ogg", ".mp3": "audio/mpeg", ".mid": "audio/midi"}
+
+// newToken is a random per-run secret for guardLocal.
+func newToken() string {
+	b := make([]byte, 16)
+	rand.Read(b)
+	return hex.EncodeToString(b)
+}
+
+// guardLocal keeps other websites out of the editor on this machine: the
+// request's Host must be this machine's (no DNS rebinding), and anything that
+// changes something (not GET) must carry the per-run token — which the
+// served page holds (a meta tag) and other sites can't read or send (a custom
+// header needs a CORS permission this server never gives). It matters since
+// the terminal panel runs commands.
+func guardLocal(h http.Handler, token string) http.Handler {
+	page := bytes.Replace(editPage, []byte("<head>"), []byte(`<head><meta name="gameviber-token" content="`+token+`">`), 1)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		host := r.Host
+		if h, _, err := net.SplitHostPort(host); err == nil {
+			host = h
+		}
+		if host != "127.0.0.1" && host != "localhost" && host != "::1" && host != "[::1]" {
+			http.Error(w, "the editor answers this machine only", http.StatusForbidden)
+			return
+		}
+		if r.Method == http.MethodGet && r.URL.Path == "/" {
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			w.Write(page)
+			return
+		}
+		if r.Method != http.MethodGet && r.Header.Get("X-GameViber-Token") != token {
+			http.Error(w, "missing the editor's token", http.StatusForbidden)
+			return
+		}
+		h.ServeHTTP(w, r)
+	})
+}
