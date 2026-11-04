@@ -46,6 +46,9 @@ type Game struct {
 	Constants map[string]gml.Value
 	// Message shows show_message's text (the backend's); nil: not shown.
 	Message func(string)
+	// Debug receives show_debug_message's text (a tool collecting what the
+	// game says about itself; nil: dropped).
+	Debug func(string)
 	// Sound plays the game's sounds (the backend's); nil: silent.
 	Sound Sound
 	// Resources are the other resources' names (sprites, sounds, rooms …):
@@ -190,6 +193,25 @@ func (g *Game) CollisionCode(src string) (CollisionHandler, error) {
 		return nil, err
 	}
 	return func(r *Room, self, other *Instance) { g.run(r, self, other, list) }, nil
+}
+
+// Eval is a GML expression's value in room r, as the room's code would see it
+// (globals, instance_number(…), …) — what a tool's expectation checks. self is
+// the room's first instance (or none).
+func (g *Game) Eval(r *Room, expr string) (gml.Value, error) {
+	list, err := gml.Parse("return (" + expr + ")")
+	if err != nil {
+		return gml.Value{}, err
+	}
+	in := g.interp(r)
+	in.Self, in.Other = nil, nil
+	for _, i := range r.Instances {
+		if !i.Destroyed {
+			in.Self = i
+			break
+		}
+	}
+	return in.Run(list)
 }
 
 func (g *Game) run(r *Room, self, other *Instance, list []gml.Stmt) {
@@ -517,6 +539,12 @@ func (g *Game) coreFuncs() map[string]gml.Func {
 		},
 		"room_restart": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // the room afresh
 			g.room.Goto = g.room.Name
+			return gml.RealV(0), nil
+		},
+		"show_debug_message": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (text): for the developer (GameMaker 6+; here for tools and assistants)
+			if g.Debug != nil && len(a) > 0 {
+				g.Debug(a[0].String())
+			}
 			return gml.RealV(0), nil
 		},
 		"show_message": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (text): the backend shows it; headless, nothing

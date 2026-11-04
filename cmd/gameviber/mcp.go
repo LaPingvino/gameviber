@@ -45,13 +45,14 @@ var mcpTools = []map[string]any{
 	{"name": "check", "description": "Check the GameViber project: every .gml file's syntax and calls (with file:line and hints) and the names in the TOML files. Run it after every change.",
 		"inputSchema": map[string]any{"type": "object", "properties": map[string]any{
 			"variant": map[string]any{"type": "string", "description": "a build variant: NAME.toml merged over game.toml (e.g. demo)"}}}},
-	{"name": "play", "description": "Run the game headless for some steps under a key script and report the state after: rooms passed, room, score, lives, instances by object, runtime errors. shot: also the last frame as an image.",
+	{"name": "play", "description": "Run the game headless for some steps under a key script and report the state after: rooms passed, room, score, lives, instances by object, runtime errors, the game's show_debug_message lines, and an expectation's pass / fail. shot: also the last frame as an image.",
 		"inputSchema": map[string]any{"type": "object", "properties": map[string]any{
 			"room":    map[string]any{"type": "string", "description": "the room to start in (default: the first)"},
 			"steps":   map[string]any{"type": "integer", "description": "steps to run (default 300)"},
 			"keys":    map[string]any{"type": "string", "description": "keys held per span, e.g. 'right:40,right+up:25,:10,left:30' (names: left right up down space enter; empty = none; the number: steps)"},
 			"shot":    map[string]any{"type": "boolean", "description": "also return the last frame as a PNG image"},
 			"variant": map[string]any{"type": "string", "description": "a build variant: NAME.toml merged over game.toml (e.g. demo)"},
+			"expect":  map[string]any{"type": "string", "description": "a GML expression checked after the run, e.g. 'score >= 10' or 'instance_number(coin) == 0': pass / fail in the result"},
 		}}},
 	{"name": "outline", "description": "The project's shape without its code: objects with their events (and each event's length), scripts, rooms, sprites, sounds. Start here.",
 		"inputSchema": map[string]any{"type": "object", "properties": map[string]any{}}},
@@ -199,6 +200,7 @@ func mcpCall(dir, name string, args json.RawMessage) ([]map[string]any, bool, bo
 			Keys    string `json:"keys"`
 			Shot    bool   `json:"shot"`
 			Variant string `json:"variant"`
+			Expect  string `json:"expect"`
 		}{Steps: 300}
 		if len(args) > 0 {
 			if err := json.Unmarshal(args, &a); err != nil {
@@ -210,7 +212,7 @@ func mcpCall(dir, name string, args json.RawMessage) ([]map[string]any, bool, bo
 		if a.Shot {
 			shot = &png
 		}
-		state, err := playProjectVariant(dir, a.Variant, a.Room, a.Steps, a.Keys, shot)
+		state, err := playProjectOpts(dir, playOpts{Variant: a.Variant, Room: a.Room, Steps: a.Steps, Keys: a.Keys, Shot: shot, Expect: a.Expect})
 		if err != nil {
 			return text(err.Error()), true, true
 		}

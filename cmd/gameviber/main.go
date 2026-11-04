@@ -207,6 +207,7 @@ func cmdPlay(args []string) error {
 	shot := fs.String("shot", "", "write the last frame (PNG)")
 	asJSON := fs.Bool("json", false, "print the state as JSON")
 	variant := fs.String("variant", "", "a build variant: NAME.toml merged over game.toml")
+	expect := fs.String("expect", "", "a GML expression checked after the run (e.g. 'score >= 10'): pass or fail")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -222,7 +223,7 @@ func cmdPlay(args []string) error {
 		defer f.Close()
 		shotW = f
 	}
-	state, err := playProjectVariant(fs.Arg(0), *variant, *room, *steps, *keys, shotW)
+	state, err := playProjectOpts(fs.Arg(0), playOpts{Variant: *variant, Room: *room, Steps: *steps, Keys: *keys, Shot: shotW, Expect: *expect})
 	if err != nil {
 		return err
 	}
@@ -234,6 +235,19 @@ func cmdPlay(args []string) error {
 	fmt.Printf("rooms: %s\nscore %v, lives %v\n", strings.Join(rooms, " → "), score, lives)
 	for _, e := range errs {
 		fmt.Println("error:", e)
+	}
+	for _, d := range state["debug"].([]string) {
+		fmt.Println("debug:", d)
+	}
+	if ex, ok := state["expect"].(map[string]any); ok {
+		if ex["error"] != nil {
+			fmt.Printf("expect %s: %v\n", ex["expr"], ex["error"])
+		} else if ex["pass"] == true {
+			fmt.Printf("expect %s: pass\n", ex["expr"])
+		} else {
+			fmt.Printf("expect %s: FAIL (%v)\n", ex["expr"], ex["value"])
+			os.Exit(1)
+		}
 	}
 	return nil
 }
@@ -518,6 +532,21 @@ func playProject(path, room string, steps int, keys string, shot io.Writer) (map
 
 // playProjectVariant is playProject with a build variant (LOOP 6b).
 func playProjectVariant(path, variant, room string, steps int, keys string, shot io.Writer) (map[string]any, error) {
+	return playProjectOpts(path, playOpts{Variant: variant, Room: room, Steps: steps, Keys: keys, Shot: shot})
+}
+
+// playOpts are a headless run's settings; Expect is a GML expression checked
+// after the run (LOOP item 11: the model tests its own change).
+type playOpts struct {
+	Variant, Room, Keys, Expect string
+	Steps                       int
+	Shot                        io.Writer
+}
+
+// playProjectOpts runs the game headless: the state after, with the game's
+// show_debug_message lines ("debug") and the expectation's outcome ("expect").
+func playProjectOpts(path string, o playOpts) (map[string]any, error) {
+	variant, room, steps, keys, shot := o.Variant, o.Room, o.Steps, o.Keys, o.Shot
 	p, err := openVariant(path, variant)
 	if err != nil {
 		return nil, err
@@ -529,6 +558,12 @@ func playProjectVariant(path, variant, room string, steps int, keys string, shot
 	g, err := load.FromProject(p)
 	if err != nil {
 		return nil, err
+	}
+	var debug []string
+	g.Game.Debug = func(s string) {
+		if len(debug) < 50 {
+			debug = append(debug, s)
+		}
 	}
 	var pl *load.Play
 	if room != "" {
@@ -592,5 +627,16 @@ func playProjectVariant(path, variant, room string, steps int, keys string, shot
 		errs = append(errs, e.Error())
 	}
 	state["errors"] = errs
+	state["debug"] = debug
+	if o.Expect != "" {
+		v, err := g.Game.Eval(pl.Room, o.Expect)
+		ex := map[string]any{"expr": o.Expect}
+		if err != nil {
+			ex["error"] = err.Error()
+		} else {
+			ex["value"], ex["pass"] = v.String(), v.True()
+		}
+		state["expect"] = ex
+	}
 	return state, nil
 }

@@ -229,7 +229,7 @@ func editHandler(dir string) http.Handler {
 			steps = n
 		}
 		var shot bytes.Buffer
-		state, err := playProject(dir, r.URL.Query().Get("room"), steps, r.URL.Query().Get("keys"), &shot)
+		state, err := playProjectOpts(dir, playOpts{Room: r.URL.Query().Get("room"), Steps: steps, Keys: r.URL.Query().Get("keys"), Shot: &shot, Expect: r.URL.Query().Get("expect")})
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return

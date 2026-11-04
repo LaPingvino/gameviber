@@ -1011,8 +1011,9 @@ done
   check = gameviber check (errors and hints, also sent
   after every write); play STEPS KEYS = run the game headless (default 300 steps at 30 a second; keys held per
   span, e.g. right:60,right+up:20,:10 — names left right up down space enter, the number = steps) and report the
-  room, score, lives, the instances and any runtime errors, with a picture of the last frame; done = the request
-  is finished.
+  room, score, lives, the instances, runtime errors and the game's show_debug_message lines, with a picture of the
+  last frame; add "expect EXPR" (play 300 right:60 expect score >= 10) to test your change: pass or fail;
+  done = the request is finished.
 Files are written first, then the requests run. Only .gml, .toml, .txt and .md files inside the project can be
 written. Prefer SEARCH / REPLACE for changes; read the lines before you change them. Take one step a reply and
 wait for the results.`;
@@ -1201,7 +1202,9 @@ $("meatrun").onclick = async () => {
     } else if (verb === "check") {
       const chk = await (await call("api/check")).json(); out.push("", "### check", chk.report); checked = true; report = chk;
     } else if (verb === "play") {
-      const q = new URLSearchParams(); if (/^\d+$/.test(args[0] || "")) q.set("steps", args.shift()); if (args.length) q.set("keys", args.join(""));
+      const q = new URLSearchParams(); if (/^\d+$/.test(args[0] || "")) q.set("steps", args.shift());
+      const ei = args.indexOf("expect"); if (ei >= 0) { q.set("expect", args.slice(ei + 1).join(" ")); args.splice(ei); }
+      if (args.length) q.set("keys", args.join(""));
       const r = await call("api/play?" + q);
       if (!r.ok) { out.push("", "### " + c, "(could not play: " + (await r.text()).trim() + ")"); continue; }
       const st = await r.json(), shot = st.shot; delete st.shot;

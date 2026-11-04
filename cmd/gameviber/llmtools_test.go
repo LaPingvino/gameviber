@@ -87,3 +87,38 @@ func TestLLMToolsAPI(t *testing.T) {
 		t.Errorf("a non-text file: %d", c)
 	}
 }
+
+// TestPlayExpectDebug: a run's expectation (pass / fail / broken) and the
+// game's show_debug_message lines.
+func TestPlayExpectDebug(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "g")
+	if err := cmdNew([]string{dir}); err != nil {
+		t.Fatal(err)
+	}
+	create := filepath.Join(dir, "objects", "player", "create.gml")
+	data, _ := os.ReadFile(create)
+	os.WriteFile(create, append(data, []byte("\nshow_debug_message(\"ready at \" + string(x))\n")...), 0o644)
+	run := func(expect string) map[string]any {
+		st, err := playProjectOpts(dir, playOpts{Steps: 20, Expect: expect})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return st
+	}
+	st := run("instance_number(coin) == 6")
+	if ex := st["expect"].(map[string]any); ex["pass"] != true {
+		t.Errorf("coins: %v", ex)
+	}
+	if d := st["debug"].([]string); len(d) != 1 || d[0] != "ready at 64" {
+		t.Errorf("debug: %q", d)
+	}
+	if ex := run("score >= 0")["expect"].(map[string]any); ex["pass"] != true {
+		t.Errorf("score >= 0: %v", ex)
+	}
+	if ex := run("score > 1000")["expect"].(map[string]any); ex["pass"] != false || ex["value"] != "0" {
+		t.Errorf("score > 1000: %v", ex)
+	}
+	if ex := run("score >")["expect"].(map[string]any); ex["error"] == nil {
+		t.Errorf("a broken expression: %v", ex)
+	}
+}
