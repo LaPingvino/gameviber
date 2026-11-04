@@ -64,6 +64,9 @@ func (g *Game) onButton(x, y int) bool {
 }
 
 func (g *Game) buttons() (image.Rectangle, image.Rectangle) {
+	if g.touched {
+		return g.lay.snd, g.lay.full
+	}
 	w, h := g.size()
 	return buttonRects(g.view, w, h, g.sw, g.sh)
 }

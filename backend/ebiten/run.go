@@ -101,6 +101,8 @@ type Game struct {
 	view    frameView
 	sw, sh  int // the screen's size (the buttons' place)
 	touches []eb.TouchID
+	touched bool        // the screen has been touched: the pads show (touch.go)
+	lay     touchLayout // their last layout
 	// MaxFrames ends the run after so many frames (0: run until closed) —
 	// for checks under a virtual display.
 	MaxFrames int
@@ -149,7 +151,12 @@ func (g *Game) Update() error {
 	// holds the arrow towards it — from the screen's centre, along the
 	// stronger direction — so arrow-key games play without a keyboard and
 	// nothing covers the play area.
-	if ids := eb.AppendTouchIDs(g.touches[:0]); len(ids) > 0 && !g.onButton(eb.TouchPosition(ids[0])) {
+	if len(eb.AppendTouchIDs(nil)) > 0 {
+		g.touched = true
+	}
+	if g.touched {
+		g.padKeys()
+	} else if ids := eb.AppendTouchIDs(g.touches[:0]); len(ids) > 0 && !g.onButton(eb.TouchPosition(ids[0])) {
 		g.touches = ids
 		w, h := g.size() // the frame's centre on the screen
 		tx, ty := eb.TouchPosition(ids[0])
@@ -210,7 +217,15 @@ func (g *Game) Draw(screen *eb.Image) {
 	}
 	g.img.WritePixels(g.frame.Pix)
 	sw, sh := screen.Bounds().Dx(), screen.Bounds().Dy()
-	g.view = fit(w, h, sw, sh)
+	if g.touched { // the frame in what the controls leave
+		g.lay = layoutTouch(w, h, sw, sh)
+		a := g.lay.area
+		g.view = fit(w, h, a.Dx(), a.Dy())
+		g.view.ox += float64(a.Min.X)
+		g.view.oy += float64(a.Min.Y)
+	} else {
+		g.view = fit(w, h, sw, sh)
+	}
 	screen.Fill(color.Black)
 	op := &eb.DrawImageOptions{Filter: eb.FilterNearest}
 	op.GeoM.Scale(g.view.scale, g.view.scale)
@@ -218,6 +233,9 @@ func (g *Game) Draw(screen *eb.Image) {
 	screen.DrawImage(g.img, op)
 	g.sw, g.sh = sw, sh
 	g.drawButtons(screen)
+	if g.touched {
+		g.drawPads(screen)
+	}
 }
 
 // Sharp scaling (the export options; as Stelo and Pacmanio): the frame on the
