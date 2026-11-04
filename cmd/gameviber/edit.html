@@ -756,6 +756,19 @@ async function openFolder(h) {
   $("name").textContent = h.name + " (folder on disk)"; $("reset").style.display = "none";
 }
 window.gameviberOpenFolder = openFolder; // (tests hand it a directory handle)
+// opened from the file manager ("Open with GameViber" on a game.toml — the manifest's file_handlers): the folder
+// picker starts in that file's folder, and the folder chosen must hold that very game.toml (isSameEntry)
+if ("launchQueue" in window) window.launchQueue.setConsumer((params) => {
+  const fh = params.files && params.files[0];
+  if (!fh || fh.kind !== "file") return;
+  $("reopenfolder").textContent = "Open the project of this " + fh.name; $("reopenfolder").style.display = "";
+  $("reopenfolder").onclick = async () => { // a click: the picker needs one
+    let h; try { h = await window.showDirectoryPicker({ mode: "readwrite", startIn: fh, id: "gameviber-project" }); } catch (e) { return; }
+    let same = false; try { same = await (await h.getFileHandle("game.toml")).isSameEntry(fh); } catch (e) {}
+    if (!same) { window.alert("That folder doesn't hold the game.toml you opened — pick the folder it is in."); return; }
+    $("reopenfolder").style.display = "none"; openFolder(h);
+  };
+});
 // the last folder remembered (IndexedDB keeps the handle; the browser asks again for permission)
 function folderDB() { return new Promise((ok, no) => { const r = indexedDB.open("gameviber", 1); r.onupgradeneeded = () => r.result.createObjectStore("kv"); r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error); }); }
 async function rememberFolder(h) { try { const db = await folderDB(); db.transaction("kv", "readwrite").objectStore("kv").put(h, "folder"); } catch (e) {} }

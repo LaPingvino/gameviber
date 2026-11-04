@@ -23,6 +23,7 @@ const pwaManifest = `{
   "display": "standalone",
   "background_color": "#f5f1e8",
   "theme_color": "#c2541b",
+  "file_handlers": [{"action": "./", "accept": {"application/toml": [".toml"]}}],
   "icons": [
     {"src": "icon-192.png", "sizes": "192x192", "type": "image/png"},
     {"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}
