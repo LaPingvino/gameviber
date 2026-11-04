@@ -76,6 +76,19 @@ goal of its own, weighed alongside the LLM-friendly rule.
    the hand port step by step.
 4. [ ] The editor (docs/EDITOR.md; decided 2026-11-04): E1–E4 done, sounds, room settings, pixel drawing, timelines done. LEFT (E5): the assistant — proposal in docs/EDITOR.md ('The assistant'); steps 0–1 built ('Copy for an assistant', 'Paste an answer'; no key); the keyed panel for `gameviber edit` waits on Joop (model, key).
 
+5. [ ] NEXT — **Claude Code inside the local editor** (Joop 2026-11-04: "As API keys are expensive, it's probably
+   good to also enable e.g. a terminal window approach that enables working with Claude Code Pro and Max").
+   Local `gameviber edit` only (a browser page can't start programs; Pages keeps copy / paste). DECIDED (best effort):
+   a. a terminal panel: a pty (Linux /dev/ptmx through the standard library's syscall — no new module; other
+      systems: a note) running `claude` in the project folder, shown with xterm.js (cdnjs, pinned version) over a
+      WebSocket-free stream (Server-Sent Events out, POSTs in — standard library only); the user's own Claude Code
+      login (Pro / Max), no key;
+   b. `gameviber edit` writes the project's .mcp.json (gameviber mcp DIR) so that session has check / play / reference;
+      the editor reloads its tree / open file when files change on disk;
+   c. "Ask Claude": a one-shot `claude -p --output-format stream-json` in the project folder, the answer streamed
+      into the editor, files reloaded after;
+   d. the API-key panel stays optional (ANTHROPIC_API_KEY), for people without Claude Code.
+
 ## Libraries around it (Joop 2026-11-02: an Opus decoder "would fit right along the gml stuff … and the game
 maker file decoder")
 
@@ -236,3 +249,4 @@ setting (on by default) rather than per-game code:
 - 2026-11-04 (docs: the assistant, the status) — docs/index.md: the stale status line (text drawing, precise collisions and the editor were listed as to come — all done; paths left), a section 'With an assistant' (Copy for an assistant / Paste an answer; `gameviber mcp DIR` and Claude Code's `claude mcp add`), touch described as the pads; the starter's AGENTS.md (gameviber new, and so the Pages editor's starter) names `gameviber mcp .`. Push trouble today: GitHub incident 'Pull Requests, Git Operations and Issues' (githubstatus, from 09:49Z) — SSH logins refused on and off with the right key; nothing local. (Stelo's and Pacmanio's queues: texts now checked live by Joop, the rest waits on him.)
 - 2026-11-04 (export options: the audio unlock) — already covered: Ebitengine's oto resumes the AudioContext on the document's first touchend / keyup / mouseup, and every GameViber sound (WAV, Opus decoded by gopus) plays through it — nothing to add. Every remaining item waits on Joop (the GM 6–8 sample, the keyed assistant, paths with a game that has them), so the tick goes on to goloco.
 - 2026-11-04 — Joop: best effort from here (POLICY above); Stelo and Pacmanio complete, so the rotation is goloco ↔ GameViber.
+- 2026-11-04 (Joop: a terminal approach so Claude Code Pro / Max works, no API key) — queued as item 5 (terminal panel with claude in a pty, .mcp.json for gameviber mcp, a one-shot 'Ask Claude' via claude -p, the key panel optional); local editor only.
