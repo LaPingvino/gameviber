@@ -51,6 +51,8 @@ func cliMain() {
 		err = cmdRun(os.Args[2:])
 	case "web":
 		err = cmdWeb(os.Args[2:])
+	case "export":
+		err = cmdExport(os.Args[2:])
 	case "new":
 		err = cmdNew(os.Args[2:])
 	case "reference":
@@ -62,7 +64,7 @@ func cliMain() {
 	case "help", "-h", "--help":
 		usage()
 	default:
-		err = fmt.Errorf("unknown command %q (new, import, play, check, run, web, reference)", os.Args[1])
+		err = fmt.Errorf("unknown command %q (new, import, play, check, run, web, export, reference)", os.Args[1])
 	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "gameviber:", err)
@@ -85,6 +87,7 @@ func usage() {
                                     (file:line:col: message; exit 1 when there is anything)
   gameviber run [-room R] GAME      play it in a window (arrow keys, space, enter; M sound, F11 full screen)
   gameviber web DIR OUT             a web page that plays the project DIR (OUT: index.html, game.wasm, project.tar)
+  gameviber export DIR OUT          the finished web build, installable as an app (OUT: a folder, or name.zip for itch.io)
                                     (PARTIAL: run it inside the GameViber source; it builds the wasm with go)
   gameviber play [flags] GAME       run a game headless (GAME: a GameMaker 5.3 .exe or a project folder)
       -room NAME      start in this room (default: the first in the room order)
@@ -338,26 +341,35 @@ func cmdWeb(args []string) error {
 	if len(args) != 2 {
 		return fmt.Errorf("usage: gameviber web DIR OUT")
 	}
-	dir, out := args[0], args[1]
-	p, err := gmfile.ReadDir(dir) // it must read before it's shipped
+	name, err := webBuild(args[0], args[1])
 	if err != nil {
 		return err
 	}
+	fmt.Printf("web page for %s in %s (index.html, game.wasm, project.tar, wasm_exec.js)\n", name, args[1])
+	return nil
+}
+
+// webBuild writes the web page that plays the project dir into out; the game's name.
+func webBuild(dir, out string) (string, error) {
+	p, err := gmfile.ReadDir(dir) // it must read before it's shipped
+	if err != nil {
+		return "", err
+	}
 	if err := os.MkdirAll(out, 0o755); err != nil {
-		return err
+		return "", err
 	}
 	// The project, packed.
 	f, err := os.Create(filepath.Join(out, "project.tar"))
 	if err != nil {
-		return err
+		return "", err
 	}
 	err = packProject(dir, f)
 	f.Close()
 	if err != nil {
-		return err
+		return "", err
 	}
 	if err := buildPlayer(out); err != nil {
-		return err
+		return "", err
 	}
 	name := p.Name()
 	if name == "" {
@@ -366,10 +378,9 @@ func cmdWeb(args []string) error {
 	page := fmt.Sprintf(webPage, name, fileHash(filepath.Join(out, "wasm_exec.js")),
 		fileHash(filepath.Join(out, "project.tar")), fileHash(filepath.Join(out, "game.wasm")))
 	if err := os.WriteFile(filepath.Join(out, "index.html"), []byte(page), 0o644); err != nil {
-		return err
+		return "", err
 	}
-	fmt.Printf("web page for %s in %s (index.html, game.wasm, project.tar, wasm_exec.js)\n", name, out)
-	return nil
+	return name, nil
 }
 
 // fileHash is the first 12 hex digits of a file's SHA-256 (the cache key in

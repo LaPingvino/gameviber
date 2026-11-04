@@ -2,11 +2,14 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"image"
 	"image/color"
 	"image/png"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 )
 
 // The Pages editor as an installable web app (LOOP item 5i): a manifest, two
@@ -14,26 +17,29 @@ import (
 // answers from the network first and keeps a copy for when there is none, so
 // a new deploy always wins and the editor still opens offline.
 
-const pwaManifest = `{
-  "name": "GameViber editor",
-  "short_name": "GameViber",
-  "description": "Make GameMaker-style games as plain text files — with your coding agent.",
-  "start_url": "./",
-  "scope": "./",
-  "display": "standalone",
-  "background_color": "#f5f1e8",
-  "theme_color": "#c2541b",
-  "file_handlers": [{"action": "./", "accept": {"application/toml": [".toml"]}}],
-  "icons": [
-    {"src": "icon-192.png", "sizes": "192x192", "type": "image/png"},
-    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}
-  ]
+// pwaManifest is a web app manifest: the name, how it opens (standalone for
+// the editor, fullscreen for a game), the colours and the two icons.
+func pwaManifest(name, short, description, display, background, theme string) []byte {
+	m := map[string]any{"name": name, "short_name": short, "description": description, "start_url": "./", "scope": "./",
+		"display": display, "background_color": background, "theme_color": theme,
+		"icons": []map[string]string{{"src": "icon-192.png", "sizes": "192x192", "type": "image/png"},
+			{"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}}}
+	if display == "standalone" { // the editor opens a project's game.toml from the file manager
+		m["file_handlers"] = []map[string]any{{"action": "./", "accept": map[string][]string{"application/toml": {".toml"}}}}
+	}
+	b, _ := json.MarshalIndent(m, "", "  ")
+	return append(b, '\n')
 }
-`
 
-const pwaWorker = `// GameViber editor's service worker: network first (a new deploy always wins),
+// pwaWorker is the service worker: network first (a new deploy always wins),
+// the last copy of each file kept for offline use, in the named cache.
+func pwaWorker(cache string) []byte {
+	return []byte(strings.Replace(pwaWorkerJS, "CACHE_NAME", strconv.Quote(cache), 1))
+}
+
+const pwaWorkerJS = `// GameViber's service worker: network first (a new deploy always wins),
 // the last copy of each file kept for offline use.
-const CACHE = "gameviber-editor";
+const CACHE = CACHE_NAME;
 self.addEventListener("install", (e) => self.skipWaiting());
 self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));
 self.addEventListener("fetch", (e) => {
@@ -52,9 +58,15 @@ const pwaRegister = `<link rel="manifest" href="manifest.webmanifest"><meta name
 <script>if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost" || location.hostname === "127.0.0.1")) navigator.serviceWorker.register("sw.js").catch(() => {});</script>
 `
 
-// writePWA writes the manifest, the worker and the icons into out.
+// writePWA writes the editor's manifest, worker and icons into out.
 func writePWA(out string) error {
-	files := map[string][]byte{"manifest.webmanifest": []byte(pwaManifest), "sw.js": []byte(pwaWorker)}
+	return writePWAFiles(out, pwaManifest("GameViber editor", "GameViber", "Make GameMaker-style games as plain text files — with your coding agent.",
+		"standalone", "#f5f1e8", "#c2541b"), "gameviber-editor")
+}
+
+// writePWAFiles writes a manifest, the worker (its cache named) and the icons into out.
+func writePWAFiles(out string, manifest []byte, cache string) error {
+	files := map[string][]byte{"manifest.webmanifest": manifest, "sw.js": pwaWorker(cache)}
 	for _, n := range []int{192, 512} {
 		var b bytes.Buffer
 		if err := png.Encode(&b, pwaIcon(n)); err != nil {
