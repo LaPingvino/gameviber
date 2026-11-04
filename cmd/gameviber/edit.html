@@ -94,9 +94,9 @@ footer pre { margin: 0; font: 12px/1.45 ui-monospace, monospace; white-space: pr
   <textarea id="meatout" readonly spellcheck="false" style="height:9em"></textarea>
   <div id="meatshot" class="row" style="display:none;align-items:flex-start"><img id="meatimg" alt="the game's last frame" style="max-width:240px;max-height:180px;image-rendering:pixelated;border:1px solid var(--line)"><button id="meatshotcopy" class="new">Copy picture</button><span class="hint">attach it in the chat with the message</span></div>
   <div class="row" id="keyrow"><span class="hint">or send it with your own API key:</span>
-    <select id="keyprov"><option value="anthropic">Anthropic</option><option value="openai">OpenAI-compatible</option></select>
+    <select id="keyprov"><option value="anthropic">Anthropic</option><option value="openai">OpenAI-compatible</option><option value="ollama">Ollama (this computer, free)</option></select>
     <input id="keybase" size="26" placeholder="https://api.openai.com/v1" title="the endpoint: OpenAI, https://openrouter.ai/api/v1, http://localhost:11434/v1 (Ollama) …">
-    <input id="keymodel" size="16" placeholder="model">
+    <input id="keymodel" size="16" placeholder="model" list="keymodels"><datalist id="keymodels"></datalist>
     <input id="keykey" type="password" size="16" placeholder="API key" autocomplete="off">
     <button id="keysend">Send with my key</button></div>
   <p class="hint" id="keynote" style="margin:0">The key stays in this browser only (its storage for this page) and goes to that endpoint only — never to GameViber or the project.</p>
@@ -680,7 +680,20 @@ Files are written first, then the requests run. Only .gml, .toml, .txt and .md f
 written. Take one step a reply and wait for the results; read a file before you change it.`;
 let meatTurn = 0, meatPlan = null, meatShot = null, meatHist = [];
 // --- your own key (LOOP item 5g): the session's messages sent to a model from this browser ---
-const keyDefaults = { anthropic: { base: "https://api.anthropic.com/v1", model: "claude-sonnet-5-5" }, openai: { base: "https://api.openai.com/v1", model: "gpt-4o" } };
+const keyDefaults = { anthropic: { base: "https://api.anthropic.com/v1", model: "claude-sonnet-5-5" }, openai: { base: "https://api.openai.com/v1", model: "gpt-4o" }, ollama: { base: "http://localhost:11434/v1", model: "qwen2.5-coder:7b" } };
+// Ollama: the models it has (GET /api/tags) offered in the model field; a page from another site may only
+// call it when Ollama was started with OLLAMA_ORIGINS naming that site.
+function ollamaHint() { return "Is Ollama running, and does it allow this page? Start it with: OLLAMA_ORIGINS=" + location.origin + " ollama serve"; }
+async function ollamaModels() {
+  $("keymodels").textContent = "";
+  if ($("keyprov").value !== "ollama") return;
+  try {
+    const r = await fetch($("keybase").value.trim().replace(/\/v1\/?$/, "") + "/api/tags");
+    const j = await r.json();
+    for (const m of j.models || []) $("keymodels").append(Object.assign(document.createElement("option"), { value: m.name }));
+    $("meatnote").textContent = (j.models || []).length ? "Ollama has " + j.models.length + " model(s): pick one in the model field" : "Ollama answers but has no models: ollama pull qwen2.5-coder:7b";
+  } catch (e) { $("meatnote").textContent = ollamaHint(); }
+}
 function keyLoad() {
   let c = {}; try { c = JSON.parse(localStorage.getItem("gameviber-key") || "{}"); } catch (e) {}
   $("keyprov").value = c.prov || "anthropic"; keyFill(c);
@@ -692,7 +705,7 @@ function keyFill(c) {
 }
 function keySave() { try { localStorage.setItem("gameviber-key", JSON.stringify({ prov: $("keyprov").value, base: $("keybase").value.trim(), model: $("keymodel").value.trim(), key: $("keykey").value.trim() })); } catch (e) {} }
 async function keyAsk(text, shot) {
-  const prov = $("keyprov").value, base = $("keybase").value.trim().replace(/\/$/, ""), model = $("keymodel").value.trim(), key = $("keykey").value.trim();
+  const prov = $("keyprov").value === "ollama" ? "openai" : $("keyprov").value, base = $("keybase").value.trim().replace(/\/$/, ""), model = $("keymodel").value.trim(), key = $("keykey").value.trim();
   const msgs = meatHist.concat([{ role: "user", text, shot }]);
   if (prov === "anthropic") {
     const body = { model, max_tokens: 8192, messages: msgs.map((m) => ({ role: m.role, content: m.shot ? [{ type: "image", source: { type: "base64", media_type: "image/png", data: m.shot } }, { type: "text", text: m.text }] : m.text })) };
@@ -735,10 +748,10 @@ function meatParse(text) {
   });
   return { cmds, files: answerFiles(rest) };
 }
-$("meatbtn").onclick = async () => { if (!meatTurn) await meatStart(); $("meat").showModal(); };
+$("meatbtn").onclick = async () => { if (!meatTurn) await meatStart(); $("meat").showModal(); ollamaModels(); };
 $("meatclose").onclick = () => $("meat").close();
 keyLoad();
-$("keyprov").onchange = () => { let c = {}; try { c = JSON.parse(localStorage.getItem("gameviber-key") || "{}"); } catch (e) {} keyFill(c); };
+$("keyprov").onchange = () => { let c = {}; try { c = JSON.parse(localStorage.getItem("gameviber-key") || "{}"); } catch (e) {} keyFill(c); ollamaModels(); };
 $("keysend").onclick = async () => {
   if ($("keyprov").value === "anthropic" && !$("keykey").value.trim()) { $("meatnote").textContent = "an Anthropic key is needed (console.anthropic.com)"; return; }
   keySave();
@@ -750,7 +763,7 @@ $("keysend").onclick = async () => {
     meatLog("⇄ message " + meatTurn + " sent with the key; reply " + reply.length + " characters");
     $("meatin").value = reply;
     await $("meatread").onclick();
-  } catch (e) { $("meatnote").textContent = "the model didn't answer: " + e.message; }
+  } catch (e) { $("meatnote").textContent = "the model didn't answer: " + e.message + ($("keyprov").value === "ollama" && e instanceof TypeError ? " — " + ollamaHint() : ""); }
   $("keysend").disabled = false;
 };
 $("meatshotcopy").onclick = async () => {
