@@ -29,11 +29,15 @@ func ReadFS(fsys fs.FS, dir string) (*Project, error) {
 		Name      string            `toml:"name"`
 		RoomOrder []string          `toml:"room_order"`
 		Constants map[string]string `toml:"constants"`
+		Settings  struct {
+			Icon string `toml:"icon"` // a sprite: the exported game's icon (its first frame)
+		} `toml:"settings"`
 	}
 	if _, err := decodeTOML(fsys, path.Join(dir, "game.toml"), &game); err != nil {
 		return nil, fmt.Errorf("game.toml: %w", err)
 	}
 	p.name = game.Name
+	p.IconSprite = game.Settings.Icon
 	keys := make([]string, 0, len(game.Constants))
 	for k := range game.Constants {
 		keys = append(keys, k)

@@ -2,7 +2,12 @@ package main
 
 import (
 	"archive/zip"
+	"bytes"
 	"fmt"
+	"image"
+	"image/color"
+	"image/draw"
+	"image/png"
 	"io"
 	"os"
 	"path/filepath"
@@ -42,6 +47,9 @@ func cmdExport(args []string) error {
 	}
 	if err := writePWAFiles(build, pwaManifest(name, shortName(name), name+" — made with GameViber", "fullscreen", "#111111", "#111111"),
 		"gameviber-game-"+cacheKey(name)); err != nil {
+		return err
+	}
+	if err := writeGameIcons(p, build); err != nil {
 		return err
 	}
 	page, err := os.ReadFile(filepath.Join(build, "index.html"))
@@ -113,4 +121,62 @@ func zipDir(dir, out string) error {
 		err = cerr
 	}
 	return err
+}
+
+// writeGameIcons replaces the icons with the game's own when game.toml names
+// one ([settings] icon = a sprite): its first frame, scaled by whole steps
+// (pixel art stays sharp) to fit the middle 70% (the maskable safe zone) of a
+// dark square.
+func writeGameIcons(p *gmfile.Project, out string) error {
+	if p.IconSprite == "" {
+		return nil
+	}
+	var frame image.Image
+	for _, s := range p.Sprites {
+		if s != nil && s.Name == p.IconSprite && len(s.Images) > 0 {
+			frame = s.Images[0]
+		}
+	}
+	if frame == nil {
+		return fmt.Errorf("game.toml [settings] icon: no sprite %q with a frame", p.IconSprite)
+	}
+	for _, n := range []int{192, 512} {
+		var b bytes.Buffer
+		if err := png.Encode(&b, iconFrom(frame, n)); err != nil {
+			return err
+		}
+		if err := os.WriteFile(filepath.Join(out, fmt.Sprintf("icon-%d.png", n)), b.Bytes(), 0o644); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// iconFrom draws frame centred on an n × n dark square, scaled by the largest
+// whole step that fits 70% of it (at least 1; larger frames are shrunk).
+func iconFrom(frame image.Image, n int) *image.RGBA {
+	dst := image.NewRGBA(image.Rect(0, 0, n, n))
+	draw.Draw(dst, dst.Bounds(), image.NewUniform(color.RGBA{0x11, 0x11, 0x11, 0xff}), image.Point{}, draw.Src)
+	fb := frame.Bounds()
+	fw, fh := fb.Dx(), fb.Dy()
+	if fw == 0 || fh == 0 {
+		return dst
+	}
+	room := n * 7 / 10
+	scale := float64(max(1, min(room/fw, room/fh)))
+	if fw > room || fh > room {
+		scale = min(float64(room)/float64(fw), float64(room)/float64(fh))
+	}
+	w, h := int(float64(fw)*scale), int(float64(fh)*scale)
+	x0, y0 := (n-w)/2, (n-h)/2
+	for y := 0; y < h; y++ {
+		for x := 0; x < w; x++ {
+			c := frame.At(fb.Min.X+int(float64(x)/scale), fb.Min.Y+int(float64(y)/scale))
+			if _, _, _, a := c.RGBA(); a == 0 {
+				continue
+			}
+			dst.Set(x0+x, y0+y, c)
+		}
+	}
+	return dst
 }

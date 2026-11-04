@@ -8,6 +8,9 @@ import (
 // Project is a GM 5.3 game's contents, as gm53-reader reads them (same
 // fields; image and sound data kept as the bytes stored).
 type Project struct {
+	// IconSprite is a text project's [settings] icon: the sprite whose first
+	// frame is the exported game's icon ("" = GameViber's own).
+	IconSprite                 string
 	GameID                     int32
 	Settings                   Settings
 	Sounds                     []*Sound  // by id; nil where a resource was deleted

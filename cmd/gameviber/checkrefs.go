@@ -83,12 +83,18 @@ func checkRefs(dir string, w io.Writer) int {
 	}
 	var g struct {
 		RoomOrder []string `toml:"room_order"`
+		Settings  struct {
+			Icon string `toml:"icon"`
+		} `toml:"settings"`
 	}
 	if _, err := toml.DecodeFile(filepath.Join(dir, "game.toml"), &g); err == nil {
 		for _, rm := range g.RoomOrder {
 			if !rooms[rm] {
 				report("game.toml", "room_order's room", rm, rooms)
 			}
+		}
+		if g.Settings.Icon != "" && !sprites[g.Settings.Icon] {
+			report("game.toml", "[settings] icon's sprite", g.Settings.Icon, sprites)
 		}
 	}
 	return problems
