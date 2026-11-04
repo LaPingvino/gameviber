@@ -92,6 +92,7 @@ footer pre { margin: 0; font: 12px/1.45 ui-monospace, monospace; white-space: pr
   <p class="hint" style="margin:6px 0">For any chat, no key: copy the message into the chat, paste its whole reply back and run it — the next message is then ready to copy. Files it writes are shown before they are written.</p>
   <div class="row"><b>To the chat</b><button id="meatcopy">Copy</button><span id="meatturn" class="hint"></span></div>
   <textarea id="meatout" readonly spellcheck="false" style="height:9em"></textarea>
+  <div id="meatshot" class="row" style="display:none;align-items:flex-start"><img id="meatimg" alt="the game's last frame" style="max-width:240px;max-height:180px;image-rendering:pixelated;border:1px solid var(--line)"><button id="meatshotcopy" class="new">Copy picture</button><span class="hint">attach it in the chat with the message</span></div>
   <div class="row"><b>The chat's reply</b></div>
   <textarea id="meatin" spellcheck="false" style="height:9em" placeholder="paste the chat's whole reply"></textarea>
   <div class="row"><button id="meatread">Read the reply</button><span id="meatnote" class="hint"></span></div>
@@ -639,13 +640,21 @@ reply asks, and I paste its results back to you. In each reply you can:
 list
 read objects/player/step.gml
 check
+play 120 right:60,space:5
 done
 \`\`\`
   list = the project's files; read PATH = a file's text; check = gameviber check (errors and hints, also sent
-  after every write); done = the request is finished.
+  after every write); play STEPS KEYS = run the game headless (default 300 steps at 30 a second; keys held per
+  span, e.g. right:60,right+up:20,:10 — names left right up down space enter, the number = steps) and report the
+  room, score, lives, the instances and any runtime errors, with a picture of the last frame; done = the request
+  is finished.
 Files are written first, then the requests run. Only .gml, .toml, .txt and .md files inside the project can be
 written. Take one step a reply and wait for the results; read a file before you change it.`;
-let meatTurn = 0, meatPlan = null;
+let meatTurn = 0, meatPlan = null, meatShot = null;
+function meatShowShot() {
+  $("meatshot").style.display = meatShot ? "" : "none";
+  if (meatShot) $("meatimg").src = "data:image/png;base64," + meatShot;
+}
 async function copyText(text) {
   try { await navigator.clipboard.writeText(text); return true; } catch (e) {
     const ta = Object.assign(document.createElement("textarea"), { value: text }); document.body.append(ta); ta.select();
@@ -655,7 +664,7 @@ async function copyText(text) {
 function meatLog(s) { $("meatlog").textContent += s + "\n"; }
 function meatSet(text) { meatTurn++; $("meatout").value = text; $("meatturn").textContent = "message " + meatTurn + " · " + text.length + " characters"; $("meatin").value = ""; $("meatplan").textContent = ""; $("meatrun").disabled = true; meatPlan = null; }
 async function meatStart() {
-  meatTurn = 0; $("meatlog").textContent = "";
+  meatTurn = 0; $("meatlog").textContent = ""; meatShot = null; meatShowShot();
   const ctx = await assistantContext();
   meatSet(ctx.replace(/\nPlease answer with whole files[^\n]*$/, "") + "\n" + meatProtocol);
   meatLog("— started " + new Date().toLocaleTimeString());
@@ -671,6 +680,13 @@ function meatParse(text) {
 }
 $("meatbtn").onclick = async () => { if (!meatTurn) await meatStart(); $("meat").showModal(); };
 $("meatclose").onclick = () => $("meat").close();
+$("meatshotcopy").onclick = async () => {
+  try {
+    const blob = await (await fetch($("meatimg").src)).blob();
+    await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+    $("meatnote").textContent = "picture copied — paste it into the chat with the message";
+  } catch (e) { $("meatnote").textContent = "could not copy the picture: right-click it → Copy image"; }
+};
 $("meatrestart").onclick = meatStart;
 $("meatcopy").onclick = async () => { $("meatnote").textContent = (await copyText($("meatout").value)) ? "copied — paste it into the chat" : "could not copy: select the text and copy it"; };
 $("meatread").onclick = async () => {
@@ -693,6 +709,7 @@ $("meatread").onclick = async () => {
 $("meatrun").onclick = async () => {
   if (!meatPlan) return;
   const out = ["## Results of your reply " + meatTurn], done = [];
+  meatShot = null;
   let report = null, wrote = 0;
   for (const f of meatPlan.files) {
     if (!f.box.checked) { out.push("- not written (the person chose not to): " + f.path); continue; }
@@ -711,6 +728,13 @@ $("meatrun").onclick = async () => {
       out.push("", "### " + arg, ...(r.ok ? ["```", (await r.text()).replace(/\n$/, ""), "```"] : ["(there is no such file — list shows the files)"]));
     } else if (verb === "check") {
       const chk = await (await call("api/check")).json(); out.push("", "### check", chk.report); checked = true; report = chk;
+    } else if (verb === "play") {
+      const q = new URLSearchParams(); if (/^\d+$/.test(args[0] || "")) q.set("steps", args.shift()); if (args.length) q.set("keys", args.join(""));
+      const r = await call("api/play?" + q);
+      if (!r.ok) { out.push("", "### " + c, "(could not play: " + (await r.text()).trim() + ")"); continue; }
+      const st = await r.json(), shot = st.shot; delete st.shot;
+      out.push("", "### " + c, "```json", JSON.stringify(st, null, 1), "```");
+      if (shot) { meatShot = shot; out.push("(The person can attach a picture of the last frame.)"); }
     } else if (verb === "done") {
       done.push(1);
     } else out.push("", "### " + c, "(unknown request — list, read PATH, check or done)");
@@ -720,7 +744,8 @@ $("meatrun").onclick = async () => {
   if (wrote) { await load(); if (report) showCheck(report); }
   if (done.length) out.push("", "(The editor has marked the request done. Thank you — I'll write if there is more.)");
   meatSet(out.join("\n"));
-  meatLog("→ message " + meatTurn);
+  meatShowShot();
+  meatLog("→ message " + meatTurn + (meatShot ? " (with a picture)" : ""));
   $("meatnote").textContent = done.length ? "the chat says it is done" : "results ready — copy them into the chat";
   $("status").textContent = "· chat session: " + wrote + " file(s) written";
 };

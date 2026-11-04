@@ -14,6 +14,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -650,5 +651,33 @@ func TestSetupOpenCodeUser(t *testing.T) {
 	content, isErr, _ := mcpCall(t.TempDir(), "check", nil)
 	if !isErr || !strings.Contains(content[0]["text"].(string), "not a GameViber project") {
 		t.Errorf("outside a project: %v", content)
+	}
+}
+
+func TestEditPlayAPI(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "p")
+	if err := cmdNew([]string{dir}); err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(editHandler(dir))
+	defer srv.Close()
+	r, err := http.Get(srv.URL + "/api/play?steps=30&keys=right:30")
+	if err != nil || r.StatusCode != 200 {
+		t.Fatalf("play: %v %v", err, r.Status)
+	}
+	var st struct {
+		Room  string `json:"room"`
+		Steps int    `json:"steps"`
+		Shot  string `json:"shot"`
+	}
+	json.NewDecoder(r.Body).Decode(&st)
+	png, _ := base64.StdEncoding.DecodeString(st.Shot)
+	if st.Room == "" || st.Steps != 30 || len(png) < 8 || string(png[1:4]) != "PNG" {
+		t.Fatalf("play answer: room %q steps %d shot %d bytes", st.Room, st.Steps, len(png))
+	}
+	for _, q := range []string{"steps=x", "steps=-1", "keys=jump:3"} {
+		if r, _ := http.Get(srv.URL + "/api/play?" + q); r.StatusCode != http.StatusBadRequest {
+			t.Errorf("%s: %d, want 400", q, r.StatusCode)
+		}
 	}
 }

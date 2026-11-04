@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	_ "embed"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"flag"
@@ -14,6 +15,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -177,6 +179,28 @@ func editHandler(dir string) http.Handler {
 	})
 	mux.HandleFunc("GET /api/check", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, checkReport(dir))
+	})
+	// play headless (the MCP play tool's run): steps (default 300), keys (the
+	// key script), room; the state after, and the last frame as a base64 PNG.
+	mux.HandleFunc("GET /api/play", func(w http.ResponseWriter, r *http.Request) {
+		steps := 300
+		if s := r.URL.Query().Get("steps"); s != "" {
+			n, err := strconv.Atoi(s)
+			if err != nil || n < 0 || n > 100000 {
+				http.Error(w, "steps: a number from 0 to 100000", http.StatusBadRequest)
+				return
+			}
+			steps = n
+		}
+		var shot bytes.Buffer
+		state, err := playProject(dir, r.URL.Query().Get("room"), steps, r.URL.Query().Get("keys"), &shot)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		state["steps"] = steps
+		state["shot"] = base64.StdEncoding.EncodeToString(shot.Bytes())
+		writeJSON(w, state)
 	})
 	return mux
 }
