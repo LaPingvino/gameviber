@@ -282,6 +282,12 @@ function drawRoom() {
   for (let x = 0; x < c.width; x += 32) { ctx.beginPath(); ctx.moveTo(x + .5, 0); ctx.lineTo(x + .5, c.height); ctx.stroke(); }
   for (let y = 0; y < c.height; y += 32) { ctx.beginPath(); ctx.moveTo(0, y + .5); ctx.lineTo(c.width, y + .5); ctx.stroke(); }
   for (const i of room.instances) { const sp = spriteOf(i.object); if (sp) drawSprite(ctx, sp, i.x, i.y); else { ctx.fillStyle = "#fff8"; ctx.fillRect(i.x, i.y, 8, 8); } }
+  if (room.settings && room.settings.views_enabled) { // the camera's size, from the room's corner
+    const v = room.settings.view0;
+    ctx.save(); ctx.setLineDash([6, 4]); ctx.strokeStyle = "#f5c542"; ctx.lineWidth = 2;
+    ctx.strokeRect(1, 1, Math.min(v.w, room.width) - 2, Math.min(v.h, room.height) - 2);
+    ctx.fillStyle = "#f5c542"; ctx.font = "12px system-ui"; ctx.fillText("view" + (v.follow ? " → follows " + v.follow : ""), 6, 16); ctx.restore();
+  }
 }
 function roomState() { return JSON.stringify([room.instances, room.settings]); }
 function roomDirty() { return room && roomState() !== roomSaved; }
@@ -299,6 +305,22 @@ function roomSettingsForm() { // the room's own settings, under the palette
     });
     f.append(Object.assign(document.createElement("label"), { textContent: label }), inp);
   }
+  // the camera (LOOP item 8): views on, view 0's size, the object it follows, its borders
+  const v0 = room.settings.view0, camRows = [];
+  const cam = Object.assign(document.createElement("input"), { type: "checkbox", checked: room.settings.views_enabled, title: "the room is seen through a view that can follow an object" });
+  cam.onchange = () => { room.settings.views_enabled = cam.checked; camRows.forEach((r) => (r.style.display = cam.checked ? "" : "none")); drawRoom(); markRoom(); };
+  f.append(Object.assign(document.createElement("label"), { textContent: "camera (view)" }), cam);
+  const row = (label, el) => { const l = Object.assign(document.createElement("label"), { textContent: label }); camRows.push(l, el); f.append(l, el); };
+  for (const [label, key] of [["view width", "w"], ["view height", "h"], ["border h", "hborder"], ["border v", "vborder"]]) {
+    const inp = Object.assign(document.createElement("input"), { type: "number", value: v0[key] });
+    inp.oninput = () => { v0[key] = Number(inp.value) || 0; drawRoom(); markRoom(); };
+    row(label, inp);
+  }
+  const sel = document.createElement("select");
+  for (const n of ["", ...room.objects.map((o) => o.name)]) sel.append(Object.assign(document.createElement("option"), { value: n, textContent: n || "(nothing)", selected: n === v0.follow }));
+  sel.onchange = () => { v0.follow = sel.value; drawRoom(); markRoom(); };
+  row("follows", sel);
+  camRows.forEach((r) => (r.style.display = cam.checked ? "" : "none"));
   return f;
 }
 function at(e) {
@@ -323,7 +345,9 @@ $("canvas").addEventListener("contextmenu", (e) => e.preventDefault());
 function markRoom() { $("save").disabled = !roomDirty(); $("status").textContent = roomDirty() ? "· unsaved" : ""; }
 async function openRoom(dir, a) {
   room = await (await call("api/room?path=" + encodeURIComponent(dir))).json();
-  room.settings = { caption: room.caption || "", width: room.width, height: room.height, speed: room.speed, background_colour: room.background || "#000000", persistent: !!room.persistent };
+  room.settings = { caption: room.caption || "", width: room.width, height: room.height, speed: room.speed, background_colour: room.background || "#000000", persistent: !!room.persistent,
+    views_enabled: !!room.views_enabled, view0: Object.assign({ w: 320, h: 240, follow: "", hborder: 64, vborder: 64 }, room.view0 || {}) };
+  if (!room.settings.view0.follow) room.settings.view0.follow = "";
   roomPath = dir; roomSaved = roomState(); current = null;
   $("path").textContent = dir + " (room)"; $("text").style.display = "none"; $("room").classList.add("on");
   const pal = $("palette"); pal.textContent = "";

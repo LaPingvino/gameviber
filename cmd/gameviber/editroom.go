@@ -49,6 +49,7 @@ func (h editRooms) room(w http.ResponseWriter, r *http.Request) {
 		"width": room["width"], "height": room["height"], "background": room["background_colour"],
 		"caption": room["caption"], "speed": room["speed"], "persistent": room["persistent"],
 		"instances": insts, "objects": h.objects(), "sprites": h.sprites(),
+		"views_enabled": room["views_enabled"], "view0": firstView(room),
 	})
 }
 
@@ -440,6 +441,35 @@ func (h editRooms) saveRoomSettings(w http.ResponseWriter, r *http.Request) {
 	if v, ok := in["background_colour"].(string); ok && len(v) == 7 && v[0] == '#' {
 		room["background_colour"] = strings.ToUpper(v)
 	}
+	// the camera (LOOP item 8): views on or off, and view 0 — its size (the
+	// port the same, both at 0, 0), the object it follows, its borders; the
+	// speed -1 (follows at once); any further views are kept
+	if v, ok := in["views_enabled"].(bool); ok {
+		room["views_enabled"] = v
+	}
+	if v0, ok := in["view0"].(map[string]any); ok {
+		num := func(k string, lo, hi, def float64) int64 {
+			if f, ok := v0[k].(float64); ok && f >= lo && f <= hi {
+				return int64(f)
+			}
+			return int64(def)
+		}
+		vw, vh := num("w", 16, 4096, 320), num("h", 16, 4096, 240)
+		view := map[string]any{"view": []int64{0, 0, vw, vh}, "port": []int64{0, 0, vw, vh},
+			"border": []int64{num("hborder", 0, 4096, 64), num("vborder", 0, 4096, 64)}, "speed": []int64{-1, -1}}
+		if f, _ := v0["follow"].(string); f != "" {
+			if _, err := os.Stat(filepath.Join(h.dir, "objects", f, "object.toml")); err != nil || !safeName(f) {
+				http.Error(w, "view: no object "+f+" to follow", http.StatusBadRequest)
+				return
+			}
+			view["follow"] = f
+		}
+		views := []map[string]any{view}
+		if old, ok := room["view"].([]map[string]any); ok && len(old) > 1 {
+			views = append(views, old[1:]...)
+		}
+		room["view"] = views
+	}
 	f, err := os.Create(file)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -452,4 +482,32 @@ func (h editRooms) saveRoomSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, checkReport(h.dir))
+}
+
+// firstView is view 0 of a room.toml, for the editor: its size, the object it
+// follows and its borders (nil when the room has none).
+func firstView(room map[string]any) map[string]any {
+	views, _ := room["view"].([]map[string]any)
+	if len(views) == 0 {
+		return nil
+	}
+	v := views[0]
+	out := map[string]any{"follow": v["follow"]}
+	if a, ok := v["view"].([]any); ok && len(a) == 4 {
+		out["w"], out["h"] = a[2], a[3]
+	}
+	if a, ok := v["border"].([]any); ok && len(a) == 2 {
+		out["hborder"], out["vborder"] = a[0], a[1]
+	}
+	return out
+}
+
+// safeName is a resource name the editor may write into a file (no paths).
+func safeName(s string) bool {
+	for _, r := range s {
+		if !(r == '_' || r == '-' || r >= '0' && r <= '9' || r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z') {
+			return false
+		}
+	}
+	return s != ""
 }

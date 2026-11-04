@@ -3,6 +3,7 @@ package main
 import (
 	"archive/tar"
 	"bytes"
+	"encoding/json"
 	"image/png"
 	"io"
 	"net/http"
@@ -215,6 +216,56 @@ func TestEditPlayVariant(t *testing.T) {
 	for _, q := range []string{"../x", "nope"} {
 		if r, _ := http.Get(srv.URL + "/play/project.tar?variant=" + q); r.StatusCode != http.StatusBadRequest {
 			t.Errorf("variant %q: %d, want 400", q, r.StatusCode)
+		}
+	}
+}
+
+// TestRoomCamera: the room settings' camera (views_enabled, view 0 following
+// an object) is written into room.toml and plays as a view of that size.
+func TestRoomCamera(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "g")
+	if err := cmdNew([]string{dir}); err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(editHandler(dir))
+	defer srv.Close()
+	put := func(body string) int {
+		req, _ := http.NewRequest(http.MethodPut, srv.URL+"/api/room-settings?path=rooms/level", strings.NewReader(body))
+		r, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return r.StatusCode
+	}
+	if c := put(`{"views_enabled":true,"view0":{"w":320,"h":240,"follow":"player","hborder":100,"vborder":80}}`); c != 200 {
+		t.Fatalf("camera: %d", c)
+	}
+	data, _ := os.ReadFile(filepath.Join(dir, "rooms", "level", "room.toml"))
+	for _, want := range []string{"views_enabled = true", `follow = "player"`, "view = [0, 0, 320, 240]", "border = [100, 80]"} {
+		if !strings.Contains(string(data), want) {
+			t.Errorf("room.toml lacks %q:\n%s", want, data)
+		}
+	}
+	var shot bytes.Buffer
+	if _, err := playProject(dir, "", 5, "", &shot); err != nil {
+		t.Fatal(err)
+	}
+	img, err := png.Decode(&shot)
+	if err != nil || img.Bounds().Dx() != 320 || img.Bounds().Dy() != 240 {
+		t.Errorf("the played frame: %v %v (want the view's 320x240)", err, img.Bounds())
+	}
+	r, _ := http.Get(srv.URL + "/api/room?path=rooms/level")
+	var got struct {
+		ViewsEnabled bool           `json:"views_enabled"`
+		View0        map[string]any `json:"view0"`
+	}
+	json.NewDecoder(r.Body).Decode(&got)
+	if !got.ViewsEnabled || got.View0["follow"] != "player" || got.View0["w"] != float64(320) {
+		t.Errorf("read back: %+v", got)
+	}
+	for _, bad := range []string{`{"view0":{"follow":"nosuch"}}`, `{"view0":{"follow":"../x"}}`} {
+		if c := put(bad); c != http.StatusBadRequest {
+			t.Errorf("%s: %d, want 400", bad, c)
 		}
 	}
 }
