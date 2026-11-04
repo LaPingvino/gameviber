@@ -70,7 +70,7 @@ footer pre { margin: 0; font: 12px/1.45 ui-monospace, monospace; white-space: pr
 .ok { color: var(--ok); } .bad { color: var(--bad); }
 </style></head>
 <body>
-<header><b>GameViber</b><span id="name"></span><span id="status"></span><span style="flex:1"></span><button id="reset" style="display:none;background:transparent;color:var(--muted);border:1px solid var(--line)">Reset to the starter game</button><button id="newobj" class="new">+ Object</button><button id="newevt" class="new">+ Event</button><button id="newroom" class="new">+ Room</button><button id="newspr" class="new">+ Sprite</button><button id="newsnd" class="new">+ Sound</button><button id="newmom" class="new" title="a timeline's moment">+ Moment</button><button id="pause" class="new" style="display:none">⏸ Pause</button><button id="step" class="new" style="display:none" disabled>⏭ Step</button><button id="askcopy" class="new" title="the project's context on the clipboard, to paste into any assistant (Claude, ChatGPT …)">Copy for an assistant</button><button id="askpaste" class="new" title="write the files from an assistant's answer into the project">Paste an answer</button><button id="askbtn" class="new" style="display:none" title="one question to a coding agent (Claude Code, OpenCode …) — your own login, no key">Ask</button><button id="termbtn" class="new" style="display:none" title="a coding agent (Claude Code, OpenCode, Aider …) in a terminal, in this project's folder">Terminal</button><button id="play">▶ Play</button></header>
+<header><b>GameViber</b><span id="name"></span><span id="status"></span><span style="flex:1"></span><button id="openfolder" class="new" style="display:none" title="work on a GameViber project folder on your disk — an agent in your own terminal (Claude Code, Antigravity …) can work on it at the same time">Open folder…</button><button id="reset" style="display:none;background:transparent;color:var(--muted);border:1px solid var(--line)">Reset to the starter game</button><button id="newobj" class="new">+ Object</button><button id="newevt" class="new">+ Event</button><button id="newroom" class="new">+ Room</button><button id="newspr" class="new">+ Sprite</button><button id="newsnd" class="new">+ Sound</button><button id="newmom" class="new" title="a timeline's moment">+ Moment</button><button id="pause" class="new" style="display:none">⏸ Pause</button><button id="step" class="new" style="display:none" disabled>⏭ Step</button><button id="askcopy" class="new" title="the project's context on the clipboard, to paste into any assistant (Claude, ChatGPT …)">Copy for an assistant</button><button id="askpaste" class="new" title="write the files from an assistant's answer into the project">Paste an answer</button><button id="askbtn" class="new" style="display:none" title="one question to a coding agent (Claude Code, OpenCode …) — your own login, no key">Ask</button><button id="termbtn" class="new" style="display:none" title="a coding agent (Claude Code, OpenCode, Aider …) in a terminal, in this project's folder">Terminal</button><button id="play">▶ Play</button></header>
 <dialog id="ask"><b>Ask a coding agent</b>
   <p class="hint" style="margin:6px 0">One question, answered in this project's folder by the agent you have installed (your own login — Claude Code Pro / Max, OpenCode …). The open file is mentioned to it.</p>
   <div class="row"><select id="askagent"><option value="claude">Claude Code</option><option value="agy">Antigravity CLI</option><option value="opencode">OpenCode</option><option value="gemini">Gemini CLI</option><option value="codex">Codex CLI</option><option value="aider">Aider</option></select>
@@ -143,7 +143,7 @@ function dirty() { return current && $("text").value !== saved; }
 function mark() { $("save").disabled = !dirty(); $("status").textContent = dirty() ? "· unsaved" : ""; }
 async function load() {
   const r = await (await call("api/files")).json();
-  $("name").textContent = r.name;
+  $("name").textContent = window.gameviberFolderName ? window.gameviberFolderName + " (folder on disk)" : r.name;
   const groups = {};
   for (const f of r.files) {
     const parts = f.split("/");
@@ -706,8 +706,64 @@ $("askgo").onclick = async () => {
   } finally { $("askgo").disabled = false; termRefresh(); } // files it changed: the tree and the open file again
 };
 
+// --- folder mode (LOOP item 5e): the published editor on a real folder (File System Access, Chromium) — any
+// agent in the user's own terminal (Claude Code, Antigravity, OpenCode …) works on the same files ---
+let folder = null, folderSeen = new Map();
+async function readFolder(dir, prefix, out) {
+  for await (const [name, h] of dir.entries()) {
+    if (h.kind === "directory") { if (!name.startsWith(".")) await readFolder(h, prefix + name + "/", out); continue; }
+    if (name === ".mcp.json" || name === "opencode.json") continue;
+    out.set(prefix + name, await h.getFile());
+  }
+  return out;
+}
+async function fileAt(path, create) { // the FileSystemFileHandle for a project path ("objects/x/step.gml")
+  const parts = path.split("/"); let d = folder;
+  for (const p of parts.slice(0, -1)) d = await d.getDirectoryHandle(p, { create });
+  return d.getFileHandle(parts[parts.length - 1], { create });
+}
+async function folderSync(first) { // the folder's files into memory: all at first, then what changed on disk
+  const now = await readFolder(folder, "", new Map());
+  let changed = false;
+  for (const [p, f] of now) {
+    const stamp = f.lastModified + ":" + f.size;
+    if (folderSeen.get(p) === stamp) continue;
+    folderSeen.set(p, stamp);
+    window.GameviberFS.addFile("/w/project/" + p, new Uint8Array(await f.arrayBuffer()));
+    changed = true;
+  }
+  for (const p of [...folderSeen.keys()]) if (!now.has(p)) { folderSeen.delete(p); window.GameviberFS.files.delete("/w/project/" + p); changed = true; }
+  if (changed && !first) { await termRefresh(); $("status").textContent = "· changed on disk, reloaded"; }
+}
+async function openFolder(h) {
+  try { await h.getFileHandle("game.toml"); } catch (e) { window.alert(h.name + " is not a GameViber project (no game.toml) — make one with gameviber new, or pick another folder."); return; }
+  await window.gameviberWait;
+  folder = h; folderSeen = new Map(); window.gameviberFolderName = h.name;
+  window.GameviberFS.folderMode = true;
+  window.GameviberFS.clearProject();
+  await folderSync(true);
+  window.GameviberFS.onChange = async (path, data) => { // an edit in the editor → the file on disk
+    const rel = path.slice("/w/project/".length);
+    const w = await (await fileAt(rel, true)).createWritable(); await w.write(data); await w.close();
+    const f = await (await fileAt(rel, false)).getFile(); folderSeen.set(rel, f.lastModified + ":" + f.size);
+  };
+  window.GameviberFS.onDelete = async (path) => {
+    const parts = path.slice("/w/project/".length).split("/"); let d = folder;
+    try { for (const p of parts.slice(0, -1)) d = await d.getDirectoryHandle(p); await d.removeEntry(parts[parts.length - 1]); folderSeen.delete(parts.join("/")); } catch (e) {}
+  };
+  setInterval(() => folderSync(false).catch(() => {}), 2000); // agents in the terminal: their edits come in
+  current = null; await load();
+  $("name").textContent = h.name + " (folder on disk)"; $("reset").style.display = "none";
+}
+window.gameviberOpenFolder = openFolder; // (tests hand it a directory handle)
+$("openfolder").onclick = async () => {
+  if ((dirty() || roomDirty() || sprDirty() || objDirty()) && !window.confirm("Leave without saving?")) return;
+  let h; try { h = await window.showDirectoryPicker({ mode: "readwrite", id: "gameviber-project" }); } catch (e) { return; }
+  openFolder(h);
+};
 if (window.gameviberStatic) { // the published page: the project lives in this browser
   $("reset").style.display = "";
+  if (window.showDirectoryPicker) $("openfolder").style.display = "";
   $("reset").onclick = () => { if (window.confirm("Throw away your changes and start again from the starter game?")) { window.gameviberWait.then(() => window.gameviberReset()); } };
 }
 // Pause / step the game while playing (the player's gameviberPause / gameviberStep).

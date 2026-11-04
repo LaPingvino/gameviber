@@ -60,6 +60,9 @@
 	const KEEP = "/w/project/", KEEP_KEY = "gameviber-fs:";
 	const keep = (path) => {
 		if (!path.startsWith(KEEP) || !files.has(path)) return;
+		const hook = globalThis.GameviberFS && globalThis.GameviberFS.onChange;
+		if (hook) hook(path, files.get(path)); // folder mode: written to the folder on disk
+		if (globalThis.GameviberFS && globalThis.GameviberFS.folderMode) return; // the folder keeps it, not localStorage
 		try {
 			let bin = "";
 			for (const b of files.get(path)) bin += String.fromCharCode(b);
@@ -215,6 +218,7 @@
 			if (!files.delete(path)) { cb(err("ENOENT", path)); return; }
 			dirs.get(parent(path)).delete(base(path));
 			try { localStorage.removeItem(KEEP_KEY + path); } catch (e) { /* no storage */ }
+			if (globalThis.GameviberFS && globalThis.GameviberFS.onDelete) globalThis.GameviberFS.onDelete(path);
 			cb(null);
 		},
 		rename(from, to, cb) {
@@ -248,6 +252,12 @@
 		chdir(p) { p = norm(p); if (!dirs.has(p)) throw err("ENOENT", p); cwd = p; },
 	};
 	globalThis.path = { resolve(...segs) { return norm(segs.join("/")); } };
-	globalThis.GameviberFS = { addFile, files, dirs, onLog: null };
+	// clearProject empties /w/project in memory (folder mode loads a folder there instead).
+	const clearProject = () => {
+		for (const p of [...files.keys()]) if (p.startsWith(KEEP)) files.delete(p);
+		for (const p of [...dirs.keys()]) if (p.startsWith(KEEP)) dirs.delete(p);
+		mkdirp("/w/project");
+	};
+	globalThis.GameviberFS = { addFile, files, dirs, clearProject, onLog: null, onChange: null, onDelete: null, folderMode: false };
 	restoreKept();
 })();

@@ -41,6 +41,11 @@ in this browser (Reset brings back the starter game). Objects open as a form (sp
 
 ## With an assistant
 
+In Chrome or Edge, **Open folder…** in the editor works on a GameViber project folder on your disk instead of in
+the browser: run a coding agent (Claude Code, Antigravity, OpenCode …) in that folder in your own terminal, and the
+editor follows its changes as you both work.
+
+
 GameViber is made to be worked on together with an AI assistant: everything is plain text, and `gameviber check`
 explains its problems with the file and line.
 
