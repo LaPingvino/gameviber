@@ -69,7 +69,7 @@ goal of its own, weighed alongside the LLM-friendly rule.
    LateralGM-like editor: desktop / web?), the backend boundary (so Mach or others can come later), licence.
 3. [x] (done 2026-11-03, item 3e: both sample games run from their 2006 data and match the hand ports) Pacmanio as the first sample: import its 2006 data, run its GML unchanged, compare with
    the hand port step by step.
-4. [ ] The editor (docs/EDITOR.md; decided 2026-11-04): E1–E4 done, sounds, room settings, pixel drawing, timelines done. LEFT (E5): the assistant panel (needs a design pass: which model / key, and where it runs on Pages).
+4. [ ] The editor (docs/EDITOR.md; decided 2026-11-04): E1–E4 done, sounds, room settings, pixel drawing, timelines done. LEFT (E5): the assistant — proposal in docs/EDITOR.md ('The assistant'); step 0 built ('Copy for an assistant', no key); next 'Paste an answer' (decidable), the keyed panel for `gameviber edit` waits on Joop (model, key).
 
 ## Libraries around it (Joop 2026-11-02: an Opus decoder "would fit right along the gml stuff … and the game
 maker file decoder")
@@ -110,6 +110,8 @@ setting (on by default) rather than per-game code:
 - (ANSWERED 2026-11-02: public, with Pages + a wasm test build, as Stelo) Public repo or private?
 - (ANSWERED 2026-11-02: MIT) Licence.
 - (DONE 2026-11-02) GitHub repo: https://github.com/LaPingvino/gameviber (public; Pages with the first code).
+
+- (2026-11-04) The editor's assistant (docs/EDITOR.md, 'The assistant'): on Pages copy-and-paste with any chat (built: 'Copy for an assistant') — enough? For the local `gameviber edit`: which model, and the key from the environment (ANTHROPIC_API_KEY …)?
 
 ## Blocked
 - (RESOLVED 2026-11-02 with Joop's go-ahead: created) `gh repo create LaPingvino/gameviber --public …` refused by the auto-mode check ('Create Public
@@ -218,3 +220,4 @@ setting (on by default) rather than per-game code:
 - 2026-11-04 (check: names in the TOML) — gameviber check (and so the editor's check line) now also checks the project's names: each room's instances name existing objects, each object's sprite / mask / parent exist, game.toml's room_order names rooms — with the file and, for a near miss, 'did you mean …' (the GML hint's). What agents most often break in the TOML; the loader would only stumble at run time. cmd/gameviber/checkrefs.go, TestCheckRefs (three broken names found, 'con' → coin). Both imported games (Stelo 56, Pacmanio 57 .gml files): 0 problems — no false alarms. (Stelo's and Pacmanio's queues empty.)
 - 2026-11-04 (editor E5: drawing pixels) — the sprite view's tool: box & origin (as before), pencil (with a colour) or eraser, on the frame shown (a click on a frame below picks another); the strip drawn on in a canvas, Save sends it as the sprite's PNG (api/sprite-png: its settings kept) and the rooms show the new picture. Static (Pages) build in headless Chromium with real mouse events: a red line drawn across the player sprite, saved, the page reloaded — the 28 red pixels still there. Also: the stale queue item 3 checked (done 2026-11-03), item 4 the editor. (Stelo's and Pacmanio's queues empty.)
 - 2026-11-04 (editor E5: timelines) — '+ Moment': a timeline's name (new or existing) and a step → timelines/<name>/moment-<step>.gml (a starter comment saying how a timeline is set going), opened in the editor; the tree already showed and edited moments as text, the runner already runs them. api/new kind=moment (names a–z 0–9 _, steps plain whole numbers). TestEditNewMoment (made, the project loads it as timeline intro with a moment at 30; bad steps / names refused). Static (Pages) build in headless Chromium: intro / 30 made, opened, 8 .gml files, 0 problems. The editor's E1–E5 are done but for the assistant panel (waits on Joop: model, key, where it runs). (A backlog of queued tick prompts handled as this one tick; Stelo's and Pacmanio's queues empty.)
+- 2026-11-04 (editor: the assistant, step 0) — 'Copy for an assistant': the project's context (AGENTS.md, the file list, the open file, gameviber check, a place for the request, 'answer with whole files') on the clipboard to paste into any chat — no key, no model chosen. docs/EDITOR.md: the assistant proposal (next: paste an answer back; a keyed panel only for the local gameviber edit; the MCP server) with the question for Joop. Static (Pages) build in headless Chromium: a real click with step.gml open — the clipboard read back: AGENTS.md, 16 files, step.gml, '7 .gml files, 0 problems'. (Stelo's and Pacmanio's queues empty.)

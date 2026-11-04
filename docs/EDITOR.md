@@ -53,3 +53,23 @@ E5. (later) Drawing pixels; sounds; timelines; the assistant panel.
    font rasteriser — golang.org/x/image, still an open question) — or HTML / CSS around the game canvas
    (native text boxes, selection and copy-paste come free; a second UI technology to keep)?
 3. Is E1–E3 the right first slice, or should rooms come before events?
+
+## The assistant (E5's last part) — proposal, first step built (2026-11-04)
+
+The editor should let an assistant help with the game, as DESIGN's "LLM use first-class" asks. What is open is
+Joop's: which model, whose key, and where it runs. A page on GitHub Pages can't keep a key safely, and the
+local `gameviber edit` could call an API with a key from the environment.
+
+**Built now (no key, no model chosen): "Copy for an assistant".** The button puts the project's context on the
+clipboard: its AGENTS.md, the file list, the open file, the `gameviber check` result, a place for the request,
+and the request to answer with whole files. Paste it into any chat (Claude, ChatGPT, a local model).
+
+**Next steps, each when wanted:**
+1. "Paste an answer": the reply's files (a path line, then a code block) written into the project, each shown
+   before it is saved, `check` run after.
+2. With `gameviber edit` on this machine: an assistant panel calling a model with a key from the environment
+   (`ANTHROPIC_API_KEY` …), the same context, the answer applied as in step 1. Never on Pages.
+3. The MCP server over `check`, `play -json` and `reference` (DESIGN), for assistants that work on the files
+   themselves.
+
+Questions for Joop: is copy-and-paste enough on Pages? Which model and key for step 2?

@@ -50,7 +50,7 @@ footer pre { margin: 0; font: 12px/1.45 ui-monospace, monospace; white-space: pr
 .ok { color: var(--ok); } .bad { color: var(--bad); }
 </style></head>
 <body>
-<header><b>GameViber</b><span id="name"></span><span id="status"></span><span style="flex:1"></span><button id="reset" style="display:none;background:transparent;color:var(--muted);border:1px solid var(--line)">Reset to the starter game</button><button id="newobj" class="new">+ Object</button><button id="newevt" class="new">+ Event</button><button id="newroom" class="new">+ Room</button><button id="newspr" class="new">+ Sprite</button><button id="newsnd" class="new">+ Sound</button><button id="newmom" class="new" title="a timeline's moment">+ Moment</button><button id="pause" class="new" style="display:none">⏸ Pause</button><button id="step" class="new" style="display:none" disabled>⏭ Step</button><button id="play">▶ Play</button></header>
+<header><b>GameViber</b><span id="name"></span><span id="status"></span><span style="flex:1"></span><button id="reset" style="display:none;background:transparent;color:var(--muted);border:1px solid var(--line)">Reset to the starter game</button><button id="newobj" class="new">+ Object</button><button id="newevt" class="new">+ Event</button><button id="newroom" class="new">+ Room</button><button id="newspr" class="new">+ Sprite</button><button id="newsnd" class="new">+ Sound</button><button id="newmom" class="new" title="a timeline's moment">+ Moment</button><button id="pause" class="new" style="display:none">⏸ Pause</button><button id="step" class="new" style="display:none" disabled>⏭ Step</button><button id="askcopy" class="new" title="the project's context on the clipboard, to paste into any assistant (Claude, ChatGPT …)">Copy for an assistant</button><button id="play">▶ Play</button></header>
 <nav id="tree"></nav>
 <main>
   <div class="bar"><code id="path">pick a file on the left</code><button id="save" disabled>Save (Ctrl+S)</button></div>
@@ -486,6 +486,33 @@ $("newmom").onclick = () => {
   const tl = ask("Which timeline? (a new name makes a new timeline)", here ? here[1] : ""); if (!tl) return;
   const step = ask("At which step? (0 = the step it starts)", "0");
   if (step) makeNew("moment", step.trim(), tl);
+};
+
+// Copy for an assistant (docs/EDITOR.md, the assistant's first step): what an assistant needs to help
+// with this project — its AGENTS.md, the file list, the open file, the check — as one text to paste into
+// any chat; no key, no model chosen here. The answer is asked for as whole files.
+async function assistantContext() {
+  const files = await (await call("api/files")).json();
+  const agents = await call("api/file?path=AGENTS.md");
+  const chk = await (await call("api/check")).json();
+  const parts = ["# A GameViber project: " + files.name,
+    "GameViber is a GameMaker 5-style engine whose games are plain text files (GML and TOML).", ""];
+  if (agents.ok) parts.push("## AGENTS.md", await agents.text(), "");
+  parts.push("## Files", ...files.files.map((f) => "- " + f), ...(files.sounds || []).map((f) => "- sounds/" + f + " (a sound)"), "");
+  if (current) parts.push("## The open file: " + current, "```", $("text").value, "```", "");
+  parts.push("## gameviber check", chk.report, "",
+    "## What I would like", "(write your question or request here)", "",
+    "Please answer with whole files: each file's path on its own line, then its complete new content in a code block.");
+  return parts.join("\n");
+}
+$("askcopy").onclick = async () => {
+  const text = await assistantContext();
+  let ok = false;
+  try { await navigator.clipboard.writeText(text); ok = true; } catch (e) {
+    const ta = Object.assign(document.createElement("textarea"), { value: text }); document.body.append(ta); ta.select();
+    try { ok = document.execCommand("copy"); } catch (e2) {} ta.remove();
+  }
+  $("status").textContent = ok ? "· copied for an assistant (" + text.length + " characters) — paste it into a chat" : "· could not copy";
 };
 
 if (window.gameviberStatic) { // the published page: the project lives in this browser
