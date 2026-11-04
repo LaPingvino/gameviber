@@ -105,7 +105,7 @@ func (t *editTerm) start(w http.ResponseWriter, r *http.Request) {
 	cfgFile, _ := writeAgentConfig(t.dir, line)        // the agent's GameViber tools (MCP)
 	cmd := exec.Command("/bin/sh", "-c", "exec "+line) // the user's own command line, as a shell would run it
 	cmd.Dir = t.dir
-	cmd.Env = append(os.Environ(), "TERM=xterm-256color", "COLORTERM=truecolor")
+	cmd.Env = append(os.Environ(), "TERM=xterm-256color", "COLORTERM=truecolor", "PWD="+absDir(t.dir))
 	ptm, err := startPty(cmd, cols, rows)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

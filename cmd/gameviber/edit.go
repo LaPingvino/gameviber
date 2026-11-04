@@ -126,6 +126,7 @@ func editHandler(dir string) http.Handler {
 	})
 	(&editPlay{dir: dir}).handle(mux)
 	(&editTerm{dir: dir}).handle(mux)
+	(&editAsk{dir: dir}).handle(mux)
 	rooms := editRooms{dir}
 	mux.HandleFunc("GET /api/room", rooms.room)
 	mux.HandleFunc("PUT /api/room", rooms.saveRoom)

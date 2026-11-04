@@ -26,6 +26,12 @@ button.new { background: transparent; color: var(--ink); border: 1px solid var(-
 #termview { flex: 1; min-height: 0; padding: 4px; }
 #answer { width: min(760px, 94vw); max-height: 88vh; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--ink); padding: 14px; }
 #answer::backdrop { background: rgba(0,0,0,.35); }
+#ask { width: min(820px, 94vw); max-height: 90vh; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--ink); padding: 14px; }
+#ask::backdrop { background: rgba(0,0,0,.35); }
+#ask textarea { width: 100%; height: 6em; font: inherit; background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 4px; padding: 6px; margin-top: 8px; }
+#ask .row { display: flex; gap: 8px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
+#ask select, #ask input[type=text], #askcmd { font: inherit; background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 4px; padding: 2px 6px; }
+#askout { margin: 8px 0 0; max-height: 40vh; overflow: auto; background: var(--bg); padding: 8px; border-radius: 4px; font: 12px/1.45 ui-monospace, monospace; white-space: pre-wrap; }
 #answer textarea { width: 100%; height: 34vh; font: 13px ui-monospace, monospace; background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 4px; padding: 6px; }
 #answer .row { display: flex; gap: 8px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
 #ansfiles { margin-top: 8px; max-height: 32vh; overflow: auto; }
@@ -64,7 +70,16 @@ footer pre { margin: 0; font: 12px/1.45 ui-monospace, monospace; white-space: pr
 .ok { color: var(--ok); } .bad { color: var(--bad); }
 </style></head>
 <body>
-<header><b>GameViber</b><span id="name"></span><span id="status"></span><span style="flex:1"></span><button id="reset" style="display:none;background:transparent;color:var(--muted);border:1px solid var(--line)">Reset to the starter game</button><button id="newobj" class="new">+ Object</button><button id="newevt" class="new">+ Event</button><button id="newroom" class="new">+ Room</button><button id="newspr" class="new">+ Sprite</button><button id="newsnd" class="new">+ Sound</button><button id="newmom" class="new" title="a timeline's moment">+ Moment</button><button id="pause" class="new" style="display:none">⏸ Pause</button><button id="step" class="new" style="display:none" disabled>⏭ Step</button><button id="askcopy" class="new" title="the project's context on the clipboard, to paste into any assistant (Claude, ChatGPT …)">Copy for an assistant</button><button id="askpaste" class="new" title="write the files from an assistant's answer into the project">Paste an answer</button><button id="termbtn" class="new" style="display:none" title="a coding agent (Claude Code, OpenCode, Aider …) in a terminal, in this project's folder">Terminal</button><button id="play">▶ Play</button></header>
+<header><b>GameViber</b><span id="name"></span><span id="status"></span><span style="flex:1"></span><button id="reset" style="display:none;background:transparent;color:var(--muted);border:1px solid var(--line)">Reset to the starter game</button><button id="newobj" class="new">+ Object</button><button id="newevt" class="new">+ Event</button><button id="newroom" class="new">+ Room</button><button id="newspr" class="new">+ Sprite</button><button id="newsnd" class="new">+ Sound</button><button id="newmom" class="new" title="a timeline's moment">+ Moment</button><button id="pause" class="new" style="display:none">⏸ Pause</button><button id="step" class="new" style="display:none" disabled>⏭ Step</button><button id="askcopy" class="new" title="the project's context on the clipboard, to paste into any assistant (Claude, ChatGPT …)">Copy for an assistant</button><button id="askpaste" class="new" title="write the files from an assistant's answer into the project">Paste an answer</button><button id="askbtn" class="new" style="display:none" title="one question to a coding agent (Claude Code, OpenCode …) — your own login, no key">Ask</button><button id="termbtn" class="new" style="display:none" title="a coding agent (Claude Code, OpenCode, Aider …) in a terminal, in this project's folder">Terminal</button><button id="play">▶ Play</button></header>
+<dialog id="ask"><b>Ask a coding agent</b>
+  <p class="hint" style="margin:6px 0">One question, answered in this project's folder by the agent you have installed (your own login — Claude Code Pro / Max, OpenCode …). The open file is mentioned to it.</p>
+  <div class="row"><select id="askagent"><option value="claude">Claude Code</option><option value="opencode">OpenCode</option><option value="gemini">Gemini CLI</option><option value="codex">Codex CLI</option><option value="aider">Aider</option></select>
+    <input id="askcmd" size="30" placeholder="or a command — the question is in $GAMEVIBER_PROMPT">
+    <label><input type="checkbox" id="askedits"> may change files</label></div>
+  <textarea id="askq" spellcheck="true" placeholder="e.g. make the coins spin, and add a sound when the player picks one up"></textarea>
+  <div class="row"><button id="askgo">Ask</button><button id="askstop" class="new">Stop</button><span id="asknote" class="hint"></span><span style="flex:1"></span><button id="askclose" class="new">Close</button></div>
+  <pre id="askout"></pre>
+</dialog>
 <dialog id="answer"><b>An assistant's answer</b>
   <p class="hint" style="margin:6px 0">Paste the whole answer: each file as its path on a line, then the file in a code block. You choose which files to write.</p>
   <textarea id="anstext" spellcheck="false" placeholder="objects/player/step.gml&#10;```&#10;…&#10;```"></textarea>
@@ -656,6 +671,37 @@ $("termstart").onclick = async () => {
   termListen(); term.focus();
 };
 $("termstop").onclick = () => call("api/term/stop", { method: "POST" });
+
+// --- Ask (LOOP item 5c): one question to a coding agent, the answer streamed (POST + Server-Sent Events read from the body) ---
+if (!window.gameviberStatic) $("askbtn").style.display = "";
+try { const a = localStorage.getItem("gameviber-ask-agent"); if (a) $("askagent").value = a; } catch (e) {}
+$("askbtn").onclick = () => { $("ask").showModal(); $("askq").focus(); };
+$("askclose").onclick = () => $("ask").close();
+$("askstop").onclick = () => call("api/ask/stop", { method: "POST" });
+$("askgo").onclick = async () => {
+  const prompt = $("askq").value.trim(); if (!prompt) return;
+  try { localStorage.setItem("gameviber-ask-agent", $("askagent").value); } catch (e) {}
+  const out = $("askout"); out.textContent = ""; $("asknote").textContent = "asking …"; $("askgo").disabled = true;
+  try {
+    const r = await call("api/ask", { method: "POST", body: JSON.stringify({ agent: $("askagent").value, command: $("askcmd").value.trim(), prompt, edits: $("askedits").checked, file: current || "" }) });
+    if (!r.ok) { $("asknote").textContent = await r.text(); return; }
+    const reader = r.body.getReader(), dec = new TextDecoder(); let buf = "", event = "message";
+    for (;;) {
+      const { value, done } = await reader.read(); if (done) break;
+      buf += dec.decode(value, { stream: true });
+      let i;
+      while ((i = buf.indexOf("\n")) >= 0) {
+        const line = buf.slice(0, i); buf = buf.slice(i + 1);
+        if (line.startsWith("event: ")) event = line.slice(7);
+        else if (line.startsWith("data: ")) {
+          const d = JSON.parse(line.slice(6));
+          if (event === "done") $("asknote").textContent = d === "ok" ? "done" : "ended: " + d;
+          else { out.textContent += d + "\n"; out.scrollTop = out.scrollHeight; }
+        } else if (line === "") event = "message";
+      }
+    }
+  } finally { $("askgo").disabled = false; termRefresh(); } // files it changed: the tree and the open file again
+};
 
 if (window.gameviberStatic) { // the published page: the project lives in this browser
   $("reset").style.display = "";

@@ -596,3 +596,34 @@ func TestPackSkipsPrivate(t *testing.T) {
 		}
 	}
 }
+
+// Ask: the user's own command gets the question (with the open file) in
+// $GAMEVIBER_PROMPT, runs in the project folder, its lines are streamed and
+// "done" ends it; the presets build their non-interactive command lines.
+func TestEditAsk(t *testing.T) {
+	dir := t.TempDir() + "/game"
+	if err := cmdNew([]string{dir}); err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(editHandler(dir))
+	defer srv.Close()
+	body := `{"command":"echo in $(basename $PWD); printf '%s\\n' \"$GAMEVIBER_PROMPT\" | tail -1","prompt":"make the coins spin","file":"objects/coin/object.toml"}`
+	r, err := http.Post(srv.URL+"/api/ask", "application/json", strings.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	all, _ := io.ReadAll(r.Body)
+	s := string(all)
+	if !strings.Contains(s, `data: "in game"`) || !strings.Contains(s, `data: "make the coins spin"`) || !strings.Contains(s, "event: done\ndata: \"ok\"") {
+		t.Errorf("stream: %s", s)
+	}
+	if a := askArgs("claude", "q", true); strings.Join(a, " ") != "claude -p q --permission-mode acceptEdits" {
+		t.Errorf("claude: %v", a)
+	}
+	if a := askArgs("opencode", "q", false); strings.Join(a, " ") != "opencode run q" {
+		t.Errorf("opencode: %v", a)
+	}
+	if askArgs("nonesuch", "q", false) != nil {
+		t.Error("unknown agent")
+	}
+}

@@ -113,3 +113,11 @@ func gitInit(dir string) {
 // agentConfigFiles are the agents' project configs writeAgentConfig writes:
 // they hold this machine's paths, so a web build never ships them.
 var agentConfigFiles = map[string]bool{".mcp.json": true, "opencode.json": true}
+
+// absDir is dir made absolute (as given when that fails).
+func absDir(dir string) string {
+	if a, err := filepath.Abs(dir); err == nil {
+		return a
+	}
+	return dir
+}
