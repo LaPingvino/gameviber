@@ -5,6 +5,7 @@
 package ebiten
 
 import (
+	"fmt"
 	"image"
 	"image/color"
 	"os"
@@ -91,18 +92,19 @@ func (g *Game) shortcuts() {
 
 // Game is a game in the window.
 type Game struct {
-	play    *load.Play
-	assets  *render.Assets
-	proj    *gmfile.Project
-	in      input
-	frame   *image.RGBA
-	img     *eb.Image
-	caption string
-	view    frameView
-	sw, sh  int // the screen's size (the buttons' place)
-	touches []eb.TouchID
-	touched bool        // the screen has been touched: the pads show (touch.go)
-	lay     touchLayout // their last layout
+	play      *load.Play
+	assets    *render.Assets
+	proj      *gmfile.Project
+	in        input
+	frame     *image.RGBA
+	img       *eb.Image
+	caption   string
+	view      frameView
+	sw, sh    int // the screen's size (the buttons' place)
+	touches   []eb.TouchID
+	textCache map[string]*eb.Image // texts drawn at the screen's resolution, by text / font / scale
+	touched   bool                 // the screen has been touched: the pads show (touch.go)
+	lay       touchLayout          // their last layout
 	// MaxFrames ends the run after so many frames (0: run until closed) —
 	// for checks under a virtual display.
 	MaxFrames int
@@ -126,7 +128,9 @@ func Attach(p *gmfile.Project, g *runner.Game) {
 // Attach must come first: the first room's create events run as the game
 // starts, and their sounds and questions need the backend already.
 func New(p *gmfile.Project, pl *load.Play) *Game {
-	return &Game{play: pl, assets: render.LoadAssets(p), proj: p, in: input{held: map[runner.Key]bool{}, prev: map[runner.Key]bool{}}}
+	a := render.LoadAssets(p)
+	a.TextOver = true // texts drawn over the frame at the screen's resolution (Draw)
+	return &Game{play: pl, assets: a, proj: p, in: input{held: map[runner.Key]bool{}, prev: map[runner.Key]bool{}}, textCache: map[string]*eb.Image{}}
 }
 
 // Update is one step of the game (Ebitengine calls it at the room's speed).
@@ -211,7 +215,7 @@ func (g *Game) Draw(screen *eb.Image) {
 			colour, drawColour = x.BGColor, x.DrawBGColor
 		}
 	}
-	render.Frame(g.frame, g.play.G.Game, r, g.assets, colour, drawColour)
+	texts := render.Frame(g.frame, g.play.G.Game, r, g.assets, colour, drawColour)
 	if g.img == nil || g.img.Bounds().Dx() != w || g.img.Bounds().Dy() != h {
 		g.img = eb.NewImage(w, h)
 	}
@@ -231,6 +235,7 @@ func (g *Game) Draw(screen *eb.Image) {
 	op.GeoM.Scale(g.view.scale, g.view.scale)
 	op.GeoM.Translate(g.view.ox, g.view.oy)
 	screen.DrawImage(g.img, op)
+	g.drawTexts(screen, texts)
 	g.sw, g.sh = sw, sh
 	g.drawButtons(screen)
 	if g.touched {
@@ -288,4 +293,31 @@ func (g *Game) Run(title string) error {
 		eb.SetTPS(s)
 	}
 	return eb.RunGame(g)
+}
+
+// drawTexts draws the frame's texts over it at the screen's resolution (the
+// export options: text sharp, not scaled up), each drawn once per text, font
+// and scale and kept. ASSUMPTION [engine]: over everything the frame shows —
+// GM 5 games draw their texts (score, messages) last.
+func (g *Game) drawTexts(screen *eb.Image, texts []render.TextCall) {
+	if len(g.textCache) > 256 {
+		clear(g.textCache)
+	}
+	for _, t := range texts {
+		key := fmt.Sprintf("%q %v %g %g %g", t.S, t.Font, t.X, t.Y, g.view.scale)
+		img, ok := g.textCache[key]
+		if !ok {
+			rgba, _ := render.TextImage(t, g.view.scale)
+			if rgba != nil {
+				img = eb.NewImageFromImage(rgba)
+			}
+			g.textCache[key] = img
+		}
+		if img == nil {
+			continue
+		}
+		op := &eb.DrawImageOptions{}
+		op.GeoM.Translate(g.view.ox+float64(int(t.X*g.view.scale)), g.view.oy+float64(int(t.Y*g.view.scale)))
+		screen.DrawImage(img, op)
+	}
 }

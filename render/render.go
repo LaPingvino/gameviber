@@ -19,6 +19,10 @@ type Assets struct {
 	Frames  map[string][]*image.NRGBA
 	Origins map[string]image.Point
 	BGs     map[string]*image.NRGBA
+	// TextOver: the texts are left out of the frame (Frame still returns
+	// them) — a screen backend draws them over it at the screen's own
+	// resolution (TextImage), sharp instead of scaled up.
+	TextOver bool
 }
 
 // LoadAssets decodes a project's sprites and backgrounds.
@@ -184,7 +188,9 @@ func (d *frameDrawer) Background(name string, x, y float64) {
 func (d *frameDrawer) Text(x, y float64, s string, f runner.Font) {
 	t := TextCall{x - d.ox, y - d.oy, s, f}
 	d.texts = append(d.texts, t)
-	drawText(d.dst, t) // drawn as it is called: later drawing goes over it, as in GM
+	if !d.a.TextOver {
+		drawText(d.dst, t) // drawn as it is called: later drawing goes over it, as in GM
+	}
 }
 
 // drawLayer draws a background layer at its position, tiled as set.
