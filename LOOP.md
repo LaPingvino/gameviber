@@ -55,6 +55,11 @@ goal of its own, weighed alongside the LLM-friendly rule.
   events in GM 5's step order, alarms, collisions, views) and the rules docs (STELO-RULES.md §2,
   PACMANIO-RULES.md) — what GM 5.3 itself does, written down and tested against play.
 
+> POLICY (Joop 2026-11-04: "GameViber you can probably best continue on with a best effort approach, at least if
+> it's not semi-complete yet"): don't wait on the open questions — decide them, build in reversible steps, log each
+> choice as DECIDED (best effort) for Joop to correct. Still his: new Go modules, fetching third-party games or code
+> from the net, anything published beyond this repo and its Pages.
+
 ## Queue (top = next)
 
 1. [x] Research note (docs/RESEARCH.md; parts 1–5 done 2026-11-02): ENIGMA and LateralGM — the vibes only (what they cover, what made them
@@ -230,3 +235,4 @@ setting (on by default) rather than per-game code:
 - 2026-11-04 (export options: text at the real resolution) — the window and the web player leave GM's texts out of the frame (render.Assets.TextOver; Frame still returns them) and draw each over it at the screen's scale: render.TextImage (the same Liberation face at scale × its size, x/image, into an image of its own), cached per text / font / place / scale (cleared past 256). Ebitengine's text/v2 was not used: it needs a new module (go-text/typesetting) — no new modules without Joop. ASSUMPTION [engine]: the texts lie over everything the frame draws (GM 5 games draw their texts last; a sprite drawn over a text would now be under it). Headless (`play -shot`) unchanged: texts in the frame. Checked in headless Chromium at 1280×960 (scale 2) with a scratch starter game drawing a text: the text sharp, in the same place as the frame's (compared with play -shot scaled ×2: blocky). Also: `check` caught draw_set_color in the test GML as GM 6+ (5.3: font_color) — the hint works. (Stelo's and Pacmanio's queues empty.)
 - 2026-11-04 (docs: the assistant, the status) — docs/index.md: the stale status line (text drawing, precise collisions and the editor were listed as to come — all done; paths left), a section 'With an assistant' (Copy for an assistant / Paste an answer; `gameviber mcp DIR` and Claude Code's `claude mcp add`), touch described as the pads; the starter's AGENTS.md (gameviber new, and so the Pages editor's starter) names `gameviber mcp .`. Push trouble today: GitHub incident 'Pull Requests, Git Operations and Issues' (githubstatus, from 09:49Z) — SSH logins refused on and off with the right key; nothing local. (Stelo's and Pacmanio's queues: texts now checked live by Joop, the rest waits on him.)
 - 2026-11-04 (export options: the audio unlock) — already covered: Ebitengine's oto resumes the AudioContext on the document's first touchend / keyup / mouseup, and every GameViber sound (WAV, Opus decoded by gopus) plays through it — nothing to add. Every remaining item waits on Joop (the GM 6–8 sample, the keyed assistant, paths with a game that has them), so the tick goes on to goloco.
+- 2026-11-04 — Joop: best effort from here (POLICY above); Stelo and Pacmanio complete, so the rotation is goloco ↔ GameViber.
