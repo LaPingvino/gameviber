@@ -147,6 +147,7 @@ func editHandler(dir string) http.Handler {
 	mux.HandleFunc("PUT /api/sprite", rooms.saveSprite)
 	mux.HandleFunc("POST /api/sprite-png", rooms.importPNG)
 	mux.HandleFunc("POST /api/background-png", rooms.importBackground)
+	sfxHandlers(dir, mux)
 	mux.HandleFunc("GET /api/background", rooms.background)
 	mux.HandleFunc("POST /api/new", rooms.newThing)
 	mux.HandleFunc("GET /api/object", rooms.object)

@@ -70,7 +70,7 @@ footer pre { margin: 0; font: 12px/1.45 ui-monospace, monospace; white-space: pr
 .ok { color: var(--ok); } .bad { color: var(--bad); }
 </style></head>
 <body>
-<header><b>GameViber</b><span id="name"></span><span id="status"></span><span style="flex:1"></span><button id="bridgeoff" class="new" style="display:none" title="stop using the project on this computer (gameviber edit -bridge) and go back to the one in this browser">Disconnect</button><button id="reopenfolder" class="new" style="display:none" title="the folder you worked on last time"></button><button id="openfolder" class="new" style="display:none" title="work on a GameViber project folder on your disk — an agent in your own terminal (Claude Code, Antigravity …) can work on it at the same time">Open folder…</button><button id="reset" style="display:none;background:transparent;color:var(--muted);border:1px solid var(--line)">Reset to the starter game</button><button id="newobj" class="new">+ Object</button><button id="newevt" class="new">+ Event</button><button id="newroom" class="new">+ Room</button><button id="newspr" class="new">+ Sprite</button><button id="newsnd" class="new">+ Sound</button><button id="newmom" class="new" title="a timeline's moment">+ Moment</button><button id="pause" class="new" style="display:none">⏸ Pause</button><button id="step" class="new" style="display:none" disabled>⏭ Step</button><button id="askcopy" class="new" title="the project's context on the clipboard, to paste into any assistant (Claude, ChatGPT …)">Copy for an assistant</button><button id="askpaste" class="new" title="write the files from an assistant's answer into the project">Paste an answer</button><button id="meatbtn" class="new" title="work with any chat (no key): you copy messages between the chat and the editor, which runs what the chat asks">Chat session</button><button id="askbtn" class="new" style="display:none" title="one question to a coding agent (Claude Code, OpenCode …) — your own login, no key">Ask</button><button id="termbtn" class="new" style="display:none" title="a coding agent (Claude Code, OpenCode, Aider …) in a terminal, in this project's folder">Terminal</button><select id="playvariant" style="display:none" title="play a build variant: NAME.toml merged over game.toml"></select><button id="play">▶ Play</button></header>
+<header><b>GameViber</b><span id="name"></span><span id="status"></span><span style="flex:1"></span><button id="bridgeoff" class="new" style="display:none" title="stop using the project on this computer (gameviber edit -bridge) and go back to the one in this browser">Disconnect</button><button id="reopenfolder" class="new" style="display:none" title="the folder you worked on last time"></button><button id="openfolder" class="new" style="display:none" title="work on a GameViber project folder on your disk — an agent in your own terminal (Claude Code, Antigravity …) can work on it at the same time">Open folder…</button><button id="reset" style="display:none;background:transparent;color:var(--muted);border:1px solid var(--line)">Reset to the starter game</button><button id="newobj" class="new">+ Object</button><button id="newevt" class="new">+ Event</button><button id="newroom" class="new">+ Room</button><button id="newspr" class="new">+ Sprite</button><button id="newsnd" class="new">+ Sound</button><button id="newsfx" class="new" title="make a sound effect: a coin, a jump, a laser … (saved as a sound)">+ Sound effect</button><button id="newmom" class="new" title="a timeline's moment">+ Moment</button><button id="pause" class="new" style="display:none">⏸ Pause</button><button id="step" class="new" style="display:none" disabled>⏭ Step</button><button id="askcopy" class="new" title="the project's context on the clipboard, to paste into any assistant (Claude, ChatGPT …)">Copy for an assistant</button><button id="askpaste" class="new" title="write the files from an assistant's answer into the project">Paste an answer</button><button id="meatbtn" class="new" title="work with any chat (no key): you copy messages between the chat and the editor, which runs what the chat asks">Chat session</button><button id="askbtn" class="new" style="display:none" title="one question to a coding agent (Claude Code, OpenCode …) — your own login, no key">Ask</button><button id="termbtn" class="new" style="display:none" title="a coding agent (Claude Code, OpenCode, Aider …) in a terminal, in this project's folder">Terminal</button><select id="playvariant" style="display:none" title="play a build variant: NAME.toml merged over game.toml"></select><button id="play">▶ Play</button></header>
 <dialog id="ask"><b>Ask a coding agent</b>
   <p class="hint" style="margin:6px 0">One question, answered in this project's folder by the agent you have installed (your own login — Claude Code Pro / Max, OpenCode …). The open file is mentioned to it.</p>
   <div class="row"><select id="askagent"><option value="claude">Claude Code</option><option value="agy">Antigravity CLI</option><option value="opencode">OpenCode</option><option value="gemini">Gemini CLI</option><option value="codex">Codex CLI</option><option value="aider">Aider</option></select>
@@ -87,6 +87,13 @@ footer pre { margin: 0; font: 12px/1.45 ui-monospace, monospace; white-space: pr
   <div class="row"><button id="ansread">Read the answer</button><span id="ansnote" class="hint"></span></div>
   <div id="ansfiles"></div>
   <div class="row"><button id="answrite" disabled>Write the chosen files</button><button id="ansclose" class="new">Close</button></div>
+</dialog>
+<dialog id="sfxdlg" style="width:min(760px,94vw)"><b>Sound effect</b>
+  <div class="row" id="sfxpresets" style="flex-wrap:wrap;gap:4px;margin:8px 0"></div>
+  <div id="sfxsliders" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px 16px;font-size:12px"></div>
+  <div class="row" style="margin-top:8px;gap:6px"><button id="sfxplay">▶ Play</button><label class="hint"><input type="checkbox" id="sfxauto" checked> play on every change</label>
+    <span style="flex:1"></span><input id="sfxname" size="14" placeholder="name"><button id="sfxsave">Save as a sound</button><button id="sfxclose" class="new">Close</button></div>
+  <p class="hint" id="sfxnote" style="margin:4px 0 0"></p>
 </dialog>
 <dialog id="instcode"><b id="instcodetitle">Creation code</b>
   <p class="hint" style="margin:6px 0">GML run when this one instance is created (after its object's Create event) — e.g. <code>hspeed = 2</code> for this instance only.</p>
@@ -916,6 +923,62 @@ $("answrite").onclick = async () => {
   if (current && ansList.some((f) => f.box.checked && f.path === current)) {
     const link = [...document.querySelectorAll("nav a.on")][0]; if (link) open(current, link, true);
   }
+};
+
+// --- sound effects (LOOP item 9): presets, the generator's settings as sliders, played as you go, saved as a sound ---
+const sfxKinds = ["coin", "laser", "explosion", "powerup", "hit", "jump", "blip"];
+const sfxFields = [["attack", "attack", 0, 1], ["sustain", "sustain", 0, 1], ["punch", "punch", 0, 1], ["decay", "decay", 0, 1],
+  ["pitch", "freq", 0, 1], ["pitch limit", "freq_limit", 0, 1], ["slide", "slide", -1, 1], ["slide change", "delta_slide", -1, 1],
+  ["vibrato depth", "vib_depth", 0, 1], ["vibrato speed", "vib_speed", 0, 1], ["jump", "arp_mod", -1, 1], ["jump speed", "arp_speed", 0, 1],
+  ["duty", "duty", 0, 1], ["duty sweep", "duty_sweep", -1, 1], ["repeat", "repeat_speed", 0, 1], ["phaser", "phaser_offset", -1, 1],
+  ["phaser sweep", "phaser_sweep", -1, 1], ["low-pass", "lpf_cutoff", 0, 1], ["low-pass sweep", "lpf_sweep", -1, 1], ["resonance", "lpf_resonance", 0, 1],
+  ["high-pass", "hpf_cutoff", 0, 1], ["high-pass sweep", "hpf_sweep", -1, 1], ["volume", "volume", 0, 1]];
+let sfxP = null, sfxAudio = new Audio(), sfxTimer = null;
+function sfxSliders() {
+  const box = $("sfxsliders"); box.textContent = "";
+  const wave = document.createElement("select");
+  ["square", "saw", "sine", "noise"].forEach((n, i) => wave.append(Object.assign(document.createElement("option"), { value: i, textContent: n, selected: i === sfxP.wave })));
+  wave.onchange = () => { sfxP.wave = Number(wave.value); sfxChanged(); };
+  const wl = document.createElement("label"); wl.append("wave ", wave); box.append(wl, document.createElement("span"));
+  for (const [label, key, lo, hi] of sfxFields) {
+    const l = document.createElement("label"); l.style.display = "flex"; l.style.gap = "6px"; l.style.alignItems = "center";
+    const r = Object.assign(document.createElement("input"), { type: "range", min: lo, max: hi, step: 0.01, value: sfxP[key] || 0 });
+    r.style.flex = "1";
+    r.oninput = () => { sfxP[key] = Number(r.value); sfxChanged(); };
+    l.append(Object.assign(document.createElement("span"), { textContent: label, style: "width:8.5em" }), r);
+    box.append(l);
+  }
+}
+async function sfxPlay() {
+  const r = await call("api/sfx-wav", { method: "POST", body: JSON.stringify(sfxP) });
+  if (!r.ok) { $("sfxnote").textContent = await r.text(); return; }
+  const b = await r.blob();
+  sfxAudio.src = URL.createObjectURL(b);
+  try { await sfxAudio.play(); } catch (e) {}
+  $("sfxnote").textContent = (b.size / 88200).toFixed(2) + " s";
+}
+function sfxChanged() { if ($("sfxauto").checked) { clearTimeout(sfxTimer); sfxTimer = setTimeout(sfxPlay, 150); } }
+async function sfxPreset(kind) {
+  const seed = Math.floor(Math.random() * 1e9);
+  sfxP = await (await call("api/sfx?preset=" + kind + "&seed=" + seed, { method: "POST" })).json();
+  if (!$("sfxname").value || sfxKinds.some((k) => $("sfxname").value.startsWith(k))) $("sfxname").value = kind + "_" + (seed % 1000);
+  sfxSliders(); sfxPlay();
+}
+for (const k of sfxKinds) {
+  const b = Object.assign(document.createElement("button"), { type: "button", className: "new", textContent: k });
+  b.onclick = () => sfxPreset(k);
+  $("sfxpresets").append(b);
+}
+$("newsfx").onclick = async () => { $("sfxdlg").showModal(); if (!sfxP) await sfxPreset("coin"); };
+$("sfxclose").onclick = () => $("sfxdlg").close();
+$("sfxplay").onclick = sfxPlay;
+$("sfxsave").onclick = async () => {
+  const name = $("sfxname").value.trim();
+  if (!/^[A-Za-z0-9_-]+$/.test(name)) { $("sfxnote").textContent = "a name of letters, digits, - and _"; return; }
+  const r = await call("api/sfx-save?name=" + encodeURIComponent(name), { method: "POST", body: JSON.stringify(sfxP) });
+  if (!r.ok) { $("sfxnote").textContent = await r.text(); return; }
+  showCheck(await r.json()); await load();
+  $("sfxnote").textContent = "saved as sounds/" + name + ".wav (its settings in sfx/" + name + ".toml)";
 };
 
 // --- the chat session (LOOP item 5j, Joop's "meat proxy"): any chat, the person carrying the messages ---

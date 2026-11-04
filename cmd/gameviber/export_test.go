@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"image"
 	"image/png"
 	"io"
@@ -345,5 +346,60 @@ func TestRoomBackground(t *testing.T) {
 	data, _ = os.ReadFile(filepath.Join(dir, "rooms", "level", "room.toml"))
 	if strings.Contains(string(data), "[[background]]") {
 		t.Errorf("not removed:\n%s", data)
+	}
+}
+
+// TestEditSfx: a preset's settings, rendered to WAV, saved as a sound with its
+// settings beside it; the project still checks and loads.
+func TestEditSfx(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "g")
+	if err := cmdNew([]string{dir}); err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(editHandler(dir))
+	defer srv.Close()
+	r, err := http.Post(srv.URL+"/api/sfx?preset=jump&seed=5", "", nil)
+	if err != nil || r.StatusCode != 200 {
+		t.Fatalf("preset: %v %v", err, r.Status)
+	}
+	params, _ := io.ReadAll(r.Body)
+	r, _ = http.Post(srv.URL+"/api/sfx-wav", "application/json", bytes.NewReader(params))
+	wav, _ := io.ReadAll(r.Body)
+	if r.Header.Get("Content-Type") != "audio/wav" || string(wav[:4]) != "RIFF" {
+		t.Fatalf("wav: %q %q", r.Header.Get("Content-Type"), wav[:4])
+	}
+	if r, _ := http.Post(srv.URL+"/api/sfx-save?name=hop", "application/json", bytes.NewReader(params)); r.StatusCode != 200 {
+		t.Fatalf("save: %d", r.StatusCode)
+	}
+	if got, _ := os.ReadFile(filepath.Join(dir, "sounds", "hop.wav")); !bytes.Equal(got, wav) {
+		t.Error("sounds/hop.wav is not the previewed sound")
+	}
+	r, _ = http.Get(srv.URL + "/api/sfx?name=hop")
+	back, _ := io.ReadAll(r.Body)
+	var a, b map[string]any
+	json.Unmarshal(params, &a)
+	json.Unmarshal(back, &b)
+	if fmt.Sprint(a) != fmt.Sprint(b) {
+		t.Errorf("the settings read back differ:\n%v\n%v", a, b)
+	}
+	var rep strings.Builder
+	if n, err := checkProject(dir, &rep); err != nil || n != 0 {
+		t.Errorf("check: %v %d %s", err, n, rep.String())
+	}
+	p, err := gmfile.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, s := range p.Sounds {
+		found = found || (s != nil && s.Name == "hop")
+	}
+	if !found {
+		t.Error("the project has no sound hop")
+	}
+	for _, q := range []string{"/api/sfx?preset=nope", "/api/sfx-save?name=../x"} {
+		if r, _ := http.Post(srv.URL+q, "application/json", bytes.NewReader(params)); r.StatusCode != http.StatusBadRequest {
+			t.Errorf("%s: %d", q, r.StatusCode)
+		}
 	}
 }
