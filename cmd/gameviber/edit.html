@@ -34,10 +34,10 @@ button.new { background: transparent; color: var(--ink); border: 1px solid var(-
 #askout { margin: 8px 0 0; max-height: 40vh; overflow: auto; background: var(--bg); padding: 8px; border-radius: 4px; font: 12px/1.45 ui-monospace, monospace; white-space: pre-wrap; }
 #answer textarea { width: 100%; height: 34vh; font: 13px ui-monospace, monospace; background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 4px; padding: 6px; }
 #answer .row { display: flex; gap: 8px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
-#ansfiles { margin-top: 8px; max-height: 32vh; overflow: auto; }
-#ansfiles label { display: flex; gap: 8px; align-items: baseline; font: 13px ui-monospace, monospace; padding: 2px 0; }
-#ansfiles .kind { font: 12px system-ui, sans-serif; color: var(--muted); }
-#ansfiles pre { margin: 2px 0 8px 26px; max-height: 12em; overflow: auto; background: var(--bg); padding: 6px; border-radius: 4px; font-size: 12px; }
+#ansfiles, #meatplan { margin-top: 8px; max-height: 32vh; overflow: auto; }
+#ansfiles label, #meatplan label { display: flex; gap: 8px; align-items: baseline; font: 13px ui-monospace, monospace; padding: 2px 0; }
+#ansfiles .kind, #meatplan .kind { font: 12px system-ui, sans-serif; color: var(--muted); }
+#ansfiles pre, #meatplan pre { margin: 2px 0 8px 26px; max-height: 12em; overflow: auto; background: var(--bg); padding: 6px; border-radius: 4px; font-size: 12px; }
 #room { display: none; grid-template-columns: 150px 1fr; min-height: 0; }
 #room.on { display: grid; }
 #palette { overflow: auto; border-right: 1px solid var(--line); padding: 6px; display: flex; flex-direction: column; gap: 4px; }
@@ -70,7 +70,7 @@ footer pre { margin: 0; font: 12px/1.45 ui-monospace, monospace; white-space: pr
 .ok { color: var(--ok); } .bad { color: var(--bad); }
 </style></head>
 <body>
-<header><b>GameViber</b><span id="name"></span><span id="status"></span><span style="flex:1"></span><button id="reopenfolder" class="new" style="display:none" title="the folder you worked on last time"></button><button id="openfolder" class="new" style="display:none" title="work on a GameViber project folder on your disk — an agent in your own terminal (Claude Code, Antigravity …) can work on it at the same time">Open folder…</button><button id="reset" style="display:none;background:transparent;color:var(--muted);border:1px solid var(--line)">Reset to the starter game</button><button id="newobj" class="new">+ Object</button><button id="newevt" class="new">+ Event</button><button id="newroom" class="new">+ Room</button><button id="newspr" class="new">+ Sprite</button><button id="newsnd" class="new">+ Sound</button><button id="newmom" class="new" title="a timeline's moment">+ Moment</button><button id="pause" class="new" style="display:none">⏸ Pause</button><button id="step" class="new" style="display:none" disabled>⏭ Step</button><button id="askcopy" class="new" title="the project's context on the clipboard, to paste into any assistant (Claude, ChatGPT …)">Copy for an assistant</button><button id="askpaste" class="new" title="write the files from an assistant's answer into the project">Paste an answer</button><button id="askbtn" class="new" style="display:none" title="one question to a coding agent (Claude Code, OpenCode …) — your own login, no key">Ask</button><button id="termbtn" class="new" style="display:none" title="a coding agent (Claude Code, OpenCode, Aider …) in a terminal, in this project's folder">Terminal</button><button id="play">▶ Play</button></header>
+<header><b>GameViber</b><span id="name"></span><span id="status"></span><span style="flex:1"></span><button id="reopenfolder" class="new" style="display:none" title="the folder you worked on last time"></button><button id="openfolder" class="new" style="display:none" title="work on a GameViber project folder on your disk — an agent in your own terminal (Claude Code, Antigravity …) can work on it at the same time">Open folder…</button><button id="reset" style="display:none;background:transparent;color:var(--muted);border:1px solid var(--line)">Reset to the starter game</button><button id="newobj" class="new">+ Object</button><button id="newevt" class="new">+ Event</button><button id="newroom" class="new">+ Room</button><button id="newspr" class="new">+ Sprite</button><button id="newsnd" class="new">+ Sound</button><button id="newmom" class="new" title="a timeline's moment">+ Moment</button><button id="pause" class="new" style="display:none">⏸ Pause</button><button id="step" class="new" style="display:none" disabled>⏭ Step</button><button id="askcopy" class="new" title="the project's context on the clipboard, to paste into any assistant (Claude, ChatGPT …)">Copy for an assistant</button><button id="askpaste" class="new" title="write the files from an assistant's answer into the project">Paste an answer</button><button id="meatbtn" class="new" title="work with any chat (no key): you copy messages between the chat and the editor, which runs what the chat asks">Chat session</button><button id="askbtn" class="new" style="display:none" title="one question to a coding agent (Claude Code, OpenCode …) — your own login, no key">Ask</button><button id="termbtn" class="new" style="display:none" title="a coding agent (Claude Code, OpenCode, Aider …) in a terminal, in this project's folder">Terminal</button><button id="play">▶ Play</button></header>
 <dialog id="ask"><b>Ask a coding agent</b>
   <p class="hint" style="margin:6px 0">One question, answered in this project's folder by the agent you have installed (your own login — Claude Code Pro / Max, OpenCode …). The open file is mentioned to it.</p>
   <div class="row"><select id="askagent"><option value="claude">Claude Code</option><option value="agy">Antigravity CLI</option><option value="opencode">OpenCode</option><option value="gemini">Gemini CLI</option><option value="codex">Codex CLI</option><option value="aider">Aider</option></select>
@@ -87,6 +87,17 @@ footer pre { margin: 0; font: 12px/1.45 ui-monospace, monospace; white-space: pr
   <div class="row"><button id="ansread">Read the answer</button><span id="ansnote" class="hint"></span></div>
   <div id="ansfiles"></div>
   <div class="row"><button id="answrite" disabled>Write the chosen files</button><button id="ansclose" class="new">Close</button></div>
+</dialog>
+<dialog id="meat"><b>Chat session (copy / paste)</b>
+  <p class="hint" style="margin:6px 0">For any chat, no key: copy the message into the chat, paste its whole reply back and run it — the next message is then ready to copy. Files it writes are shown before they are written.</p>
+  <div class="row"><b>To the chat</b><button id="meatcopy">Copy</button><span id="meatturn" class="hint"></span></div>
+  <textarea id="meatout" readonly spellcheck="false" style="height:9em"></textarea>
+  <div class="row"><b>The chat's reply</b></div>
+  <textarea id="meatin" spellcheck="false" style="height:9em" placeholder="paste the chat's whole reply"></textarea>
+  <div class="row"><button id="meatread">Read the reply</button><span id="meatnote" class="hint"></span></div>
+  <div id="meatplan"></div>
+  <div class="row"><button id="meatrun" disabled>Run it</button><button id="meatrestart" class="new">Start over</button><button id="meatclose" class="new">Close</button></div>
+  <details><summary>The session so far</summary><pre id="meatlog" style="max-height:12em;overflow:auto;white-space:pre-wrap"></pre></details>
 </dialog>
 <div id="term"><div class="row"><b>Terminal</b><select id="termpreset"></select><input id="termcmd" size="28" placeholder="or a command (claude, opencode …)"><button id="termstart">Start</button><button id="termstop" class="new">Stop</button><span id="termnote" class="hint"></span><span style="flex:1"></span><button id="termclose" class="new">Close</button></div><div id="termview"></div></div>
 <nav id="tree"></nav>
@@ -613,6 +624,105 @@ $("answrite").onclick = async () => {
   if (current && ansList.some((f) => f.box.checked && f.path === current)) {
     const link = [...document.querySelectorAll("nav a.on")][0]; if (link) open(current, link, true);
   }
+};
+
+// --- the chat session (LOOP item 5j, Joop's "meat proxy"): any chat, the person carrying the messages ---
+// The chat's replies hold whole files (as Paste an answer reads them) and one ```gameviber block of
+// requests (list / read PATH / check / done); the editor writes the chosen files, runs the requests and
+// puts the results in the next message.
+const meatProtocol = `## How we work: a copy / paste session
+I carry messages between you and the GameViber editor: I paste your reply into the editor, it does what the
+reply asks, and I paste its results back to you. In each reply you can:
+- write files: each file's path on its own line, then its complete new content in a code block;
+- ask the editor for things, in ONE code block marked gameviber, one request a line:
+\`\`\`gameviber
+list
+read objects/player/step.gml
+check
+done
+\`\`\`
+  list = the project's files; read PATH = a file's text; check = gameviber check (errors and hints, also sent
+  after every write); done = the request is finished.
+Files are written first, then the requests run. Only .gml, .toml, .txt and .md files inside the project can be
+written. Take one step a reply and wait for the results; read a file before you change it.`;
+let meatTurn = 0, meatPlan = null;
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); return true; } catch (e) {
+    const ta = Object.assign(document.createElement("textarea"), { value: text }); document.body.append(ta); ta.select();
+    let ok = false; try { ok = document.execCommand("copy"); } catch (e2) {} ta.remove(); return ok;
+  }
+}
+function meatLog(s) { $("meatlog").textContent += s + "\n"; }
+function meatSet(text) { meatTurn++; $("meatout").value = text; $("meatturn").textContent = "message " + meatTurn + " · " + text.length + " characters"; $("meatin").value = ""; $("meatplan").textContent = ""; $("meatrun").disabled = true; meatPlan = null; }
+async function meatStart() {
+  meatTurn = 0; $("meatlog").textContent = "";
+  const ctx = await assistantContext();
+  meatSet(ctx.replace(/\nPlease answer with whole files[^\n]*$/, "") + "\n" + meatProtocol);
+  meatLog("— started " + new Date().toLocaleTimeString());
+}
+// the requests: the ```gameviber blocks' lines; the rest of the reply goes to answerFiles
+function meatParse(text) {
+  const cmds = [];
+  const rest = text.replace(/^\s*(```+|~~~+)\s*gameviber\s*\n([\s\S]*?)^\s*\1\s*$/gm, (m, f, body) => {
+    for (const l of body.split(/\r?\n/)) { const t = l.replace(/#.*$/, "").trim(); if (t) cmds.push(t); }
+    return "";
+  });
+  return { cmds, files: answerFiles(rest) };
+}
+$("meatbtn").onclick = async () => { if (!meatTurn) await meatStart(); $("meat").showModal(); };
+$("meatclose").onclick = () => $("meat").close();
+$("meatrestart").onclick = meatStart;
+$("meatcopy").onclick = async () => { $("meatnote").textContent = (await copyText($("meatout").value)) ? "copied — paste it into the chat" : "could not copy: select the text and copy it"; };
+$("meatread").onclick = async () => {
+  meatPlan = meatParse($("meatin").value);
+  const box = $("meatplan"); box.textContent = "";
+  for (const f of meatPlan.files) {
+    const old = await call("api/file?path=" + encodeURIComponent(f.path));
+    f.kind = !old.ok ? "new" : (await old.text()) === f.text ? "the same" : "changed";
+    f.box = Object.assign(document.createElement("input"), { type: "checkbox", checked: f.kind !== "the same" });
+    const lab = document.createElement("label");
+    lab.append(f.box, "write " + f.path, Object.assign(document.createElement("span"), { className: "kind", textContent: f.kind + " · " + f.text.trimEnd().split("\n").length + " lines" }));
+    const det = document.createElement("details"); det.append(Object.assign(document.createElement("summary"), { textContent: "show" }), Object.assign(document.createElement("pre"), { textContent: f.text }));
+    box.append(lab, det);
+  }
+  for (const c of meatPlan.cmds) box.append(Object.assign(document.createElement("div"), { className: "hint", textContent: "→ " + c }));
+  const n = meatPlan.files.length + meatPlan.cmds.length;
+  $("meatnote").textContent = n ? meatPlan.files.length + " file(s), " + meatPlan.cmds.length + " request(s)" : "nothing found — files need their path on the line before the code block, requests a ```gameviber block";
+  $("meatrun").disabled = !n;
+};
+$("meatrun").onclick = async () => {
+  if (!meatPlan) return;
+  const out = ["## Results of your reply " + meatTurn], done = [];
+  let report = null, wrote = 0;
+  for (const f of meatPlan.files) {
+    if (!f.box.checked) { out.push("- not written (the person chose not to): " + f.path); continue; }
+    const r = await call("api/file?path=" + encodeURIComponent(f.path), { method: "PUT", body: f.text });
+    if (!r.ok) { out.push("- could not write " + f.path + ": " + await r.text()); continue; }
+    report = await r.json(); wrote++; out.push("- wrote " + f.path + " (" + f.kind + ")");
+  }
+  let checked = false;
+  for (const c of meatPlan.cmds) {
+    const [verb, ...args] = c.split(/\s+/), arg = args.join(" ");
+    if (verb === "list") {
+      const fl = await (await call("api/files")).json();
+      out.push("", "### list", ...fl.files.map((f) => "- " + f), ...(fl.sounds || []).map((f) => "- sounds/" + f + " (a sound)"));
+    } else if (verb === "read") {
+      const r = await call("api/file?path=" + encodeURIComponent(arg));
+      out.push("", "### " + arg, ...(r.ok ? ["```", (await r.text()).replace(/\n$/, ""), "```"] : ["(there is no such file — list shows the files)"]));
+    } else if (verb === "check") {
+      const chk = await (await call("api/check")).json(); out.push("", "### check", chk.report); checked = true; report = chk;
+    } else if (verb === "done") {
+      done.push(1);
+    } else out.push("", "### " + c, "(unknown request — list, read PATH, check or done)");
+  }
+  if (wrote && !checked) { const chk = await (await call("api/check")).json(); out.push("", "### check (after the writes)", chk.report); report = chk; }
+  meatLog("← reply " + meatTurn + ": " + wrote + " file(s) written, " + meatPlan.cmds.length + " request(s)" + (done.length ? " — done" : ""));
+  if (wrote) { await load(); if (report) showCheck(report); }
+  if (done.length) out.push("", "(The editor has marked the request done. Thank you — I'll write if there is more.)");
+  meatSet(out.join("\n"));
+  meatLog("→ message " + meatTurn);
+  $("meatnote").textContent = done.length ? "the chat says it is done" : "results ready — copy them into the chat";
+  $("status").textContent = "· chat session: " + wrote + " file(s) written";
 };
 
 // --- the terminal panel (LOOP item 5a): a coding agent in the project folder, on this machine only ---
