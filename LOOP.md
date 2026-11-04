@@ -119,6 +119,11 @@ goal of its own, weighed alongside the LLM-friendly rule.
 6. [ ] **Export** — `gameviber export`: finished builds — a web zip for itch.io / Pages, desktop binaries (Linux,
    Windows, macOS via Go cross-compiling), the game's title and icon; the export options built in.
    The web build as an installable PWA too (manifest, offline service worker, full screen on phones).
+6b. [ ] **Build variants as overlay TOMLs** (Joop 2026-11-04: other project TOML files "would allow things like
+   overlays for e.g. demo builds"): e.g. demo.toml holds only what differs from game.toml (a shorter room_order, a
+   caption, constants the GML can test such as DEMO = 1); `gameviber web / export --variant demo` merges it over
+   game.toml; check / play / the editor take --variant too, game.toml stays the project's one entry point (the
+   editor's folder picking unchanged). With item 6 (export).
 7. [ ] **Sprite drawing tools** — fill, line, rectangle, palette / picked colours, undo; frames added / copied /
    deleted, an animation preview.
 8. [ ] **Rooms** — background images and tiles, views (a camera following an object), instance creation code.
@@ -300,3 +305,4 @@ setting (on by default) rather than per-game code:
 - 2026-11-04 (Joop: a meat proxy mode) — queued as 5j: a copy / paste session with a small tool protocol (read / check / play / write), the human carrying messages between any chat and the editor.
 - 2026-11-04 (item 5i: the editor as an installable app) — editor-web writes manifest.webmanifest (standalone, the editor's colours, 192 / 512 icons generated in Go — orange with a white play triangle, maskable room), sw.js (network first with cache: no-cache, so a deploy always wins; the last copy of each file kept for offline) and links / registers them (https and localhost only); a folder opened is remembered in IndexedDB and offered as 'Reopen NAME' next time (the browser asks for permission again). DECIDED (best effort): no OS file handler — an installed app handed a game.toml cannot reach the folder around it, so it couldn't open the project; the reopen button covers 'open the last one'. Headless Chromium on localhost: the worker controls the page, Page.getInstallabilityErrors empty, offline reload still starts the editor, 'Reopen proj' reopens the folder. NEXT: 5j the meat proxy session, then 5f the localhost bridge.
 - 2026-11-04 (Joop: 'You can do that by picking folder, checking for game.toml. skill issue ;)' — 'You don't need to pick the game.toml at all, just the folder is enough. Because then you have the rights to start checking for it.') — my 'no file handler: an app handed game.toml can't reach its folder' was the wrong framing: picking the folder (Open folder…, which checks for game.toml) is the way and was already there. Added anyway as a convenience: file_handlers for .toml — 'Open with GameViber' shows 'Open the project of this game.toml', which starts the same folder picker in that file's folder (startIn) and checks the folder holds that game.toml (isSameEntry). Manifest and installability: no errors in Chromium (the launch path itself needs an installed app to try).
+- 2026-11-04 (Joop: several project TOMLs → 'overlays for e.g. demo builds') — queued as 6b: overlay TOMLs merged over game.toml for build variants (demo …), with export.
