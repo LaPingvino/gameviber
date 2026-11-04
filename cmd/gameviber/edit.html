@@ -50,7 +50,7 @@ footer pre { margin: 0; font: 12px/1.45 ui-monospace, monospace; white-space: pr
 .ok { color: var(--ok); } .bad { color: var(--bad); }
 </style></head>
 <body>
-<header><b>GameViber</b><span id="name"></span><span id="status"></span><span style="flex:1"></span><button id="reset" style="display:none;background:transparent;color:var(--muted);border:1px solid var(--line)">Reset to the starter game</button><button id="newobj" class="new">+ Object</button><button id="newevt" class="new">+ Event</button><button id="newroom" class="new">+ Room</button><button id="newspr" class="new">+ Sprite</button><button id="newsnd" class="new">+ Sound</button><button id="pause" class="new" style="display:none">⏸ Pause</button><button id="step" class="new" style="display:none" disabled>⏭ Step</button><button id="play">▶ Play</button></header>
+<header><b>GameViber</b><span id="name"></span><span id="status"></span><span style="flex:1"></span><button id="reset" style="display:none;background:transparent;color:var(--muted);border:1px solid var(--line)">Reset to the starter game</button><button id="newobj" class="new">+ Object</button><button id="newevt" class="new">+ Event</button><button id="newroom" class="new">+ Room</button><button id="newspr" class="new">+ Sprite</button><button id="newsnd" class="new">+ Sound</button><button id="newmom" class="new" title="a timeline's moment">+ Moment</button><button id="pause" class="new" style="display:none">⏸ Pause</button><button id="step" class="new" style="display:none" disabled>⏭ Step</button><button id="play">▶ Play</button></header>
 <nav id="tree"></nav>
 <main>
   <div class="bar"><code id="path">pick a file on the left</code><button id="save" disabled>Save (Ctrl+S)</button></div>
@@ -480,6 +480,12 @@ $("newevt").onclick = () => {
   const obj = ask("Which object?", here ? here[1] : ""); if (!obj) return;
   const ev = ask("Which event? (create, step, step-begin, step-end, destroy, draw, alarm-0, keyboard-37, keypress-32, collision-wall, mouse-4, other-0 … — gameviber reference lists them)", "step");
   if (ev) makeNew("event", ev, obj);
+};
+$("newmom").onclick = () => {
+  const here = (current || "").match(/^timelines\/([^/]+)\//);
+  const tl = ask("Which timeline? (a new name makes a new timeline)", here ? here[1] : ""); if (!tl) return;
+  const step = ask("At which step? (0 = the step it starts)", "0");
+  if (step) makeNew("moment", step.trim(), tl);
 };
 
 if (window.gameviberStatic) { // the published page: the project lives in this browser

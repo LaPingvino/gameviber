@@ -300,8 +300,17 @@ func (h editRooms) newThing(w http.ResponseWriter, r *http.Request) {
 		}
 		path = filepath.Join(h.dir, "objects", obj, name+".gml")
 		data = []byte("// " + obj + ": " + name + "\n")
+	case "moment": // a timeline's moment: timelines/<timeline>/moment-<step>.gml (the timeline made with its first)
+		tl := q.Get("object")
+		step, err := strconv.Atoi(name)
+		if !okName(tl, "") || err != nil || step < 0 || strconv.Itoa(step) != name {
+			http.Error(w, "a moment is a timeline's name (a–z, 0–9, _) and a step (0, 1, 2 …)", http.StatusBadRequest)
+			return
+		}
+		path = filepath.Join(h.dir, "timelines", tl, fmt.Sprintf("moment-%d.gml", step))
+		data = []byte(fmt.Sprintf("// %s: step %d (from the timeline's start; set it going with timeline_index / action_set_timeline)\n", tl, step))
 	default:
-		http.Error(w, "kind is object, room or event", http.StatusBadRequest)
+		http.Error(w, "kind is object, room, event or moment", http.StatusBadRequest)
 		return
 	}
 	if _, err := os.Stat(path); err == nil {

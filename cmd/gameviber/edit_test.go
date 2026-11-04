@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/LaPingvino/gameviber/import/gmfile"
 	"image"
 	"image/png"
 	"io"
@@ -367,5 +368,32 @@ func TestCheckRefs(t *testing.T) {
 	if n != 3 || !strings.Contains(out, `rooms/level/room.toml: an instance's object "con" does not exist — did you mean coin?`) ||
 		!strings.Contains(out, `objects/coin/object.toml: sprite "gold"`) || !strings.Contains(out, `game.toml: room_order's room "level2"`) {
 		t.Errorf("%d problems:\n%s", n, out)
+	}
+}
+
+// + Moment: a timeline's moment made (the timeline with it), the project
+// still loads with it; a bad step refused.
+func TestEditNewMoment(t *testing.T) {
+	dir := t.TempDir() + "/game"
+	if err := cmdNew([]string{dir}); err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(editHandler(dir))
+	defer srv.Close()
+	r, err := http.Post(srv.URL+"/api/new?kind=moment&name=30&object=intro", "", nil)
+	if err != nil || r.StatusCode != 200 {
+		t.Fatalf("new moment: %v %d", err, r.StatusCode)
+	}
+	if _, err := os.Stat(dir + "/timelines/intro/moment-30.gml"); err != nil {
+		t.Fatal(err)
+	}
+	p, err := gmfile.ReadDir(dir)
+	if err != nil || len(p.Timelines) != 1 || p.Timelines[0].Name != "intro" || len(p.Timelines[0].Moments) != 1 || p.Timelines[0].Moments[0].Step != 30 {
+		t.Errorf("loaded: %v %+v", err, p.Timelines)
+	}
+	for _, q := range []string{"name=x&object=intro", "name=-1&object=intro", "name=05&object=intro", "name=3&object=../x"} {
+		if r, _ := http.Post(srv.URL+"/api/new?kind=moment&"+q, "", nil); r.StatusCode != http.StatusBadRequest {
+			t.Errorf("%s: %d", q, r.StatusCode)
+		}
 	}
 }
