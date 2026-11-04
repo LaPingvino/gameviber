@@ -113,7 +113,9 @@ footer pre { margin: 0; font: 12px/1.45 ui-monospace, monospace; white-space: pr
   <div class="bar"><code id="path">pick a file on the left</code><button id="save" disabled>Save (Ctrl+S)</button></div>
   <textarea id="text" spellcheck="false" disabled></textarea>
   <iframe id="game" title="the game" style="display:none;width:100%;height:100%;border:0;background:#111"></iframe>
-  <div id="sprite"><div><canvas id="spr"></canvas><div id="frames"></div></div>
+  <div id="sprite"><div><canvas id="spr"></canvas><div id="frames"></div>
+    <div class="row" id="frameops" style="margin-top:6px;gap:4px;flex-wrap:wrap"><button type="button" class="new" id="fradd" title="a blank frame after this one">+ Frame</button><button type="button" class="new" id="frcopy" title="a copy of this frame after it">Copy frame</button><button type="button" class="new" id="frdel">Delete frame</button><button type="button" class="new" id="frleft" title="move this frame left">◀</button><button type="button" class="new" id="frright" title="move this frame right">▶</button></div>
+    <div class="row" style="margin-top:6px;gap:6px;align-items:center"><canvas id="sprprev" style="image-rendering:pixelated;border:1px solid var(--line)"></canvas><span class="hint">preview</span><select id="sprfps"><option value="5">5 / s</option><option value="10" selected>10 / s</option><option value="15">15 / s</option><option value="30">30 / s (a room at 30, image_speed 1)</option></select></div></div>
     <fieldset><legend id="sprname"></legend>
       <label>origin x</label><input type="number" id="ox"><label>origin y</label><input type="number" id="oy">
       <label>box left</label><input type="number" id="bl"><label>box top</label><input type="number" id="bt">
@@ -366,7 +368,11 @@ function sprPixels() { // the strip as a canvas to draw on (made once the pictur
 let sprUndo = [], sprRedo = [], sprStroke = null, sprRecent = [];
 function sprAt(e) { return [Math.floor(e.offsetX / sprK), Math.floor(e.offsetY / sprK)]; }
 function sprIn(x, y) { return x >= 0 && y >= 0 && x < spr.frame_w && y < spr.frame_h; }
-function sprSnap() { const p = sprPixels(); return p.getContext("2d").getImageData(0, 0, p.width, p.height); }
+function sprSnap() { const p = sprPixels(); return { d: p.getContext("2d").getImageData(0, 0, p.width, p.height), frames: spr.frames }; }
+function sprRestore(snap) { // a snapshot back: the strip's size and frame count with it
+  const p = sprPixels(); p.width = snap.d.width; p.height = snap.d.height;
+  p.getContext("2d").putImageData(snap.d, 0, 0); spr.frames = snap.frames; sprFrame = Math.min(sprFrame, spr.frames - 1);
+}
 function sprDot(ctx, x, y, erase) { // one pixel of the shown frame
   if (!sprIn(x, y)) return;
   const px = sprFrame * spr.frame_w + x;
@@ -429,7 +435,7 @@ $("spr").addEventListener("pointerdown", (e) => {
   ctx.fillStyle = $("sprcol").value;
   if (tool !== "erase") sprUseColour($("sprcol").value);
   if (tool === "fill") { sprFill(ctx, x, y); sprPixDirty = true; drawSprite2(); return; }
-  sprStroke = { tool, x0: x, y0: y, last: [x, y], base: sprUndo[sprUndo.length - 1] };
+  sprStroke = { tool, x0: x, y0: y, last: [x, y], base: sprUndo[sprUndo.length - 1].d };
   if (tool === "pen" || tool === "erase") sprDot(ctx, x, y, tool === "erase");
   else sprShape(ctx, x, y);
   sprPixDirty = true; drawSprite2();
@@ -454,9 +460,43 @@ function sprHistory(from, to) {
   const pix = sprPixels();
   if (!pix || !from.length) return;
   to.push(sprSnap());
-  pix.getContext("2d").putImageData(from.pop(), 0, 0);
-  sprPixDirty = true; drawSprite2();
+  sprRestore(from.pop());
+  sprPixDirty = true; sprInfo(); drawSprite2();
 }
+// frames (LOOP item 7): the strip rebuilt with a frame added, copied, deleted or moved — undoable
+function sprInfo() { $("sprname").textContent = spr.name + " — " + spr.frames + " frame(s), " + spr.frame_w + "×" + spr.frame_h; }
+function sprFrames(order) { // order: for each new frame, the old frame index it copies (-1: blank)
+  const p = sprPixels(); if (!p) return;
+  sprUndo.push(sprSnap()); sprRedo = [];
+  const w = spr.frame_w, h = spr.frame_h, old = document.createElement("canvas");
+  old.width = p.width; old.height = p.height; old.getContext("2d").drawImage(p, 0, 0);
+  p.width = w * order.length; p.height = h;
+  const ctx = p.getContext("2d"); ctx.clearRect(0, 0, p.width, p.height);
+  order.forEach((src, i) => { if (src >= 0) ctx.drawImage(old, src * w, 0, w, h, i * w, 0, w, h); });
+  spr.frames = order.length; sprPixDirty = true; sprInfo(); drawSprite2();
+}
+const sprIdx = () => [...Array(spr.frames).keys()];
+$("fradd").onclick = () => { const o = sprIdx(); o.splice(sprFrame + 1, 0, -1); sprFrames(o); sprFrame++; drawSprite2(); };
+$("frcopy").onclick = () => { const o = sprIdx(); o.splice(sprFrame + 1, 0, sprFrame); sprFrames(o); sprFrame++; drawSprite2(); };
+$("frdel").onclick = () => { if (spr.frames <= 1) return; const o = sprIdx(); o.splice(sprFrame, 1); sprFrame = Math.min(sprFrame, o.length - 1); sprFrames(o); };
+$("frleft").onclick = () => { if (sprFrame === 0) return; const o = sprIdx(); [o[sprFrame - 1], o[sprFrame]] = [o[sprFrame], o[sprFrame - 1]]; sprFrame--; sprFrames(o); };
+$("frright").onclick = () => { if (sprFrame >= spr.frames - 1) return; const o = sprIdx(); [o[sprFrame + 1], o[sprFrame]] = [o[sprFrame], o[sprFrame + 1]]; sprFrame++; sprFrames(o); };
+// the animation preview: the frames in turn at the chosen speed
+let sprPrevI = 0, sprPrevT = 0;
+function sprPreview(now) {
+  requestAnimationFrame(sprPreview);
+  if (!spr || !$("sprite").classList.contains("on")) return;
+  const fps = Number($("sprfps").value) || 10;
+  if (now - sprPrevT < 1000 / fps) return;
+  sprPrevT = now;
+  const img = sprPixels() || strip(spr.name), w = spr.frame_w, h = spr.frame_h, c = $("sprprev");
+  const k = Math.max(1, Math.floor(64 / Math.max(w, h)));
+  if (c.width !== w * k || c.height !== h * k) { c.width = w * k; c.height = h * k; }
+  const ctx = c.getContext("2d"); ctx.imageSmoothingEnabled = false; ctx.clearRect(0, 0, c.width, c.height);
+  sprPrevI = (sprPrevI + 1) % Math.max(1, spr.frames);
+  if (img instanceof HTMLCanvasElement || (img.complete && img.naturalWidth)) ctx.drawImage(img, sprPrevI * w, 0, w, h, 0, 0, w * k, h * k);
+}
+requestAnimationFrame(sprPreview);
 $("sprundo").onclick = () => sprHistory(sprUndo, sprRedo);
 $("sprredo").onclick = () => sprHistory(sprRedo, sprUndo);
 document.addEventListener("keydown", (e) => {
