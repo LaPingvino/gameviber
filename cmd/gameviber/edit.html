@@ -6,7 +6,8 @@
 @media (prefers-color-scheme: dark) { :root { --bg: #1b1713; --panel: #241f1a; --ink: #efe6d8; --muted: #a8977f; --line: #3a3229; --accent: #f08a4b; --ok: #7fc28a; --bad: #f2867d; } }
 * { box-sizing: border-box; }
 body { margin: 0; height: 100vh; display: grid; grid-template-columns: 260px 1fr; grid-template-rows: auto 1fr auto; background: var(--bg); color: var(--ink); font: 14px system-ui, sans-serif; }
-header { grid-column: 1 / 3; display: flex; gap: 12px; align-items: center; padding: 8px 14px; border-bottom: 1px solid var(--line); }
+header { grid-column: 1 / 3; display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; padding: 8px 14px; border-bottom: 1px solid var(--line); }
+header button { white-space: nowrap; }
 header b { font-size: 15px; } header span { color: var(--muted); }
 nav { overflow: auto; border-right: 1px solid var(--line); padding: 8px 0; background: var(--panel); }
 nav details { padding: 0 8px; } nav summary { cursor: pointer; padding: 3px 4px; font-weight: 600; }
@@ -18,6 +19,14 @@ main { display: grid; grid-template-rows: auto 1fr; min-width: 0; }
 button { font: inherit; padding: 5px 14px; border: 0; border-radius: 4px; background: var(--accent); color: #fff; cursor: pointer; }
 button:disabled { opacity: .45; cursor: default; }
 button.new { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+#answer { width: min(760px, 94vw); max-height: 88vh; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--ink); padding: 14px; }
+#answer::backdrop { background: rgba(0,0,0,.35); }
+#answer textarea { width: 100%; height: 34vh; font: 13px ui-monospace, monospace; background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 4px; padding: 6px; }
+#answer .row { display: flex; gap: 8px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
+#ansfiles { margin-top: 8px; max-height: 32vh; overflow: auto; }
+#ansfiles label { display: flex; gap: 8px; align-items: baseline; font: 13px ui-monospace, monospace; padding: 2px 0; }
+#ansfiles .kind { font: 12px system-ui, sans-serif; color: var(--muted); }
+#ansfiles pre { margin: 2px 0 8px 26px; max-height: 12em; overflow: auto; background: var(--bg); padding: 6px; border-radius: 4px; font-size: 12px; }
 #room { display: none; grid-template-columns: 150px 1fr; min-height: 0; }
 #room.on { display: grid; }
 #palette { overflow: auto; border-right: 1px solid var(--line); padding: 6px; display: flex; flex-direction: column; gap: 4px; }
@@ -50,7 +59,14 @@ footer pre { margin: 0; font: 12px/1.45 ui-monospace, monospace; white-space: pr
 .ok { color: var(--ok); } .bad { color: var(--bad); }
 </style></head>
 <body>
-<header><b>GameViber</b><span id="name"></span><span id="status"></span><span style="flex:1"></span><button id="reset" style="display:none;background:transparent;color:var(--muted);border:1px solid var(--line)">Reset to the starter game</button><button id="newobj" class="new">+ Object</button><button id="newevt" class="new">+ Event</button><button id="newroom" class="new">+ Room</button><button id="newspr" class="new">+ Sprite</button><button id="newsnd" class="new">+ Sound</button><button id="newmom" class="new" title="a timeline's moment">+ Moment</button><button id="pause" class="new" style="display:none">⏸ Pause</button><button id="step" class="new" style="display:none" disabled>⏭ Step</button><button id="askcopy" class="new" title="the project's context on the clipboard, to paste into any assistant (Claude, ChatGPT …)">Copy for an assistant</button><button id="play">▶ Play</button></header>
+<header><b>GameViber</b><span id="name"></span><span id="status"></span><span style="flex:1"></span><button id="reset" style="display:none;background:transparent;color:var(--muted);border:1px solid var(--line)">Reset to the starter game</button><button id="newobj" class="new">+ Object</button><button id="newevt" class="new">+ Event</button><button id="newroom" class="new">+ Room</button><button id="newspr" class="new">+ Sprite</button><button id="newsnd" class="new">+ Sound</button><button id="newmom" class="new" title="a timeline's moment">+ Moment</button><button id="pause" class="new" style="display:none">⏸ Pause</button><button id="step" class="new" style="display:none" disabled>⏭ Step</button><button id="askcopy" class="new" title="the project's context on the clipboard, to paste into any assistant (Claude, ChatGPT …)">Copy for an assistant</button><button id="askpaste" class="new" title="write the files from an assistant's answer into the project">Paste an answer</button><button id="play">▶ Play</button></header>
+<dialog id="answer"><b>An assistant's answer</b>
+  <p class="hint" style="margin:6px 0">Paste the whole answer: each file as its path on a line, then the file in a code block. You choose which files to write.</p>
+  <textarea id="anstext" spellcheck="false" placeholder="objects/player/step.gml&#10;```&#10;…&#10;```"></textarea>
+  <div class="row"><button id="ansread">Read the answer</button><span id="ansnote" class="hint"></span></div>
+  <div id="ansfiles"></div>
+  <div class="row"><button id="answrite" disabled>Write the chosen files</button><button id="ansclose" class="new">Close</button></div>
+</dialog>
 <nav id="tree"></nav>
 <main>
   <div class="bar"><code id="path">pick a file on the left</code><button id="save" disabled>Save (Ctrl+S)</button></div>
@@ -513,6 +529,67 @@ $("askcopy").onclick = async () => {
     try { ok = document.execCommand("copy"); } catch (e2) {} ta.remove();
   }
   $("status").textContent = ok ? "· copied for an assistant (" + text.length + " characters) — paste it into a chat" : "· could not copy";
+};
+
+// Paste an answer (the assistant's step 1): the files in an answer — a path on its own line (or the path in
+// the code fence's line) followed by a fenced block — listed against the project (new / changed / the
+// same), and the chosen ones written (PUT api/file: only .gml / .toml / .txt / .md inside the project).
+const pathRe = /^[A-Za-z0-9_][A-Za-z0-9_.\/-]*\.(gml|toml|txt|md)$/;
+function cleanPath(l) {
+  const p = l.trim().replace(/^(#+|\*+|-|file:|path:)\s*/i, "").replace(/[`*:]+$/g, "").replace(/^[`*]+/, "").trim();
+  return pathRe.test(p) && !p.split("/").includes("..") ? p : null;
+}
+function answerFiles(text) {
+  const lines = text.split(/\r?\n/), out = [];
+  let last = null;
+  for (let i = 0; i < lines.length; i++) {
+    const fence = lines[i].match(/^\s*(```+|~~~+)(.*)$/);
+    if (!fence) { if (lines[i].trim()) last = cleanPath(lines[i]); continue; }
+    const info = fence[2].trim().split(/\s+/).map((w) => cleanPath(w.replace(/^(title|file)=/, "").replace(/"/g, ""))).filter(Boolean);
+    const path = info[0] || last, body = [];
+    let j = i + 1;
+    while (j < lines.length && !lines[j].trim().startsWith(fence[1])) body.push(lines[j++]);
+    if (path) out.push({ path, text: body.join("\n") + "\n" });
+    i = j; last = null;
+  }
+  const seen = new Map(); for (const f of out) seen.set(f.path, f); // a file given twice: the last wins
+  return [...seen.values()];
+}
+let ansList = [];
+$("askpaste").onclick = () => { $("ansfiles").textContent = ""; $("ansnote").textContent = ""; $("answrite").disabled = true; $("answer").showModal(); };
+$("ansclose").onclick = () => $("answer").close();
+$("ansread").onclick = async () => {
+  ansList = answerFiles($("anstext").value);
+  const box = $("ansfiles"); box.textContent = "";
+  for (const f of ansList) {
+    const old = await call("api/file?path=" + encodeURIComponent(f.path));
+    f.kind = !old.ok ? "new" : (await old.text()) === f.text ? "the same" : "changed";
+    const cb = Object.assign(document.createElement("input"), { type: "checkbox", checked: f.kind !== "the same" });
+    f.box = cb;
+    const lab = document.createElement("label");
+    lab.append(cb, f.path, Object.assign(document.createElement("span"), { className: "kind", textContent: f.kind + " · " + f.text.trimEnd().split("\n").length + " lines" }));
+    const pre = Object.assign(document.createElement("pre"), { textContent: f.text });
+    const det = document.createElement("details"); det.append(Object.assign(document.createElement("summary"), { textContent: "show" }), pre);
+    box.append(lab, det);
+  }
+  $("ansnote").textContent = ansList.length ? ansList.length + " file(s) found" : "no files found — each needs its path on the line before its code block";
+  $("answrite").disabled = !ansList.length;
+};
+$("answrite").onclick = async () => {
+  let report = null, written = 0;
+  for (const f of ansList) {
+    if (!f.box.checked) continue;
+    const r = await call("api/file?path=" + encodeURIComponent(f.path), { method: "PUT", body: f.text });
+    if (!r.ok) { $("ansnote").textContent = f.path + ": " + await r.text(); return; }
+    report = await r.json(); written++;
+  }
+  $("answer").close();
+  await load();
+  if (report) showCheck(report);
+  $("status").textContent = "· " + written + " file(s) written from the answer";
+  if (current && ansList.some((f) => f.box.checked && f.path === current)) {
+    const link = [...document.querySelectorAll("nav a.on")][0]; if (link) open(current, link, true);
+  }
 };
 
 if (window.gameviberStatic) { // the published page: the project lives in this browser

@@ -65,7 +65,7 @@ clipboard: its AGENTS.md, the file list, the open file, the `gameviber check` re
 and the request to answer with whole files. Paste it into any chat (Claude, ChatGPT, a local model).
 
 **Next steps, each when wanted:**
-1. "Paste an answer": the reply's files (a path line, then a code block) written into the project, each shown
+1. (BUILT 2026-11-04) "Paste an answer": the reply's files (a path line, then a code block) written into the project, each shown
    before it is saved, `check` run after.
 2. With `gameviber edit` on this machine: an assistant panel calling a model with a key from the environment
    (`ANTHROPIC_API_KEY` …), the same context, the answer applied as in step 1. Never on Pages.
