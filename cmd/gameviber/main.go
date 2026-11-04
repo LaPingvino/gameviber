@@ -57,6 +57,8 @@ func cliMain() {
 		err = cmdReference(os.Args[2:])
 	case "mcp":
 		err = cmdMCP(os.Args[2:])
+	case "setup-agents":
+		err = cmdSetupAgents(os.Args[2:])
 	case "help", "-h", "--help":
 		usage()
 	default:
@@ -75,8 +77,10 @@ func usage() {
   gameviber edit DIR                the editor, in your browser (served on this machine only)
   gameviber new DIR                 a small starter game to build on (collect the coins)
   gameviber import GAME.exe DIR     turn a GameMaker 5.3 game into a GameViber project in DIR
-  gameviber mcp DIR                 the project's check / play / reference as an MCP server (stdin / stdout),
-                                    for assistants such as Claude Code: claude mcp add gameviber -- gameviber mcp DIR
+  gameviber mcp [DIR]               the project's check / play / reference as an MCP server (stdin / stdout;
+                                    DIR: default the current folder) for coding agents
+  gameviber setup-agents [AGENT …]  give your installed agents (agy, claude, gemini, opencode) these tools
+                                    user-wide, in every GameViber project they start in
   gameviber check DIR               check a project: every .gml parses, every function called exists
                                     (file:line:col: message; exit 1 when there is anything)
   gameviber run [-room R] GAME      play it in a window (arrow keys, space, enter; M sound, F11 full screen)

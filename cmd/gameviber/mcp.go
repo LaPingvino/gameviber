@@ -18,10 +18,14 @@ import (
 // (Claude Code, other MCP clients): check, play (its state, and the frame
 // as an image when asked), reference. JSON-RPC 2.0, one message per line.
 func cmdMCP(args []string) error {
-	if len(args) != 1 {
-		return fmt.Errorf("usage: gameviber mcp DIR   (an MCP server on stdin / stdout for the project in DIR)")
+	if len(args) > 1 {
+		return fmt.Errorf("usage: gameviber mcp [DIR]   (an MCP server on stdin / stdout for the project in DIR; default: the current folder — the one the agent was started in)")
 	}
-	dir, err := filepath.Abs(args[0])
+	where := "."
+	if len(args) == 1 {
+		where = args[0]
+	}
+	dir, err := filepath.Abs(where)
 	if err != nil {
 		return err
 	}
@@ -124,6 +128,11 @@ func serveMCP(dir string, in io.Reader, out io.Writer) error {
 // whether the tool exists.
 func mcpCall(dir, name string, args json.RawMessage) ([]map[string]any, bool, bool) {
 	text := func(s string) []map[string]any { return []map[string]any{{"type": "text", "text": s}} }
+	if name == "check" || name == "play" { // set up user-wide, the server starts in any folder
+		if _, err := os.Stat(filepath.Join(dir, "game.toml")); err != nil {
+			return text(dir + " is not a GameViber project (no game.toml) — start the agent in a project folder, or make one with `gameviber new`"), true, true
+		}
+	}
 	switch name {
 	case "check":
 		var b strings.Builder

@@ -630,3 +630,25 @@ func TestEditAsk(t *testing.T) {
 		t.Error("unknown agent")
 	}
 }
+
+// setup-agents' OpenCode part keeps the user's config and adds gameviber
+// (`gameviber mcp`, the current folder); the MCP server outside a project
+// says so instead of failing.
+func TestSetupOpenCodeUser(t *testing.T) {
+	cfg := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", cfg)
+	os.MkdirAll(cfg+"/opencode", 0o755)
+	os.WriteFile(cfg+"/opencode/opencode.json", []byte(`{"theme":"x","mcp":{"other":{"type":"local","command":["y"]}}}`), 0o644)
+	if _, err := setupOpenCodeUser("/bin/gameviber"); err != nil {
+		t.Fatal(err)
+	}
+	data, _ := os.ReadFile(cfg + "/opencode/opencode.json")
+	s := string(data)
+	if !strings.Contains(s, `"theme": "x"`) || !strings.Contains(s, `"other"`) || !strings.Contains(s, `"/bin/gameviber",`) || !strings.Contains(s, `"mcp"`) {
+		t.Errorf("config: %s", s)
+	}
+	content, isErr, _ := mcpCall(t.TempDir(), "check", nil)
+	if !isErr || !strings.Contains(content[0]["text"].(string), "not a GameViber project") {
+		t.Errorf("outside a project: %v", content)
+	}
+}

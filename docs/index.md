@@ -49,7 +49,8 @@ explains its problems with the file and line.
   changed, the ones you tick written, then checked.
 - For assistants that work on the files themselves (Claude Code and other MCP clients): `gameviber mcp DIR` serves
   the project's `check`, `play` (with a screenshot when asked) and `reference` as MCP tools — in Claude Code:
-  `claude mcp add gameviber -- gameviber mcp DIR`.
+  `claude mcp add gameviber -- gameviber mcp DIR`. Or once for every agent you have installed (Claude Code,
+  Antigravity, Gemini CLI, OpenCode): `gameviber setup-agents` — then they have the tools in any GameViber project.
 
 ## Playing: the window and the browser
 
