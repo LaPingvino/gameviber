@@ -88,6 +88,7 @@ func usage() {
                                     (file:line:col: message; exit 1 when there is anything)
   gameviber run [-room R] GAME      play it in a window (arrow keys, space, enter; M sound, F11 full screen)
   gameviber web DIR OUT             a web page that plays the project DIR (OUT: index.html, game.wasm, project.tar)
+  gameviber web|export -variant NAME …   with NAME.toml merged over game.toml (a demo build …)
   gameviber export DIR OUT          the finished web build, installable as an app (OUT: a folder, or name.zip for itch.io)
                                     (PARTIAL: run it inside the GameViber source; it builds the wasm with go)
   gameviber play [flags] GAME       run a game headless (GAME: a GameMaker 5.3 .exe or a project folder)
@@ -352,10 +353,11 @@ WebAssembly.instantiateStreaming(fetch("game.wasm?v=%s"), go.importObject)
 `
 
 func cmdWeb(args []string) error {
+	variant, args := takeVariant(args)
 	if len(args) != 2 {
-		return fmt.Errorf("usage: gameviber web DIR OUT")
+		return fmt.Errorf("usage: gameviber web [-variant NAME] DIR OUT")
 	}
-	name, err := webBuild(args[0], args[1])
+	name, err := webBuild(args[0], args[1], variant)
 	if err != nil {
 		return err
 	}
@@ -364,8 +366,8 @@ func cmdWeb(args []string) error {
 }
 
 // webBuild writes the web page that plays the project dir into out; the game's name.
-func webBuild(dir, out string) (string, error) {
-	p, err := gmfile.ReadDir(dir) // it must read before it's shipped
+func webBuild(dir, out, variant string) (string, error) {
+	p, err := gmfile.ReadDirVariant(dir, variant) // it must read before it's shipped
 	if err != nil {
 		return "", err
 	}
@@ -377,7 +379,7 @@ func webBuild(dir, out string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	err = packProject(dir, f)
+	err = packProjectVariant(dir, variant, f)
 	f.Close()
 	if err != nil {
 		return "", err
@@ -410,9 +412,25 @@ func fileHash(path string) string {
 
 // packProject writes the project folder as a tar (what the browser player
 // opens).
-func packProject(dir string, w io.Writer) error {
+func packProject(dir string, w io.Writer) error { return packProjectVariant(dir, "", w) }
+
+// takeVariant takes a leading "-variant NAME" off args (LOOP item 6b).
+func takeVariant(args []string) (string, []string) {
+	if len(args) >= 2 && (args[0] == "-variant" || args[0] == "--variant") {
+		return args[1], args[2:]
+	}
+	return "", args
+}
+
+// packProjectVariant is packProject with game.toml replaced by the variant's
+// merge (gmfile.VariantGameTOML); "" packs the project as it is.
+func packProjectVariant(dir, variant string, w io.Writer) error {
+	game, err := gmfile.VariantGameTOML(dir, variant)
+	if err != nil {
+		return err
+	}
 	tw := tar.NewWriter(w)
-	err := filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
+	err = filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -429,6 +447,9 @@ func packProject(dir string, w io.Writer) error {
 		data, err := os.ReadFile(path)
 		if err != nil {
 			return err
+		}
+		if rel == "game.toml" {
+			data = game // the variant's merge (or game.toml itself)
 		}
 		if err := tw.WriteHeader(&tar.Header{Name: filepath.ToSlash(rel), Mode: 0o644, Size: int64(len(data))}); err != nil {
 			return err

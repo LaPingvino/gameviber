@@ -1,8 +1,10 @@
 package main
 
 import (
+	"archive/tar"
 	"bytes"
 	"image/png"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -124,5 +126,32 @@ func TestExportOtherSystem(t *testing.T) {
 	}
 	if err := cmdExport([]string{"-desktop", "-os", "plan9/mips", dir, out}); err == nil {
 		t.Error("an unknown system was accepted")
+	}
+}
+
+// TestPackVariant: the packed project's game.toml is the variant's merge.
+func TestPackVariant(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "g")
+	if err := cmdNew([]string{dir}); err != nil {
+		t.Fatal(err)
+	}
+	os.WriteFile(filepath.Join(dir, "demo.toml"), []byte("name = \"Demo\"\n[constants]\n  DEMO = \"1\"\n"), 0o644)
+	var b bytes.Buffer
+	if err := packProjectVariant(dir, "demo", &b); err != nil {
+		t.Fatal(err)
+	}
+	tr := tar.NewReader(&b)
+	for {
+		h, err := tr.Next()
+		if err != nil {
+			t.Fatal("no game.toml in the pack")
+		}
+		if h.Name == "game.toml" {
+			data, _ := io.ReadAll(tr)
+			if !strings.Contains(string(data), `name = "Demo"`) || !strings.Contains(string(data), `DEMO = "1"`) || !strings.Contains(string(data), "room_order") {
+				t.Errorf("packed game.toml:\n%s", data)
+			}
+			return
+		}
 	}
 }

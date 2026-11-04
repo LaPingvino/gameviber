@@ -26,20 +26,21 @@ import (
 // worker) — as a folder, or as a zip with index.html at its root (itch.io's
 // HTML5 upload, or any static host) when OUT ends in .zip.
 func cmdExport(args []string) error {
+	variant, args := takeVariant(args)
 	if len(args) >= 3 && args[0] == "-desktop" {
 		target := runtime.GOOS + "/" + runtime.GOARCH
 		if len(args) == 5 && args[1] == "-os" {
 			target, args = args[2], append([]string{args[0]}, args[3:]...)
 		}
 		if len(args) == 3 {
-			return exportDesktop(args[1], args[2], target)
+			return exportDesktop(args[1], args[2], target, variant)
 		}
 	}
 	if len(args) != 2 {
-		return fmt.Errorf("usage: gameviber export DIR OUT   (OUT: a folder, or name.zip for itch.io)\n       gameviber export -desktop DIR OUT   (OUT: a folder; the game as a program for this system)\n       gameviber export -desktop -os OS/ARCH DIR OUT   (another system: linux, windows, darwin / amd64, arm64)")
+		return fmt.Errorf("usage: gameviber export DIR OUT   (OUT: a folder, or name.zip for itch.io; -variant NAME first: NAME.toml merged over game.toml)\n       gameviber export -desktop DIR OUT   (OUT: a folder; the game as a program for this system)\n       gameviber export -desktop -os OS/ARCH DIR OUT   (another system: linux, windows, darwin / amd64, arm64)")
 	}
 	dir, out := args[0], args[1]
-	p, err := gmfile.ReadDir(dir)
+	p, err := gmfile.ReadDirVariant(dir, variant)
 	if err != nil {
 		return err
 	}
@@ -55,7 +56,7 @@ func cmdExport(args []string) error {
 		}
 		defer os.RemoveAll(build)
 	}
-	if _, err := webBuild(dir, build); err != nil {
+	if _, err := webBuild(dir, build, variant); err != nil {
 		return err
 	}
 	if err := writePWAFiles(build, pwaManifest(name, shortName(name), name+" — made with GameViber", "fullscreen", "#111111", "#111111"),
@@ -198,8 +199,8 @@ func iconFrom(frame image.Image, n int) *image.RGBA {
 // for this system — the window player (gameviber-run) with the project packed
 // onto its end; started with no arguments it plays that project. Nothing else
 // is needed on the players' machines.
-func exportDesktop(dir, out, target string) error {
-	p, err := gmfile.ReadDir(dir)
+func exportDesktop(dir, out, target, variant string) error {
+	p, err := gmfile.ReadDirVariant(dir, variant)
 	if err != nil {
 		return err
 	}
@@ -224,7 +225,7 @@ func exportDesktop(dir, out, target string) error {
 		return err
 	}
 	var tarBuf bytes.Buffer
-	if err := packProject(dir, &tarBuf); err != nil {
+	if err := packProjectVariant(dir, variant, &tarBuf); err != nil {
 		return err
 	}
 	if err := os.MkdirAll(out, 0o755); err != nil {
