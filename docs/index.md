@@ -8,7 +8,7 @@ A GameMaker-style engine and toolset in Go: it runs GML, opens old GameMaker gam
 for the desktop and the browser (WebAssembly), and is made to be driven by people and LLM agents alike.
 MIT licensed · [source on GitHub](https://github.com/LaPingvino/gameviber)
 
-**Status (2026-11-03):** both sample games import from their 2006 executables and play — in a window, in the browser and headless — step for step identical to their hand ports. Every GameMaker 5 event type but path end runs; sound and music play; resources go by GameMaker's numeric ids. Still to come: text drawing, paths, precise collisions, an editor.
+**Status (2026-11-03):** both sample games import from their 2006 executables and play — in a window, in the browser and headless — step for step identical to their hand ports. Every GameMaker 5 event type but path end runs; sound and music play; resources go by GameMaker's numeric ids. Text is drawn (sharp at the screen's resolution in the window and the browser), collisions can be precise, and there is an editor (below). Still to come: paths.
 
 | Step | What | Status |
 |---|---|---|
@@ -39,10 +39,22 @@ remove — sprites with their origin and bounding box, new objects, events and r
 saved — with ⏸ pause and ⏭ one step at a time. Your changes stay
 in this browser (Reset brings back the starter game). Objects open as a form (sprite, solid, depth, parent …); sounds can be listened to and added (+ Sound); sprites can be drawn on (pencil, eraser).
 
+## With an assistant
+
+GameViber is made to be worked on together with an AI assistant: everything is plain text, and `gameviber check`
+explains its problems with the file and line.
+
+- In the editor: **Copy for an assistant** puts the project's context (its AGENTS.md, the files, the open file,
+  the check) on the clipboard for any chat; **Paste an answer** takes the reply back — its files listed as new or
+  changed, the ones you tick written, then checked.
+- For assistants that work on the files themselves (Claude Code and other MCP clients): `gameviber mcp DIR` serves
+  the project's `check`, `play` (with a screenshot when asked) and `reference` as MCP tools — in Claude Code:
+  `claude mcp add gameviber -- gameviber mcp DIR`.
+
 ## Playing: the window and the browser
 
 `gameviber run GAME` opens a window; `gameviber web DIR OUT` builds a page. Both scale sharply (whole steps, never
-blurred), take the keyboard, the mouse and touch (a finger held towards where to go), play WAV effects and Opus
+blurred), take the keyboard, the mouse and touch (arrow pads beside or under the game once the screen is touched), play WAV effects and Opus
 music, show the game's caption as the title, and have a sound button (M) and full screen (F11, Alt+Enter) in the
 margin beside the game. In the browser `get_string` and `show_message` use the page's dialogs (a phone shows its
 keyboard), and a new build is never served stale.

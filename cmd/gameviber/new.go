@@ -90,7 +90,8 @@ game.toml lists the room order. GML is GameMaker 5's language.
 The loop: edit → ` + "`gameviber check .`" + ` (syntax, unknown functions, with file:line) →
 ` + "`gameviber play -keys \"right:40,down:30\" -json .`" + ` (headless: score, lives, instances, errors) or
 ` + "`-shot frame.png`" + ` to look → ` + "`gameviber run .`" + ` to play it. What GML and functions GameViber understands: ` + "`gameviber reference`" + `
-(or docs/reference.md in GameViber's repository).
+(or docs/reference.md in GameViber's repository). The same check / play / reference as MCP tools:
+` + "`gameviber mcp .`" + ` (Claude Code: ` + "`claude mcp add gameviber -- gameviber mcp .`" + `).
 `
 
 func writeFile(path string, data []byte) error {
