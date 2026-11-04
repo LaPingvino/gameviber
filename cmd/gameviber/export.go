@@ -4,12 +4,14 @@ import (
 	"archive/zip"
 	"bytes"
 	"encoding/binary"
+	"encoding/xml"
 	"fmt"
 	"image"
 	"image/color"
 	"image/draw"
 	"image/png"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -24,11 +26,17 @@ import (
 // worker) — as a folder, or as a zip with index.html at its root (itch.io's
 // HTML5 upload, or any static host) when OUT ends in .zip.
 func cmdExport(args []string) error {
-	if len(args) == 3 && args[0] == "-desktop" {
-		return exportDesktop(args[1], args[2])
+	if len(args) >= 3 && args[0] == "-desktop" {
+		target := runtime.GOOS + "/" + runtime.GOARCH
+		if len(args) == 5 && args[1] == "-os" {
+			target, args = args[2], append([]string{args[0]}, args[3:]...)
+		}
+		if len(args) == 3 {
+			return exportDesktop(args[1], args[2], target)
+		}
 	}
 	if len(args) != 2 {
-		return fmt.Errorf("usage: gameviber export DIR OUT   (OUT: a folder, or name.zip for itch.io)\n       gameviber export -desktop DIR OUT   (OUT: a folder; the game as a program for this system)")
+		return fmt.Errorf("usage: gameviber export DIR OUT   (OUT: a folder, or name.zip for itch.io)\n       gameviber export -desktop DIR OUT   (OUT: a folder; the game as a program for this system)\n       gameviber export -desktop -os OS/ARCH DIR OUT   (another system: linux, windows, darwin / amd64, arm64)")
 	}
 	dir, out := args[0], args[1]
 	p, err := gmfile.ReadDir(dir)
@@ -190,7 +198,7 @@ func iconFrom(frame image.Image, n int) *image.RGBA {
 // for this system — the window player (gameviber-run) with the project packed
 // onto its end; started with no arguments it plays that project. Nothing else
 // is needed on the players' machines.
-func exportDesktop(dir, out string) error {
+func exportDesktop(dir, out, target string) error {
 	p, err := gmfile.ReadDir(dir)
 	if err != nil {
 		return err
@@ -199,12 +207,20 @@ func exportDesktop(dir, out string) error {
 	if name == "" {
 		name = filepath.Base(filepath.Clean(dir))
 	}
-	player, err := runnerPath()
-	if err != nil {
-		return err
+	goos, goarch, ok := strings.Cut(target, "/")
+	if !ok || !map[string]bool{"linux": true, "windows": true, "darwin": true}[goos] || !map[string]bool{"amd64": true, "arm64": true}[goarch] {
+		return fmt.Errorf("-os %s: linux, windows or darwin / amd64 or arm64", target)
 	}
-	exe, err := os.ReadFile(player)
-	if err != nil {
+	var exe []byte
+	if goos == runtime.GOOS && goarch == runtime.GOARCH {
+		player, err := runnerPath()
+		if err != nil {
+			return err
+		}
+		if exe, err = os.ReadFile(player); err != nil {
+			return err
+		}
+	} else if exe, err = releasePlayer(goos, goarch); err != nil {
 		return err
 	}
 	var tarBuf bytes.Buffer
@@ -215,16 +231,90 @@ func exportDesktop(dir, out string) error {
 		return err
 	}
 	file := cacheKey(name)
-	if runtime.GOOS == "windows" {
+	if goos == "windows" {
 		file += ".exe"
 	}
 	var size [8]byte
 	binary.LittleEndian.PutUint64(size[:], uint64(tarBuf.Len()))
 	data := append(append(append(exe, tarBuf.Bytes()...), size[:]...), "GVPROJ01"...)
 	path := filepath.Join(out, file)
+	if goos == "darwin" { // a macOS application is a folder: Name.app/Contents/{Info.plist, MacOS/name}
+		app := filepath.Join(out, name+".app", "Contents")
+		if err := os.MkdirAll(filepath.Join(app, "MacOS"), 0o755); err != nil {
+			return err
+		}
+		if err := os.WriteFile(filepath.Join(app, "Info.plist"), []byte(fmt.Sprintf(infoPlist, xmlText(name), file, "org.gameviber."+file)), 0o644); err != nil {
+			return err
+		}
+		path = filepath.Join(app, "MacOS", file)
+	}
 	if err := os.WriteFile(path, data, 0o755); err != nil {
 		return err
 	}
-	fmt.Printf("exported %s to %s (%s/%s; other systems: not yet)\n", name, path, runtime.GOOS, runtime.GOARCH)
+	note := ""
+	if goos == "darwin" {
+		note = " — unsigned: macOS asks once (right-click → Open)"
+	}
+	fmt.Printf("exported %s to %s (%s/%s)%s\n", name, path, goos, goarch, note)
 	return nil
 }
+
+// playersTag is the release the players for other systems come from (built
+// by .github/workflows/players.yml); GAMEVIBER_PLAYERS_URL overrides where.
+const playersTag = "players-latest"
+
+// releasePlayer is gameviber-run for goos / goarch from the repo's release,
+// kept in the user's cache after the first download.
+func releasePlayer(goos, goarch string) ([]byte, error) {
+	file := "gameviber-run-" + goos + "-" + goarch
+	if goos == "windows" {
+		file += ".exe"
+	}
+	cacheDir, err := os.UserCacheDir()
+	if err != nil {
+		cacheDir = os.TempDir()
+	}
+	base := os.Getenv("GAMEVIBER_PLAYERS_URL")
+	if base == "" {
+		base = "https://github.com/LaPingvino/gameviber/releases/download/" + playersTag
+	}
+	cached := filepath.Join(cacheDir, "gameviber", "players", cacheKey(base), file)
+	if data, err := os.ReadFile(cached); err == nil {
+		return data, nil
+	}
+	url := strings.TrimSuffix(base, "/") + "/" + file
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, fmt.Errorf("the %s/%s player: %w", goos, goarch, err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("the %s/%s player: %s %s (the players release may not be built yet: .github/workflows/players.yml)", goos, goarch, url, resp.Status)
+	}
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	if os.MkdirAll(filepath.Dir(cached), 0o755) == nil {
+		os.WriteFile(cached, data, 0o755)
+	}
+	return data, nil
+}
+
+// xmlText escapes s for the plist.
+func xmlText(s string) string {
+	var b strings.Builder
+	xml.EscapeText(&b, []byte(s))
+	return b.String()
+}
+
+const infoPlist = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>CFBundleName</key><string>%s</string>
+<key>CFBundleExecutable</key><string>%s</string>
+<key>CFBundleIdentifier</key><string>%s</string>
+<key>CFBundlePackageType</key><string>APPL</string>
+<key>NSHighResolutionCapable</key><true/>
+</dict></plist>
+`

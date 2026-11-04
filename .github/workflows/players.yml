@@ -1,0 +1,62 @@
+# The window player (gameviber-run) for each system, attached to a release, so
+# `gameviber export -desktop -os OS/ARCH` can make a game for a system other
+# than the one it runs on. Run by hand, or by pushing a tag players-v*.
+name: players
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["players-v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - { os: linux, arch: amd64, runner: ubuntu-latest }
+          - { os: linux, arch: arm64, runner: ubuntu-24.04-arm }
+          - { os: windows, arch: amd64, runner: ubuntu-latest, cross: true }
+          - { os: windows, arch: arm64, runner: ubuntu-latest, cross: true }
+          - { os: darwin, arch: amd64, runner: macos-13 }
+          - { os: darwin, arch: arm64, runner: macos-14 }
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Linux libraries (Ebitengine needs cgo there)
+        if: matrix.os == 'linux'
+        run: sudo apt-get update && sudo apt-get install -y libgl1-mesa-dev xorg-dev libasound2-dev
+      - name: Build
+        shell: bash
+        run: |
+          ext=""; [ "${{ matrix.os }}" = windows ] && ext=".exe"
+          if [ "${{ matrix.cross }}" = true ]; then export CGO_ENABLED=0; fi
+          GOOS=${{ matrix.os }} GOARCH=${{ matrix.arch }} go build -trimpath -ldflags="-s -w" \
+            -o "gameviber-run-${{ matrix.os }}-${{ matrix.arch }}$ext" ./cmd/gameviber-run
+      - uses: actions/upload-artifact@v4
+        with:
+          name: player-${{ matrix.os }}-${{ matrix.arch }}
+          path: gameviber-run-*
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: players
+          merge-multiple: true
+      - name: Attach to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'players-latest' }}
+        run: |
+          gh release view "$TAG" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
+            gh release create "$TAG" -R "$GITHUB_REPOSITORY" --title "Players ($TAG)" \
+              --notes "The window player for each system, used by gameviber export -desktop -os."
+          gh release upload "$TAG" players/* -R "$GITHUB_REPOSITORY" --clobber

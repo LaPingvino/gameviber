@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"image/png"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -72,5 +74,55 @@ func TestGameIcon(t *testing.T) {
 	buf.Reset()
 	if n := checkRefs(dir, &buf); n != 1 || !strings.Contains(buf.String(), "[settings] icon's sprite") {
 		t.Errorf("a missing icon sprite: %d problems: %q", n, buf.String())
+	}
+}
+
+// TestExportOtherSystem: -os fetches that system's player from the release
+// (here a stand-in server), caches it, and appends the project; macOS gets a
+// .app folder.
+func TestExportOtherSystem(t *testing.T) {
+	hits := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits++
+		if !strings.HasPrefix(r.URL.Path, "/gameviber-run-") {
+			http.NotFound(w, r)
+			return
+		}
+		w.Write([]byte("PLAYER:" + r.URL.Path))
+	}))
+	defer srv.Close()
+	t.Setenv("GAMEVIBER_PLAYERS_URL", srv.URL)
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+	t.Setenv("HOME", t.TempDir())
+	dir := filepath.Join(t.TempDir(), "g")
+	if err := cmdNew([]string{dir}); err != nil {
+		t.Fatal(err)
+	}
+	out := t.TempDir()
+	if err := cmdExport([]string{"-desktop", "-os", "windows/amd64", dir, out}); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join(out, "g.exe"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.HasPrefix(data, []byte("PLAYER:/gameviber-run-windows-amd64.exe")) || !bytes.HasSuffix(data, []byte("GVPROJ01")) {
+		t.Errorf("windows export: %q … %q", data[:40], data[len(data)-8:])
+	}
+	if err := cmdExport([]string{"-desktop", "-os", "windows/amd64", dir, t.TempDir()}); err != nil || hits != 1 {
+		t.Errorf("second export: %v, %d downloads (want the cached one)", err, hits)
+	}
+	if err := cmdExport([]string{"-desktop", "-os", "darwin/arm64", dir, out}); err != nil {
+		t.Fatal(err)
+	}
+	plist, err := os.ReadFile(filepath.Join(out, "g.app", "Contents", "Info.plist"))
+	if err != nil || !strings.Contains(string(plist), "<key>CFBundleExecutable</key><string>g</string>") {
+		t.Errorf("Info.plist: %v %s", err, plist)
+	}
+	if fi, err := os.Stat(filepath.Join(out, "g.app", "Contents", "MacOS", "g")); err != nil || fi.Mode()&0o100 == 0 {
+		t.Errorf("the .app's program: %v", err)
+	}
+	if err := cmdExport([]string{"-desktop", "-os", "plan9/mips", dir, out}); err == nil {
+		t.Error("an unknown system was accepted")
 	}
 }
