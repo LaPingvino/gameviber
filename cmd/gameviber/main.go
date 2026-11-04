@@ -102,9 +102,15 @@ func usage() {
 	os.Exit(2)
 }
 
-func open(path string) (*gmfile.Project, error) {
+func open(path string) (*gmfile.Project, error) { return openVariant(path, "") }
+
+// openVariant is open with a build variant merged over game.toml (LOOP 6b).
+func openVariant(path, variant string) (*gmfile.Project, error) {
 	if fi, err := os.Stat(path); err == nil && fi.IsDir() { // a GameViber text project
-		return gmfile.ReadDir(path)
+		return gmfile.ReadDirVariant(path, variant)
+	}
+	if variant != "" {
+		return nil, fmt.Errorf("-variant: only for GameViber projects (a folder with game.toml)")
 	}
 	d, err := os.ReadFile(path)
 	if err != nil {
@@ -197,6 +203,7 @@ func cmdPlay(args []string) error {
 	keys := fs.String("keys", "", "key script")
 	shot := fs.String("shot", "", "write the last frame (PNG)")
 	asJSON := fs.Bool("json", false, "print the state as JSON")
+	variant := fs.String("variant", "", "a build variant: NAME.toml merged over game.toml")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -212,7 +219,7 @@ func cmdPlay(args []string) error {
 		defer f.Close()
 		shotW = f
 	}
-	state, err := playProject(fs.Arg(0), *room, *steps, *keys, shotW)
+	state, err := playProjectVariant(fs.Arg(0), *variant, *room, *steps, *keys, shotW)
 	if err != nil {
 		return err
 	}
@@ -229,10 +236,11 @@ func cmdPlay(args []string) error {
 }
 
 func cmdCheck(args []string) error {
+	variant, args := takeVariant(args)
 	if len(args) != 1 {
-		return fmt.Errorf("usage: gameviber check DIR")
+		return fmt.Errorf("usage: gameviber check [-variant NAME] DIR")
 	}
-	problems, err := checkProject(args[0], os.Stdout)
+	problems, err := checkProjectVariant(args[0], variant, os.Stdout)
 	if err != nil {
 		return err
 	}
@@ -244,7 +252,11 @@ func cmdCheck(args []string) error {
 
 // checkProject is gameviber check: syntax per file, then the calls against
 // what the project knows; the report goes to w (the editor shows it too).
-func checkProject(dir string, w io.Writer) (int, error) {
+func checkProject(dir string, w io.Writer) (int, error) { return checkProjectVariant(dir, "", w) }
+
+// checkProjectVariant is checkProject with a build variant merged over
+// game.toml: its names (room_order, the icon) checked as the variant's build sees them.
+func checkProjectVariant(dir, variant string, w io.Writer) (int, error) {
 	// First every file on its own (syntax, with its path), then the calls
 	// against what the loaded project knows.
 	type parsed struct {
@@ -252,6 +264,7 @@ func checkProject(dir string, w io.Writer) (int, error) {
 		list []gml.Stmt
 	}
 	var ok []parsed
+	var loadErr error
 	problems, files := 0, 0
 	walkErr := filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
 		if err == nil && d.IsDir() && path != dir && strings.HasPrefix(d.Name(), ".") {
@@ -278,16 +291,20 @@ func checkProject(dir string, w io.Writer) (int, error) {
 		return 0, walkErr
 	}
 	if problems == 0 {
-		p, err := gmfile.ReadDir(dir)
-		if err != nil {
-			return 0, err
+		if _, err := gmfile.VariantGameTOML(dir, variant); err != nil {
+			return 0, err // no such variant, or not TOML: check can't start
 		}
-		g, err := load.FromProject(p)
-		if err != nil {
-			return 0, err
+		var g *load.Game
+		if p, err := gmfile.ReadDirVariant(dir, variant); err != nil { // a problem to report (a room_order naming no room …), not a failure of check
+			loadErr = err
+		} else if g, err = load.FromProject(p); err != nil {
+			loadErr, g = err, nil
 		}
-		known := g.KnownFuncs()
 		for _, f := range ok {
+			if g == nil {
+				break
+			}
+			known := g.KnownFuncs()
 			for _, c := range gml.Calls(f.list) {
 				if !known[c.Fn] {
 					msg := fmt.Sprintf("%s:%s: %s is not a function GameViber knows (nor a script of this project)", f.path, c.P, c.Fn)
@@ -300,7 +317,12 @@ func checkProject(dir string, w io.Writer) (int, error) {
 			}
 		}
 	}
-	problems += checkRefs(dir, w)
+	refs := checkRefsVariant(dir, variant, w)
+	if loadErr != nil && refs == 0 { // the same name already reported by the references: once is enough
+		fmt.Fprintln(w, loadErr)
+		problems++
+	}
+	problems += refs
 	fmt.Fprintf(w, "%d .gml files, %d problems\n", files, problems)
 	return problems, nil
 }
@@ -488,7 +510,12 @@ func buildPlayer(out string) error {
 // script; the state after (rooms passed, room, score, lives, instances by
 // object, the runtime errors), the last frame as PNG into shot if given.
 func playProject(path, room string, steps int, keys string, shot io.Writer) (map[string]any, error) {
-	p, err := open(path)
+	return playProjectVariant(path, "", room, steps, keys, shot)
+}
+
+// playProjectVariant is playProject with a build variant (LOOP 6b).
+func playProjectVariant(path, variant, room string, steps int, keys string, shot io.Writer) (map[string]any, error) {
+	p, err := openVariant(path, variant)
 	if err != nil {
 		return nil, err
 	}

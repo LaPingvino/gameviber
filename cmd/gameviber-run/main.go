@@ -26,13 +26,14 @@ func run(args []string) error {
 	room := fs.String("room", "", "start room")
 	frames := fs.Int("frames", 0, "stop after this many frames (0: until the window closes)")
 	mute := fs.Bool("mute", false, "no sound")
+	variant := fs.String("variant", "", "a build variant: NAME.toml merged over game.toml")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 	if fs.NArg() > 1 && !inBrowser { // none: the project appended to this program (open)
 		return fmt.Errorf("usage: gameviber run [-room R] GAME.exe|DIR")
 	}
-	p, err := open(fs.Arg(0))
+	p, err := open(fs.Arg(0), *variant)
 	if err != nil {
 		return err
 	}

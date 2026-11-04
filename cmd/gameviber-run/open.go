@@ -13,7 +13,7 @@ const inBrowser = false
 
 // open reads a GameMaker 5.3 executable or a GameViber project folder; with
 // no path, the project appended to this program (an exported desktop game).
-func open(path string) (*gmfile.Project, error) {
+func open(path, variant string) (*gmfile.Project, error) {
 	if path == "" {
 		exe, err := os.Executable()
 		if err != nil {
@@ -30,7 +30,7 @@ func open(path string) (*gmfile.Project, error) {
 		return projectFromTar(tarData)
 	}
 	if fi, err := os.Stat(path); err == nil && fi.IsDir() {
-		return gmfile.ReadDir(path)
+		return gmfile.ReadDirVariant(path, variant)
 	}
 	d, err := os.ReadFile(path)
 	if err != nil {

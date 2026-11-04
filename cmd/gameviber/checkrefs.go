@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/LaPingvino/gameviber/import/gmfile"
 	"io"
 	"os"
 	"path/filepath"
@@ -16,7 +17,10 @@ import (
 // what an agent (or a person) most often gets wrong in the TOML files; the
 // loader would stumble on them at run time. Each problem names its file and,
 // for a near miss, the name meant.
-func checkRefs(dir string, w io.Writer) int {
+func checkRefs(dir string, w io.Writer) int { return checkRefsVariant(dir, "", w) }
+
+// checkRefsVariant is checkRefs with game.toml's names read from the variant's merge.
+func checkRefsVariant(dir, variant string, w io.Writer) int {
 	list := func(sub, marker string) map[string]bool {
 		out := map[string]bool{}
 		ents, _ := os.ReadDir(filepath.Join(dir, sub))
@@ -87,7 +91,11 @@ func checkRefs(dir string, w io.Writer) int {
 			Icon string `toml:"icon"`
 		} `toml:"settings"`
 	}
-	if _, err := toml.DecodeFile(filepath.Join(dir, "game.toml"), &g); err == nil {
+	game, gerr := gmfile.VariantGameTOML(dir, variant)
+	if gerr != nil {
+		fmt.Fprintln(w, gerr)
+		problems++
+	} else if _, err := toml.Decode(string(game), &g); err == nil {
 		for _, rm := range g.RoomOrder {
 			if !rooms[rm] {
 				report("game.toml", "room_order's room", rm, rooms)

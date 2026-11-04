@@ -43,13 +43,15 @@ type mcpMessage struct {
 
 var mcpTools = []map[string]any{
 	{"name": "check", "description": "Check the GameViber project: every .gml file's syntax and calls (with file:line and hints) and the names in the TOML files. Run it after every change.",
-		"inputSchema": map[string]any{"type": "object", "properties": map[string]any{}}},
+		"inputSchema": map[string]any{"type": "object", "properties": map[string]any{
+			"variant": map[string]any{"type": "string", "description": "a build variant: NAME.toml merged over game.toml (e.g. demo)"}}}},
 	{"name": "play", "description": "Run the game headless for some steps under a key script and report the state after: rooms passed, room, score, lives, instances by object, runtime errors. shot: also the last frame as an image.",
 		"inputSchema": map[string]any{"type": "object", "properties": map[string]any{
-			"room":  map[string]any{"type": "string", "description": "the room to start in (default: the first)"},
-			"steps": map[string]any{"type": "integer", "description": "steps to run (default 300)"},
-			"keys":  map[string]any{"type": "string", "description": "keys held per span, e.g. 'right:40,right+up:25,:10,left:30' (names: left right up down space enter; empty = none; the number: steps)"},
-			"shot":  map[string]any{"type": "boolean", "description": "also return the last frame as a PNG image"},
+			"room":    map[string]any{"type": "string", "description": "the room to start in (default: the first)"},
+			"steps":   map[string]any{"type": "integer", "description": "steps to run (default 300)"},
+			"keys":    map[string]any{"type": "string", "description": "keys held per span, e.g. 'right:40,right+up:25,:10,left:30' (names: left right up down space enter; empty = none; the number: steps)"},
+			"shot":    map[string]any{"type": "boolean", "description": "also return the last frame as a PNG image"},
+			"variant": map[string]any{"type": "string", "description": "a build variant: NAME.toml merged over game.toml (e.g. demo)"},
 		}}},
 	{"name": "reference", "description": "What GameViber understands: the GML language, the functions and actions, the event files.",
 		"inputSchema": map[string]any{"type": "object", "properties": map[string]any{}}},
@@ -135,8 +137,14 @@ func mcpCall(dir, name string, args json.RawMessage) ([]map[string]any, bool, bo
 	}
 	switch name {
 	case "check":
+		var a struct {
+			Variant string `json:"variant"`
+		}
+		if len(args) > 0 {
+			json.Unmarshal(args, &a)
+		}
 		var b strings.Builder
-		problems, err := checkProject(dir, &b)
+		problems, err := checkProjectVariant(dir, a.Variant, &b)
 		if err != nil {
 			return text(err.Error()), true, true
 		}
@@ -147,10 +155,11 @@ func mcpCall(dir, name string, args json.RawMessage) ([]map[string]any, bool, bo
 		return text(b.String()), false, true
 	case "play":
 		a := struct {
-			Room  string `json:"room"`
-			Steps int    `json:"steps"`
-			Keys  string `json:"keys"`
-			Shot  bool   `json:"shot"`
+			Room    string `json:"room"`
+			Steps   int    `json:"steps"`
+			Keys    string `json:"keys"`
+			Shot    bool   `json:"shot"`
+			Variant string `json:"variant"`
 		}{Steps: 300}
 		if len(args) > 0 {
 			if err := json.Unmarshal(args, &a); err != nil {
@@ -162,7 +171,7 @@ func mcpCall(dir, name string, args json.RawMessage) ([]map[string]any, bool, bo
 		if a.Shot {
 			shot = &png
 		}
-		state, err := playProject(dir, a.Room, a.Steps, a.Keys, shot)
+		state, err := playProjectVariant(dir, a.Variant, a.Room, a.Steps, a.Keys, shot)
 		if err != nil {
 			return text(err.Error()), true, true
 		}

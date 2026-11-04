@@ -155,3 +155,31 @@ func TestPackVariant(t *testing.T) {
 		}
 	}
 }
+
+// TestVariantCheckPlay: check and play see the variant's game.toml.
+func TestVariantCheckPlay(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "g")
+	if err := cmdNew([]string{dir}); err != nil {
+		t.Fatal(err)
+	}
+	os.WriteFile(filepath.Join(dir, "demo.toml"), []byte("name = \"Demo\"\n[constants]\n  DEMO = \"1\"\n"), 0o644)
+	os.WriteFile(filepath.Join(dir, "broken.toml"), []byte("room_order = [\"nosuch\"]\n"), 0o644)
+	var b strings.Builder
+	if n, err := checkProjectVariant(dir, "demo", &b); err != nil || n != 0 {
+		t.Errorf("demo: %v, %d problems: %s", err, n, b.String())
+	}
+	b.Reset()
+	if n, err := checkProjectVariant(dir, "broken", &b); n == 0 || !strings.Contains(b.String(), "nosuch") {
+		t.Errorf("broken: %d problems: %q (err %v)", n, b.String(), err)
+	}
+	b.Reset()
+	if n, err := checkProject(dir, &b); err != nil || n != 0 {
+		t.Errorf("no variant: %v, %d: %s", err, n, b.String())
+	}
+	if st, err := playProjectVariant(dir, "demo", "", 10, "", nil); err != nil || st["room"] == "" {
+		t.Errorf("play demo: %v %v", err, st)
+	}
+	if _, err := playProjectVariant(dir, "nope", "", 10, "", nil); err == nil {
+		t.Error("play with a missing variant ran")
+	}
+}

@@ -16,7 +16,7 @@ const inBrowser = true
 
 // open, in the browser: the project packed next to the page (project.tar,
 // made by gameviber web), read into memory.
-func open(string) (*gmfile.Project, error) {
+func open(string, string) (*gmfile.Project, error) {
 	base, err := url.Parse(js.Global().Get("location").Get("href").String())
 	if err != nil {
 		return nil, err
