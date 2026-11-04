@@ -32,6 +32,8 @@ var editPage []byte
 func cmdEdit(args []string) error {
 	fs := flag.NewFlagSet("edit", flag.ContinueOnError)
 	addr := fs.String("addr", "127.0.0.1:8765", "where to serve the editor (this machine only by default)")
+	bridge := fs.Bool("bridge", false, "also let the online editor (-origin) use this project and its agents, paired by the printed link")
+	origin := fs.String("origin", pagesOrigin, "the online editor's origin, for -bridge")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -50,7 +52,14 @@ func cmdEdit(args []string) error {
 		return err
 	}
 	fmt.Printf("editing %s at http://%s/ (Ctrl+C to stop)\n", dir, ln.Addr())
-	return http.Serve(ln, guardLocal(editHandler(dir), newToken()))
+	token := newToken()
+	var h http.Handler = guardLocal(editHandler(dir), token)
+	if *bridge {
+		_, port, _ := net.SplitHostPort(ln.Addr().String())
+		fmt.Printf("the online editor, connected to this project (keep the link private — it holds the pairing token):\n  %s#bridge=%s:%s\n", *origin+pagesEditorPath, port, token)
+		h = bridgeGuard(h, token, *origin)
+	}
+	return http.Serve(ln, h)
 }
 
 // editHandler serves the page and its API over the project folder dir.
@@ -278,6 +287,48 @@ func guardLocal(h http.Handler, token string) http.Handler {
 			http.Error(w, "missing the editor's token", http.StatusForbidden)
 			return
 		}
+		h.ServeHTTP(w, r)
+	})
+}
+
+// The online editor (GitHub Pages) and its path there.
+const (
+	pagesOrigin     = "https://lapingvino.github.io"
+	pagesEditorPath = "/gameviber/editor/"
+)
+
+// bridgeGuard lets the online editor at origin use this server (LOOP item 5f):
+// CORS for that one origin, Chrome's private-network preflight (an https page
+// calling localhost), and the pairing token on every request from it — reads
+// too, since the project must not be readable by any other page. Event streams
+// carry the token as ?gvtoken= (EventSource can't send headers).
+func bridgeGuard(h http.Handler, token, origin string) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Origin") != origin {
+			h.ServeHTTP(w, r)
+			return
+		}
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+		w.Header().Add("Vary", "Origin")
+		if r.Method == http.MethodOptions {
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE")
+			w.Header().Set("Access-Control-Allow-Headers", "X-GameViber-Token, Content-Type")
+			if r.Header.Get("Access-Control-Request-Private-Network") == "true" {
+				w.Header().Set("Access-Control-Allow-Private-Network", "true")
+			}
+			w.Header().Set("Access-Control-Max-Age", "600")
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		got := r.Header.Get("X-GameViber-Token")
+		if got == "" {
+			got = r.URL.Query().Get("gvtoken")
+		}
+		if got != token {
+			http.Error(w, "not paired: open the link gameviber edit -bridge printed", http.StatusForbidden)
+			return
+		}
+		r.Header.Set("X-GameViber-Token", token) // guardLocal's check, for the query-string form
 		h.ServeHTTP(w, r)
 	})
 }

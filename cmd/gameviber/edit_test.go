@@ -681,3 +681,57 @@ func TestEditPlayAPI(t *testing.T) {
 		}
 	}
 }
+
+func TestEditBridge(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "p")
+	if err := cmdNew([]string{dir}); err != nil {
+		t.Fatal(err)
+	}
+	const tok = "secret"
+	srv := httptest.NewServer(bridgeGuard(guardLocal(editHandler(dir), tok), tok, pagesOrigin))
+	defer srv.Close()
+	do := func(method, path, origin, token string, hdr map[string]string) *http.Response {
+		req, _ := http.NewRequest(method, srv.URL+path, nil)
+		if origin != "" {
+			req.Header.Set("Origin", origin)
+		}
+		if token != "" {
+			req.Header.Set("X-GameViber-Token", token)
+		}
+		for k, v := range hdr {
+			req.Header.Set(k, v)
+		}
+		r, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return r
+	}
+	// the preflight: allowed for the editor's origin, private network included
+	r := do(http.MethodOptions, "/api/files", pagesOrigin, "", map[string]string{"Access-Control-Request-Private-Network": "true", "Access-Control-Request-Method": "GET"})
+	if r.StatusCode != http.StatusNoContent || r.Header.Get("Access-Control-Allow-Private-Network") != "true" || r.Header.Get("Access-Control-Allow-Origin") != pagesOrigin {
+		t.Fatalf("preflight: %d %v", r.StatusCode, r.Header)
+	}
+	if r := do(http.MethodGet, "/api/files", pagesOrigin, "", nil); r.StatusCode != http.StatusForbidden {
+		t.Errorf("read without the token: %d, want 403", r.StatusCode)
+	}
+	if r := do(http.MethodGet, "/api/files", pagesOrigin, "wrong", nil); r.StatusCode != http.StatusForbidden {
+		t.Errorf("read with a wrong token: %d, want 403", r.StatusCode)
+	}
+	if r := do(http.MethodGet, "/api/files", pagesOrigin, tok, nil); r.StatusCode != 200 || r.Header.Get("Access-Control-Allow-Origin") != pagesOrigin {
+		t.Errorf("paired read: %d %q", r.StatusCode, r.Header.Get("Access-Control-Allow-Origin"))
+	}
+	if r := do(http.MethodGet, "/api/files?gvtoken="+tok, pagesOrigin, "", nil); r.StatusCode != 200 {
+		t.Errorf("token in the query: %d", r.StatusCode)
+	}
+	req, _ := http.NewRequest(http.MethodPut, srv.URL+"/api/file?path=notes.txt", strings.NewReader("hi"))
+	req.Header.Set("Origin", pagesOrigin)
+	req.Header.Set("X-GameViber-Token", tok)
+	if r, _ := http.DefaultClient.Do(req); r.StatusCode != 200 {
+		t.Errorf("paired write: %d", r.StatusCode)
+	}
+	// another site gets no CORS answer (its page can't read the reply)
+	if r := do(http.MethodGet, "/api/files", "https://evil.example", "", nil); r.Header.Get("Access-Control-Allow-Origin") != "" {
+		t.Errorf("another origin got CORS: %q", r.Header.Get("Access-Control-Allow-Origin"))
+	}
+}
