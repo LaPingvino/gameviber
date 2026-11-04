@@ -192,7 +192,11 @@ func Outline(dir string) string {
 		var evs []string
 		for _, f := range list(filepath.Join("objects", o)) {
 			if ev, ok := strings.CutSuffix(f, ".gml"); ok {
-				evs = append(evs, fmt.Sprintf("%s (%d lines)", ev, lines(filepath.Join(dir, "objects", o, f))))
+				n, unit := lines(filepath.Join(dir, "objects", o, f)), "lines"
+				if n == 1 {
+					unit = "line"
+				}
+				evs = append(evs, fmt.Sprintf("%s (%d %s)", ev, n, unit))
 			}
 		}
 		fmt.Fprintf(&b, "  %s: %s\n", o, strings.Join(evs, ", "))

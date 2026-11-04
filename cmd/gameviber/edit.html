@@ -988,22 +988,34 @@ $("sfxsave").onclick = async () => {
 const meatProtocol = `## How we work: a copy / paste session
 I carry messages between you and the GameViber editor: I paste your reply into the editor, it does what the
 reply asks, and I paste its results back to you. In each reply you can:
-- write files: each file's path on its own line, then its complete new content in a code block;
+- change part of a file: its path on its own line, then one or more blocks — the exact old lines, then the new:
+<<<<<<< SEARCH
+x += 2
+=======
+x += 4
+>>>>>>> REPLACE
+  (each applied only when its old lines are found exactly once; otherwise you get the nearest lines back);
+- write a whole file: its path on its own line, then its complete new content in a code block;
 - ask the editor for things, in ONE code block marked gameviber, one request a line:
 \`\`\`gameviber
-list
-read objects/player/step.gml
+outline
+read player.step
+read objects/player/step.gml:10-30
+find score
 check
 play 120 right:60,space:5
 done
 \`\`\`
-  list = the project's files; read PATH = a file's text; check = gameviber check (errors and hints, also sent
+  outline = the objects with their events, scripts, rooms … (no code: start here); read OBJECT.EVENT or PATH or
+  PATH:FROM-TO = numbered lines; find TEXT = every line holding it (path:line); list = the project's files;
+  check = gameviber check (errors and hints, also sent
   after every write); play STEPS KEYS = run the game headless (default 300 steps at 30 a second; keys held per
   span, e.g. right:60,right+up:20,:10 — names left right up down space enter, the number = steps) and report the
   room, score, lives, the instances and any runtime errors, with a picture of the last frame; done = the request
   is finished.
 Files are written first, then the requests run. Only .gml, .toml, .txt and .md files inside the project can be
-written. Take one step a reply and wait for the results; read a file before you change it.`;
+written. Prefer SEARCH / REPLACE for changes; read the lines before you change them. Take one step a reply and
+wait for the results.`;
 let meatTurn = 0, meatPlan = null, meatShot = null, meatHist = [];
 // --- your own key (LOOP item 5g): the session's messages sent to a model from this browser ---
 const keyDefaults = { anthropic: { base: "https://api.anthropic.com/v1", model: "claude-sonnet-5-5" }, openai: { base: "https://api.openai.com/v1", model: "gpt-4o" }, ollama: { base: "http://localhost:11434/v1", model: "qwen2.5-coder:7b" } };
@@ -1066,13 +1078,44 @@ async function meatStart() {
   meatLog("— started " + new Date().toLocaleTimeString());
 }
 // the requests: the ```gameviber blocks' lines; the rest of the reply goes to answerFiles
+// the reply's SEARCH / REPLACE edits, by file: a path line (or the fence's info) then blocks, fenced or not;
+// the text without them goes on to the whole-file parser
+function meatEdits(text) {
+  const edits = new Map(), lines = text.split(/\r?\n/), keep = [];
+  let path = null, i = 0;
+  while (i < lines.length) {
+    const l = lines[i], fence = l.match(/^\s*(```+|~~~+)(.*)$/);
+    if (fence) { // a fenced block holding SEARCH blocks: an edit (its info may name the file)
+      let j = i + 1; const body = [];
+      while (j < lines.length && !lines[j].trim().startsWith(fence[1])) body.push(lines[j++]);
+      if (body.some((b) => /^<{5,9} ?SEARCH/.test(b))) {
+        const info = fence[2].trim().split(/\s+/).map(cleanPath).find(Boolean);
+        const p = info || path;
+        if (p) edits.set(p, (edits.get(p) || "") + body.join("\n") + "\n");
+        i = j + 1; continue;
+      }
+      keep.push(...lines.slice(i, j + 1)); i = j + 1; path = null; continue;
+    }
+    if (/^<{5,9} ?SEARCH/.test(l)) { // unfenced blocks
+      let j = i; const body = [];
+      while (j < lines.length) { body.push(lines[j]); if (/^>{5,9} ?REPLACE/.test(lines[j++])) break; }
+      if (path) edits.set(path, (edits.get(path) || "") + body.join("\n") + "\n");
+      i = j; continue;
+    }
+    const p = l.trim() ? cleanPath(l) : null;
+    if (l.trim()) path = p;
+    keep.push(l); i++;
+  }
+  return { edits: [...edits].map(([p, blocks]) => ({ path: p, blocks, n: (blocks.match(/^<{5,9} ?SEARCH/gm) || []).length })), rest: keep.join("\n") };
+}
 function meatParse(text) {
   const cmds = [];
+  const ed = meatEdits(text); text = ed.rest;
   const rest = text.replace(/^\s*(```+|~~~+)\s*gameviber\s*\n([\s\S]*?)^\s*\1\s*$/gm, (m, f, body) => {
     for (const l of body.split(/\r?\n/)) { const t = l.replace(/#.*$/, "").trim(); if (t) cmds.push(t); }
     return "";
   });
-  return { cmds, files: answerFiles(rest) };
+  return { cmds, files: answerFiles(rest), edits: ed.edits };
 }
 $("meatbtn").onclick = async () => { if (!meatTurn) await meatStart(); $("meat").showModal(); ollamaModels(); };
 $("meatclose").onclick = () => $("meat").close();
@@ -1113,9 +1156,16 @@ $("meatread").onclick = async () => {
     const det = document.createElement("details"); det.append(Object.assign(document.createElement("summary"), { textContent: "show" }), Object.assign(document.createElement("pre"), { textContent: f.text }));
     box.append(lab, det);
   }
+  for (const e of meatPlan.edits) {
+    e.box = Object.assign(document.createElement("input"), { type: "checkbox", checked: true });
+    const lab = document.createElement("label");
+    lab.append(e.box, "edit " + e.path, Object.assign(document.createElement("span"), { className: "kind", textContent: e.n + " change(s)" }));
+    const det = document.createElement("details"); det.append(Object.assign(document.createElement("summary"), { textContent: "show" }), Object.assign(document.createElement("pre"), { textContent: e.blocks }));
+    box.append(lab, det);
+  }
   for (const c of meatPlan.cmds) box.append(Object.assign(document.createElement("div"), { className: "hint", textContent: "→ " + c }));
-  const n = meatPlan.files.length + meatPlan.cmds.length;
-  $("meatnote").textContent = n ? meatPlan.files.length + " file(s), " + meatPlan.cmds.length + " request(s)" : "nothing found — files need their path on the line before the code block, requests a ```gameviber block";
+  const n = meatPlan.files.length + meatPlan.cmds.length + meatPlan.edits.length;
+  $("meatnote").textContent = n ? meatPlan.files.length + " file(s), " + meatPlan.edits.length + " edit(s), " + meatPlan.cmds.length + " request(s)" : "nothing found — files need their path on the line before the code block, requests a ```gameviber block";
   $("meatrun").disabled = !n;
 };
 $("meatrun").onclick = async () => {
@@ -1129,6 +1179,12 @@ $("meatrun").onclick = async () => {
     if (!r.ok) { out.push("- could not write " + f.path + ": " + await r.text()); continue; }
     report = await r.json(); wrote++; out.push("- wrote " + f.path + " (" + f.kind + ")");
   }
+  for (const e of meatPlan.edits) {
+    if (!e.box.checked) { out.push("- not edited (the person chose not to): " + e.path); continue; }
+    const r = await call("api/edit?path=" + encodeURIComponent(e.path), { method: "POST", body: e.blocks });
+    if (r.ok) { report = await r.json(); wrote++; out.push("- edited " + e.path + " (" + e.n + " change(s))"); }
+    else out.push("- could not edit " + (await r.text()).trim()); // (the reason begins with the path)
+  }
   let checked = false;
   for (const c of meatPlan.cmds) {
     const [verb, ...args] = c.split(/\s+/), arg = args.join(" ");
@@ -1136,8 +1192,12 @@ $("meatrun").onclick = async () => {
       const fl = await (await call("api/files")).json();
       out.push("", "### list", ...fl.files.map((f) => "- " + f), ...(fl.sounds || []).map((f) => "- sounds/" + f + " (a sound)"));
     } else if (verb === "read") {
-      const r = await call("api/file?path=" + encodeURIComponent(arg));
-      out.push("", "### " + arg, ...(r.ok ? ["```", (await r.text()).replace(/\n$/, ""), "```"] : ["(there is no such file — list shows the files)"]));
+      const r = await call("api/read?ref=" + encodeURIComponent(arg));
+      out.push("", "### " + arg, ...(r.ok ? ["```", (await r.text()).replace(/\n$/, ""), "```"] : ["(" + (await r.text()).trim() + ")"]));
+    } else if (verb === "find") {
+      out.push("", "### find " + arg, (await (await call("api/find?q=" + encodeURIComponent(arg))).text()).replace(/\n$/, ""));
+    } else if (verb === "outline") {
+      out.push("", "### outline", (await (await call("api/outline")).text()).replace(/\n$/, ""));
     } else if (verb === "check") {
       const chk = await (await call("api/check")).json(); out.push("", "### check", chk.report); checked = true; report = chk;
     } else if (verb === "play") {
@@ -1149,7 +1209,7 @@ $("meatrun").onclick = async () => {
       if (shot) { meatShot = shot; out.push("(The person can attach a picture of the last frame.)"); }
     } else if (verb === "done") {
       done.push(1);
-    } else out.push("", "### " + c, "(unknown request — list, read PATH, check or done)");
+    } else out.push("", "### " + c, "(unknown request — outline, read, find, list, check, play or done)");
   }
   if (wrote && !checked) { const chk = await (await call("api/check")).json(); out.push("", "### check (after the writes)", chk.report); report = chk; }
   meatLog("← reply " + meatTurn + ": " + wrote + " file(s) written, " + meatPlan.cmds.length + " request(s)" + (done.length ? " — done" : ""));
