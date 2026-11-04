@@ -103,10 +103,16 @@ goal of its own, weighed alongside the LLM-friendly rule.
       — the key only in that browser's storage, a clear note that it stays there;
    h. Ollama on localhost (OLLAMA_ORIGINS for the page's origin) — free local models;
    (later, low) in-browser models (WebGPU / WebLLM) — weak for code.
+   i. (Joop 2026-11-04: "option 1 makes for a nice PWA option") the Pages editor as an installable PWA: a web app
+      manifest (name, icons, standalone), a service worker caching the editor and its wasm for offline use —
+      network first for the versioned files, so a deploy is never shadowed by a stale copy —, the last project
+      folder remembered (FileSystemDirectoryHandle in IndexedDB; Chromium keeps the permission for installed apps),
+      file_handlers for GameViber projects (game.toml) so the OS can open them in it.
    Not possible: a Claude.ai / Pro login used by a page directly — subscriptions work through the apps (Claude Code
    …), hence e and f.
 6. [ ] **Export** — `gameviber export`: finished builds — a web zip for itch.io / Pages, desktop binaries (Linux,
    Windows, macOS via Go cross-compiling), the game's title and icon; the export options built in.
+   The web build as an installable PWA too (manifest, offline service worker, full screen on phones).
 7. [ ] **Sprite drawing tools** — fill, line, rectangle, palette / picked colours, undo; frames added / copied /
    deleted, an animation preview.
 8. [ ] **Rooms** — background images and tiles, views (a camera following an object), instance creation code.
@@ -277,3 +283,4 @@ setting (on by default) rather than per-game code:
 - 2026-11-04 (Joop: GM 6–8 importers not important; workable output and tools to make nice games matter) — the GM 6–8 question closed; queued after item 5 (Claude Code in the editor): 6 export, 7 sprite drawing tools, 8 rooms (backgrounds / tiles / views / creation code), 9 a sound effects generator, 10 templates + a tutorial.
 - 2026-11-04 (Joop: also OpenCode and other LLM providers) — item 5 generalised: the terminal runs any agent (presets Claude Code, OpenCode, Aider, Codex CLI, Gemini CLI, or a command), gameviber mcp written in each agent's config (.mcp.json, opencode.json …), 'Ask' through each one's non-interactive mode, the key panel for Anthropic or any OpenAI-compatible endpoint (OpenRouter, Ollama …).
 - 2026-11-04 (Joop: hooks for the web version) — item 5 e–h: a real folder via File System Access (agents in the user's terminal on the same files), a localhost bridge for the Pages editor, bring-your-own-key in the browser (Anthropic / OpenAI / OpenRouter), Ollama on localhost; in-browser models later.
+- 2026-11-04 (Joop: 'option 1 makes for a nice PWA option') — 5i: the Pages editor installable (manifest, offline service worker network-first, the last folder remembered, file handlers for game.toml); exported web games installable too (item 6).
