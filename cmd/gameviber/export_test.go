@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"encoding/json"
+	"image"
 	"image/png"
 	"io"
 	"net/http"
@@ -292,5 +293,57 @@ func TestInstanceCodeCheck(t *testing.T) {
 	b.Reset()
 	if n := checkRefs(dir, &b); n != 1 || !strings.Contains(b.String(), "creation code") {
 		t.Errorf("broken instance code: %d: %q", n, b.String())
+	}
+}
+
+// TestRoomBackground: a PNG imported as a background, set tiled on a room,
+// written as tile_h / tile_v and drawn by the game.
+func TestRoomBackground(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "g")
+	if err := cmdNew([]string{dir}); err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(editHandler(dir))
+	defer srv.Close()
+	img := image.NewRGBA(image.Rect(0, 0, 16, 16))
+	for i := range img.Pix {
+		img.Pix[i] = []uint8{255, 0, 255, 255}[i%4]
+	}
+	var b bytes.Buffer
+	png.Encode(&b, img)
+	if r, err := http.Post(srv.URL+"/api/background-png?name=sky", "image/png", &b); err != nil || r.StatusCode != 200 {
+		t.Fatalf("import: %v %v", err, r.Status)
+	}
+	put := func(body string) int {
+		req, _ := http.NewRequest(http.MethodPut, srv.URL+"/api/room-settings?path=rooms/level", strings.NewReader(body))
+		r, _ := http.DefaultClient.Do(req)
+		return r.StatusCode
+	}
+	if c := put(`{"background0":{"background":"sky","tileh":true,"tilev":true}}`); c != 200 {
+		t.Fatalf("set: %d", c)
+	}
+	data, _ := os.ReadFile(filepath.Join(dir, "rooms", "level", "room.toml"))
+	if !strings.Contains(string(data), `background = "sky"`) || !strings.Contains(string(data), "tile_h = true") {
+		t.Errorf("room.toml:\n%s", data)
+	}
+	var shot bytes.Buffer
+	if _, err := playProject(dir, "", 2, "", &shot); err != nil {
+		t.Fatal(err)
+	}
+	frame, _ := png.Decode(&shot)
+	if r, g, bl, _ := frame.At(300, 200).RGBA(); r>>8 != 255 || g>>8 != 0 || bl>>8 != 255 { // open floor: the tiled background
+		t.Errorf("open floor pixel %d,%d,%d: not the background", r>>8, g>>8, bl>>8)
+	}
+	for _, bad := range []string{`{"background0":{"background":"../x"}}`, `{"background0":{"background":"nosuch"}}`} {
+		if c := put(bad); c != http.StatusBadRequest {
+			t.Errorf("%s: %d", bad, c)
+		}
+	}
+	if put(`{"background0":{"background":""}}`) != 200 {
+		t.Error("removing the background")
+	}
+	data, _ = os.ReadFile(filepath.Join(dir, "rooms", "level", "room.toml"))
+	if strings.Contains(string(data), "[[background]]") {
+		t.Errorf("not removed:\n%s", data)
 	}
 }

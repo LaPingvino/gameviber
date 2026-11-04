@@ -50,6 +50,7 @@ func (h editRooms) room(w http.ResponseWriter, r *http.Request) {
 		"caption": room["caption"], "speed": room["speed"], "persistent": room["persistent"],
 		"instances": insts, "objects": h.objects(), "sprites": h.sprites(),
 		"views_enabled": room["views_enabled"], "view0": firstView(room),
+		"backgrounds": h.backgrounds(), "background0": firstBackground(room),
 	})
 }
 
@@ -470,6 +471,39 @@ func (h editRooms) saveRoomSettings(w http.ResponseWriter, r *http.Request) {
 		}
 		room["view"] = views
 	}
+	// the background (LOOP item 8): room background 0 — an image of backgrounds/,
+	// tiled across / down or stretched, scrolling, or in front; "" removes it
+	if b0, ok := in["background0"].(map[string]any); ok {
+		name, _ := b0["background"].(string)
+		var bgs []map[string]any
+		if old, ok := room["background"].([]map[string]any); ok && len(old) > 1 {
+			bgs = old[1:]
+		}
+		if name != "" {
+			if !safeName(name) {
+				http.Error(w, "background: not a name", http.StatusBadRequest)
+				return
+			}
+			if _, err := os.Stat(filepath.Join(h.dir, "backgrounds", name+".png")); err != nil {
+				http.Error(w, "background: no backgrounds/"+name+".png", http.StatusBadRequest)
+				return
+			}
+			flag := func(k string) bool { v, _ := b0[k].(bool); return v }
+			num := func(k string) int64 {
+				if f, ok := b0[k].(float64); ok && f >= -1000 && f <= 1000 {
+					return int64(f)
+				}
+				return 0
+			}
+			bgs = append([]map[string]any{{"background": name, "x": int64(0), "y": int64(0), "tile_h": flag("tileh"), "tile_v": flag("tilev"),
+				"stretch": flag("stretch"), "foreground": flag("foreground"), "hspeed": num("hspeed"), "vspeed": num("vspeed")}}, bgs...)
+		}
+		if len(bgs) > 0 {
+			room["background"] = bgs
+		} else {
+			delete(room, "background")
+		}
+	}
 	f, err := os.Create(file)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -510,4 +544,71 @@ func safeName(s string) bool {
 		}
 	}
 	return s != ""
+}
+
+// backgrounds lists backgrounds/*.png by name.
+func (h editRooms) backgrounds() []string {
+	out := []string{}
+	ents, _ := os.ReadDir(filepath.Join(h.dir, "backgrounds"))
+	for _, e := range ents {
+		if n, ok := strings.CutSuffix(e.Name(), ".png"); ok && !e.IsDir() {
+			out = append(out, n)
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
+// firstBackground is room background 0 of a room.toml, for the editor.
+func firstBackground(room map[string]any) map[string]any {
+	bgs, _ := room["background"].([]map[string]any)
+	if len(bgs) == 0 {
+		return nil
+	}
+	b := bgs[0]
+	return map[string]any{"background": b["background"], "tileh": b["tile_h"], "tilev": b["tile_v"], "stretch": b["stretch"],
+		"foreground": b["foreground"], "hspeed": b["hspeed"], "vspeed": b["vspeed"]}
+}
+
+// importBackground (POST /api/background-png?name=N): a PNG as backgrounds/N.png.
+func (h editRooms) importBackground(w http.ResponseWriter, r *http.Request) {
+	name := r.URL.Query().Get("name")
+	if !safeName(name) {
+		http.Error(w, "a background name is letters, digits, - and _", http.StatusBadRequest)
+		return
+	}
+	data, err := io.ReadAll(io.LimitReader(r.Body, 16<<20))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if _, err := png.Decode(bytes.NewReader(data)); err != nil {
+		http.Error(w, "not a PNG: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err := os.MkdirAll(filepath.Join(h.dir, "backgrounds"), 0o755); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if err := os.WriteFile(filepath.Join(h.dir, "backgrounds", name+".png"), data, 0o644); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, checkReport(h.dir))
+}
+
+// background (GET /api/background?name=N): backgrounds/N.png.
+func (h editRooms) background(w http.ResponseWriter, r *http.Request) {
+	name := r.URL.Query().Get("name")
+	if !safeName(name) {
+		http.Error(w, "not a background name", http.StatusBadRequest)
+		return
+	}
+	data, err := os.ReadFile(filepath.Join(h.dir, "backgrounds", name+".png"))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	w.Header().Set("Content-Type", "image/png")
+	w.Write(data)
 }

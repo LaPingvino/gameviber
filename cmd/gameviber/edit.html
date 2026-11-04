@@ -283,10 +283,13 @@ function drawRoom() {
   const scale = Math.max(1, Math.floor(Math.min(($("stage").clientWidth - 24) / room.width, ($("stage").clientHeight - 40) / room.height)));
   c.style.width = room.width * scale + "px"; c.style.height = room.height * scale + "px";
   ctx.fillStyle = room.background || "#000"; ctx.fillRect(0, 0, c.width, c.height);
+  const b0 = room.settings && room.settings.background0, bimg = b0 && b0.background && bgImage(b0.background);
+  if (bimg && bimg.complete && bimg.naturalWidth && !b0.foreground) drawBackground(ctx, bimg, b0);
   ctx.strokeStyle = "rgba(255,255,255,.08)";
   for (let x = 0; x < c.width; x += 32) { ctx.beginPath(); ctx.moveTo(x + .5, 0); ctx.lineTo(x + .5, c.height); ctx.stroke(); }
   for (let y = 0; y < c.height; y += 32) { ctx.beginPath(); ctx.moveTo(0, y + .5); ctx.lineTo(c.width, y + .5); ctx.stroke(); }
   for (const i of room.instances) { const sp = spriteOf(i.object); if (sp) drawSprite(ctx, sp, i.x, i.y); else { ctx.fillStyle = "#fff8"; ctx.fillRect(i.x, i.y, 8, 8); } }
+  if (bimg && bimg.complete && bimg.naturalWidth && b0.foreground) drawBackground(ctx, bimg, b0);
   for (const i of room.instances) if (i.code) { // an instance with creation code: a small marker
     ctx.fillStyle = "#f5c542"; ctx.beginPath(); ctx.arc(i.x + 3, i.y + 3, 3, 0, 7); ctx.fill();
   }
@@ -296,6 +299,20 @@ function drawRoom() {
     ctx.strokeRect(1, 1, Math.min(v.w, room.width) - 2, Math.min(v.h, room.height) - 2);
     ctx.fillStyle = "#f5c542"; ctx.font = "12px system-ui"; ctx.fillText("view" + (v.follow ? " → follows " + v.follow : ""), 6, 16); ctx.restore();
   }
+}
+// room backgrounds (LOOP item 8): backgrounds/NAME.png, drawn tiled / stretched as the game draws them
+const bgImages = {};
+function bgImage(name) {
+  if (!bgImages[name]) {
+    const img = new Image(); bgImages[name] = img;
+    call("api/background?name=" + encodeURIComponent(name)).then((r) => r.ok && r.blob()).then((b) => { if (b) { img.onload = drawRoom; img.src = URL.createObjectURL(b); } });
+  }
+  return bgImages[name];
+}
+function drawBackground(ctx, img, b) {
+  const W = room.width, H = room.height, w = img.naturalWidth, h = img.naturalHeight;
+  if (b.stretch) { ctx.drawImage(img, 0, 0, W, H); return; }
+  for (let y = 0; y < (b.tilev ? H : 1); y += h) for (let x = 0; x < (b.tileh ? W : 1); x += w) ctx.drawImage(img, x, y);
 }
 function roomState() { return JSON.stringify([room.instances, room.settings]); }
 function roomDirty() { return room && roomState() !== roomSaved; }
@@ -329,6 +346,35 @@ function roomSettingsForm() { // the room's own settings, under the palette
   sel.onchange = () => { v0.follow = sel.value; drawRoom(); markRoom(); };
   row("follows", sel);
   camRows.forEach((r) => (r.style.display = cam.checked ? "" : "none"));
+  // the background: one of backgrounds/ (or a PNG imported now), tiled / stretched / scrolling / in front
+  const b0 = room.settings.background0;
+  const bsel = document.createElement("select");
+  const fillBg = () => { bsel.textContent = ""; for (const n of ["", ...room.backgrounds]) bsel.append(Object.assign(document.createElement("option"), { value: n, textContent: n || "(none)", selected: n === b0.background })); };
+  fillBg();
+  bsel.onchange = () => { b0.background = bsel.value; drawRoom(); markRoom(); };
+  const bimp = Object.assign(document.createElement("button"), { type: "button", className: "new", textContent: "import PNG…" });
+  const bfile = Object.assign(document.createElement("input"), { type: "file", accept: "image/png", style: "display:none" });
+  bimp.onclick = () => bfile.click();
+  bfile.onchange = async () => {
+    const file = bfile.files[0]; if (!file) return;
+    const name = file.name.replace(/\.png$/i, "").toLowerCase().replace(/[^a-z0-9_-]+/g, "_") || "background";
+    const r = await call("api/background-png?name=" + encodeURIComponent(name), { method: "POST", body: new Uint8Array(await file.arrayBuffer()) });
+    if (!r.ok) { $("status").textContent = "· " + (await r.text()); return; }
+    if (!room.backgrounds.includes(name)) room.backgrounds.push(name);
+    delete bgImages[name]; b0.background = name; fillBg(); drawRoom(); markRoom(); load();
+  };
+  const bspan = document.createElement("span"); bspan.append(bsel, " ", bimp, bfile);
+  f.append(Object.assign(document.createElement("label"), { textContent: "background" }), bspan);
+  for (const [label, key] of [["tile across", "tileh"], ["tile down", "tilev"], ["stretch", "stretch"], ["in front", "foreground"]]) {
+    const cb = Object.assign(document.createElement("input"), { type: "checkbox", checked: !!b0[key] });
+    cb.onchange = () => { b0[key] = cb.checked; drawRoom(); markRoom(); };
+    f.append(Object.assign(document.createElement("label"), { textContent: label }), cb);
+  }
+  for (const [label, key] of [["scroll h", "hspeed"], ["scroll v", "vspeed"]]) {
+    const inp = Object.assign(document.createElement("input"), { type: "number", value: b0[key] || 0 });
+    inp.oninput = () => { b0[key] = Number(inp.value) || 0; markRoom(); };
+    f.append(Object.assign(document.createElement("label"), { textContent: label }), inp);
+  }
   // the room's own creation code: rooms/NAME/creation.gml (made empty when there is none yet)
   const cc = Object.assign(document.createElement("button"), { type: "button", className: "new", textContent: "creation code…", title: "GML run when the room starts (rooms/…/creation.gml)" });
   cc.onclick = async () => {
@@ -395,6 +441,7 @@ async function openRoom(dir, a) {
   room.settings = { caption: room.caption || "", width: room.width, height: room.height, speed: room.speed, background_colour: room.background || "#000000", persistent: !!room.persistent,
     views_enabled: !!room.views_enabled, view0: Object.assign({ w: 320, h: 240, follow: "", hborder: 64, vborder: 64 }, room.view0 || {}) };
   if (!room.settings.view0.follow) room.settings.view0.follow = "";
+  room.settings.background0 = Object.assign({ background: "", tileh: false, tilev: false, stretch: false, foreground: false, hspeed: 0, vspeed: 0 }, room.background0 || {});
   roomPath = dir; roomSaved = roomState(); current = null;
   $("path").textContent = dir + " (room)"; $("text").style.display = "none"; $("room").classList.add("on");
   const pal = $("palette"); pal.textContent = "";

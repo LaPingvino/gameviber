@@ -259,9 +259,11 @@ func readRoom(fsys fs.FS, dir, name string, id int, objID map[string]int32, p *P
 			Code   string
 		}
 		Background []struct {
-			Background                        string
-			X, Y, HSpeed, VSpeed              int32
-			TileH, TileV, Foreground, Stretch bool
+			Background           string
+			X, Y, HSpeed, VSpeed int32
+			TileH                bool `toml:"tile_h"` // as export.go writes them (the untagged
+			TileV                bool `toml:"tile_v"` // fields read "tileh" and lost every tiling)
+			Foreground, Stretch  bool
 		} `toml:"background"`
 		View []struct {
 			View, Port, Border, Speed []int32
