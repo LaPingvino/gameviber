@@ -616,12 +616,20 @@ async function termEnsure() {
   new ResizeObserver(() => { if (!termFit) return; termFit.fit(); call("api/term/resize?cols=" + term.cols + "&rows=" + term.rows, { method: "POST" }); }).observe($("termview"));
   return true;
 }
+// after the agent went quiet: the tree again, and the open file when it changed on disk (and has no unsaved edits)
+async function termRefresh() {
+  await load();
+  if (current && !dirty() && $("text").style.display !== "none") {
+    const r = await call("api/file?path=" + encodeURIComponent(current));
+    if (r.ok) { const t = await r.text(); if (t !== saved) { $("text").value = t; saved = t; mark(); $("status").textContent = "· reloaded (changed on disk)"; } }
+  }
+}
 function termListen() {
   if (termES) termES.close();
   termES = new EventSource("api/term/out");
   termES.onmessage = (e) => {
     term.write(Uint8Array.from(atob(e.data), (c) => c.charCodeAt(0)));
-    clearTimeout(termQuiet); termQuiet = setTimeout(() => { if (!dirty()) load(); }, 1500); // an agent may have written files: the tree again
+    clearTimeout(termQuiet); termQuiet = setTimeout(termRefresh, 1500); // an agent may have written files
   };
   termES.addEventListener("exit", () => { termES.close(); termES = null; term.write("\r\n[ended]\r\n"); $("termnote").textContent = "ended"; load(); });
 }
@@ -643,7 +651,8 @@ $("termstart").onclick = async () => {
   term.reset();
   const r = await call("api/term/start?cols=" + term.cols + "&rows=" + term.rows + "&cmd=" + encodeURIComponent(cmd), { method: "POST" });
   if (!r.ok) { $("termnote").textContent = await r.text(); return; }
-  $("termnote").textContent = "running " + (cmd || "a shell") + " in the project folder";
+  const started = await r.json();
+  $("termnote").textContent = "running " + (cmd || "a shell") + " in the project folder" + (started.mcpConfig ? " · GameViber's tools in " + started.mcpConfig.split("/").pop() : "") + (started.note ? " · " + started.note : "");
   termListen(); term.focus();
 };
 $("termstop").onclick = () => call("api/term/stop", { method: "POST" });

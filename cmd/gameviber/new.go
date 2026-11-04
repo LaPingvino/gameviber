@@ -74,6 +74,7 @@ func cmdNew(args []string) error {
 			return err
 		}
 	}
+	gitInit(dir)
 	fmt.Printf("a new game in %s — try: gameviber check %s; gameviber play -keys \"right:60,down:60\" -shot frame.png %s; gameviber run %s\n", dir, dir, dir, dir)
 	return nil
 }

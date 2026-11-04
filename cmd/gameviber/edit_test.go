@@ -1,6 +1,7 @@
 package main
 
 import (
+	"archive/tar"
 	"bufio"
 	"bytes"
 	"encoding/base64"
@@ -534,5 +535,64 @@ func TestEditTerminal(t *testing.T) {
 	}
 	if !strings.Contains(out.String(), "ready in game") || !strings.Contains(out.String(), "got hello") || !exited {
 		t.Errorf("exited %v, output %q", exited, out.String())
+	}
+}
+
+// writeAgentConfig: Claude Code's .mcp.json and OpenCode's opencode.json get
+// the gameviber server (mcp DIR) and keep what was there; Aider gets none.
+func TestWriteAgentConfig(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(dir+"/.mcp.json", []byte(`{"mcpServers":{"other":{"command":"x"}},"keep":1}`), 0o644)
+	if f, err := writeAgentConfig(dir, "claude --model sonnet"); err != nil || !strings.HasSuffix(f, ".mcp.json") {
+		t.Fatalf("claude: %q %v", f, err)
+	}
+	var c struct {
+		MCPServers map[string]struct {
+			Command string
+			Args    []string
+		}
+		Keep int
+	}
+	data, _ := os.ReadFile(dir + "/.mcp.json")
+	json.Unmarshal(data, &c)
+	if c.Keep != 1 || c.MCPServers["other"].Command != "x" || len(c.MCPServers["gameviber"].Args) != 2 || c.MCPServers["gameviber"].Args[0] != "mcp" {
+		t.Errorf(".mcp.json: %s", data)
+	}
+	if f, _ := writeAgentConfig(dir, "opencode"); !strings.HasSuffix(f, "opencode.json") {
+		t.Errorf("opencode: %q", f)
+	}
+	data, _ = os.ReadFile(dir + "/opencode.json")
+	if !strings.Contains(string(data), `"type": "local"`) || !strings.Contains(string(data), `"mcp"`) {
+		t.Errorf("opencode.json: %s", data)
+	}
+	if f, _ := writeAgentConfig(dir, "aider"); f != "" {
+		t.Errorf("aider: %q", f)
+	}
+}
+
+// A web build's project.tar never holds .git or the agents' configs (this
+// machine's paths).
+func TestPackSkipsPrivate(t *testing.T) {
+	dir := t.TempDir() + "/game"
+	if err := cmdNew([]string{dir}); err != nil {
+		t.Fatal(err)
+	}
+	writeAgentConfig(dir, "claude")
+	writeAgentConfig(dir, "opencode")
+	os.MkdirAll(dir+"/.git", 0o755)
+	os.WriteFile(dir+"/.git/config", []byte("x"), 0o644)
+	var b bytes.Buffer
+	if err := packProject(dir, &b); err != nil {
+		t.Fatal(err)
+	}
+	tr := tar.NewReader(&b)
+	for {
+		h, err := tr.Next()
+		if err != nil {
+			break
+		}
+		if strings.HasPrefix(h.Name, ".git") || h.Name == ".mcp.json" || h.Name == "opencode.json" {
+			t.Errorf("shipped %s", h.Name)
+		}
 	}
 }

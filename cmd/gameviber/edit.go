@@ -62,8 +62,14 @@ func editHandler(dir string) http.Handler {
 	mux.HandleFunc("GET /api/files", func(w http.ResponseWriter, r *http.Request) {
 		var files []string
 		filepath.WalkDir(dir, func(p string, d os.DirEntry, err error) error {
-			if err != nil || d.IsDir() {
+			if err != nil {
 				return err
+			}
+			if d.IsDir() {
+				if p != dir && strings.HasPrefix(d.Name(), ".") { // .git, .gemini …: not the game's
+					return filepath.SkipDir
+				}
+				return nil
 			}
 			switch filepath.Ext(p) {
 			case ".gml", ".toml", ".txt", ".md":

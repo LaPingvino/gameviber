@@ -245,6 +245,9 @@ func checkProject(dir string, w io.Writer) (int, error) {
 	var ok []parsed
 	problems, files := 0, 0
 	walkErr := filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
+		if err == nil && d.IsDir() && path != dir && strings.HasPrefix(d.Name(), ".") {
+			return filepath.SkipDir
+		}
 		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".gml") {
 			return err
 		}
@@ -381,8 +384,17 @@ func fileHash(path string) string {
 func packProject(dir string, w io.Writer) error {
 	tw := tar.NewWriter(w)
 	err := filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
-		if err != nil || d.IsDir() {
+		if err != nil {
 			return err
+		}
+		if d.IsDir() {
+			if path != dir && strings.HasPrefix(d.Name(), ".") { // .git, .gemini …: never shipped
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if agentConfigFiles[d.Name()] { // local paths of this machine: never shipped
+			return nil
 		}
 		rel, _ := filepath.Rel(dir, path)
 		data, err := os.ReadFile(path)

@@ -102,6 +102,7 @@ func (t *editTerm) start(w http.ResponseWriter, r *http.Request) {
 	cols, _ := strconv.Atoi(r.URL.Query().Get("cols"))
 	rows, _ := strconv.Atoi(r.URL.Query().Get("rows"))
 	t.stop()
+	cfgFile, _ := writeAgentConfig(t.dir, line)        // the agent's GameViber tools (MCP)
 	cmd := exec.Command("/bin/sh", "-c", "exec "+line) // the user's own command line, as a shell would run it
 	cmd.Dir = t.dir
 	cmd.Env = append(os.Environ(), "TERM=xterm-256color", "COLORTERM=truecolor")
@@ -146,7 +147,11 @@ func (t *editTerm) start(w http.ResponseWriter, r *http.Request) {
 		s.subs = map[chan []byte]bool{}
 		s.mu.Unlock()
 	}()
-	writeJSON(w, map[string]any{"started": line})
+	note := ""
+	if strings.HasSuffix(cfgFile, "opencode.json") && !inGitRepo(t.dir) {
+		note = "OpenCode reads opencode.json only inside a git repository — run git init in this folder to give it GameViber's tools"
+	}
+	writeJSON(w, map[string]any{"started": line, "mcpConfig": cfgFile, "note": note})
 }
 
 // out streams the terminal's output as Server-Sent Events: what came so far,
