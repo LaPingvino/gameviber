@@ -76,18 +76,22 @@ goal of its own, weighed alongside the LLM-friendly rule.
    the hand port step by step.
 4. [ ] The editor (docs/EDITOR.md; decided 2026-11-04): E1–E4 done, sounds, room settings, pixel drawing, timelines done. LEFT (E5): the assistant — proposal in docs/EDITOR.md ('The assistant'); steps 0–1 built ('Copy for an assistant', 'Paste an answer'; no key); the keyed panel for `gameviber edit` waits on Joop (model, key).
 
-5. [ ] NEXT — **Claude Code inside the local editor** (Joop 2026-11-04: "As API keys are expensive, it's probably
-   good to also enable e.g. a terminal window approach that enables working with Claude Code Pro and Max").
-   Local `gameviber edit` only (a browser page can't start programs; Pages keeps copy / paste). DECIDED (best effort):
+5. [ ] NEXT — **Coding agents inside the local editor** (Joop 2026-11-04: "As API keys are expensive, it's probably
+   good to also enable e.g. a terminal window approach that enables working with Claude Code Pro and Max"; "Probably
+   also good to support e.g. OpenCode and other LLM providers"). Local `gameviber edit` only (a browser page can't
+   start programs; Pages keeps copy / paste). DECIDED (best effort):
    a. a terminal panel: a pty (Linux /dev/ptmx through the standard library's syscall — no new module; other
-      systems: a note) running `claude` in the project folder, shown with xterm.js (cdnjs, pinned version) over a
-      WebSocket-free stream (Server-Sent Events out, POSTs in — standard library only); the user's own Claude Code
-      login (Pro / Max), no key;
-   b. `gameviber edit` writes the project's .mcp.json (gameviber mcp DIR) so that session has check / play / reference;
-      the editor reloads its tree / open file when files change on disk;
-   c. "Ask Claude": a one-shot `claude -p --output-format stream-json` in the project folder, the answer streamed
-      into the editor, files reloaded after;
-   d. the API-key panel stays optional (ANTHROPIC_API_KEY), for people without Claude Code.
+      systems: a note) running the chosen agent in the project folder, shown with xterm.js (cdnjs, pinned version),
+      Server-Sent Events out / POSTs in (standard library only). Presets: Claude Code (`claude`, Pro / Max login),
+      OpenCode (`opencode`), Aider (`aider`), Codex CLI (`codex`), Gemini CLI (`gemini`), or any command; the choice
+      kept per project (a small file in the project, git-ignorable). The agent's own login / provider — no key here;
+   b. GameViber's tools for each: `gameviber mcp DIR` written in the config the agent reads — Claude Code's
+      .mcp.json, OpenCode's opencode.json "mcp" section, others where they have MCP; all of them get AGENTS.md
+      and the gameviber commands in the shell; the editor reloads its tree / open file when files change on disk;
+   c. "Ask": a one-shot through the agent's non-interactive mode (`claude -p`, `opencode run`, …), streamed into
+      the editor, files reloaded after;
+   d. a key-based panel as the fallback: Anthropic, or any OpenAI-compatible endpoint (OpenAI, OpenRouter, Ollama /
+      LM Studio locally) — endpoint, model and key from the environment, never stored in the project.
 6. [ ] **Export** — `gameviber export`: finished builds — a web zip for itch.io / Pages, desktop binaries (Linux,
    Windows, macOS via Go cross-compiling), the game's title and icon; the export options built in.
 7. [ ] **Sprite drawing tools** — fill, line, rectangle, palette / picked colours, undo; frames added / copied /
@@ -258,3 +262,4 @@ setting (on by default) rather than per-game code:
 - 2026-11-04 — Joop: best effort from here (POLICY above); Stelo and Pacmanio complete, so the rotation is goloco ↔ GameViber.
 - 2026-11-04 (Joop: a terminal approach so Claude Code Pro / Max works, no API key) — queued as item 5 (terminal panel with claude in a pty, .mcp.json for gameviber mcp, a one-shot 'Ask Claude' via claude -p, the key panel optional); local editor only.
 - 2026-11-04 (Joop: GM 6–8 importers not important; workable output and tools to make nice games matter) — the GM 6–8 question closed; queued after item 5 (Claude Code in the editor): 6 export, 7 sprite drawing tools, 8 rooms (backgrounds / tiles / views / creation code), 9 a sound effects generator, 10 templates + a tutorial.
+- 2026-11-04 (Joop: also OpenCode and other LLM providers) — item 5 generalised: the terminal runs any agent (presets Claude Code, OpenCode, Aider, Codex CLI, Gemini CLI, or a command), gameviber mcp written in each agent's config (.mcp.json, opencode.json …), 'Ask' through each one's non-interactive mode, the key panel for Anthropic or any OpenAI-compatible endpoint (OpenRouter, Ollama …).
