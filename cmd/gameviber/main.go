@@ -55,6 +55,8 @@ func cliMain() {
 		err = cmdNew(os.Args[2:])
 	case "reference":
 		err = cmdReference(os.Args[2:])
+	case "mcp":
+		err = cmdMCP(os.Args[2:])
 	case "help", "-h", "--help":
 		usage()
 	default:
@@ -73,6 +75,8 @@ func usage() {
   gameviber edit DIR                the editor, in your browser (served on this machine only)
   gameviber new DIR                 a small starter game to build on (collect the coins)
   gameviber import GAME.exe DIR     turn a GameMaker 5.3 game into a GameViber project in DIR
+  gameviber mcp DIR                 the project's check / play / reference as an MCP server (stdin / stdout),
+                                    for assistants such as Claude Code: claude mcp add gameviber -- gameviber mcp DIR
   gameviber check DIR               check a project: every .gml parses, every function called exists
                                     (file:line:col: message; exit 1 when there is anything)
   gameviber run [-room R] GAME      play it in a window (arrow keys, space, enter; M sound, F11 full screen)
@@ -190,87 +194,25 @@ func cmdPlay(args []string) error {
 	if fs.NArg() != 1 {
 		return fmt.Errorf("usage: gameviber play [flags] GAME.exe|DIR")
 	}
-	p, err := open(fs.Arg(0))
-	if err != nil {
-		return err
-	}
-	script, err := parseKeys(*keys)
-	if err != nil {
-		return err
-	}
-	g, err := load.FromProject(p)
-	if err != nil {
-		return err
-	}
-	var pl *load.Play
-	if *room != "" {
-		pl, err = g.StartAt(*room)
-	} else {
-		pl, err = g.Start()
-	}
-	if err != nil {
-		return err
-	}
-	k := &keySet{held: map[runner.Key]bool{}, prev: map[runner.Key]bool{}}
-	keysAt := func(i int) []runner.Key { // the script's keys at step i (none after its end)
-		for _, sp := range script {
-			if i < sp.steps {
-				return sp.keys
-			}
-			i -= sp.steps
-		}
-		return nil
-	}
-	rooms := []string{pl.Room.Name}
-	for i := 0; i < *steps && !pl.Ended; i++ {
-		k.prev, k.held = k.held, map[runner.Key]bool{}
-		for _, c := range keysAt(i) {
-			k.held[c] = true
-		}
-		if err := pl.Step(k); err != nil {
-			return err
-		}
-		if pl.Room.Name != rooms[len(rooms)-1] {
-			rooms = append(rooms, pl.Room.Name)
-		}
-	}
+	var shotW io.Writer
 	if *shot != "" {
-		var gr *gmfile.Room
-		for _, r := range p.Rooms {
-			if r != nil && r.Name == pl.Room.Name {
-				gr = r
-			}
-		}
-		w, h := pl.Room.W, pl.Room.H
-		if pl.Room.ViewsEnabled && len(pl.Room.Views) > 0 && pl.Room.Views[0].Visible {
-			w, h = pl.Room.Views[0].W, pl.Room.Views[0].H
-		}
-		img := image.NewRGBA(image.Rect(0, 0, w, h))
-		render.Frame(img, g.Game, pl.Room, render.LoadAssets(p), gr.BGColor, gr.DrawBGColor)
 		f, err := os.Create(*shot)
 		if err != nil {
 			return err
 		}
-		png.Encode(f, img)
-		f.Close()
+		defer f.Close()
+		shotW = f
 	}
-	state := map[string]any{"rooms": rooms, "room": pl.Room.Name, "score": pl.Globals.Score, "lives": pl.Globals.Lives}
-	insts := map[string]int{}
-	for _, in := range pl.Room.Instances {
-		if !in.Destroyed {
-			insts[in.Obj.Name]++
-		}
+	state, err := playProject(fs.Arg(0), *room, *steps, *keys, shotW)
+	if err != nil {
+		return err
 	}
-	state["instances"] = insts
-	var errs []string
-	for _, e := range g.Errors {
-		errs = append(errs, e.Error())
-	}
-	state["errors"] = errs
+	rooms, errs := state["rooms"].([]string), state["errors"].([]string)
+	score, lives := state["score"], state["lives"]
 	if *asJSON {
 		return json.NewEncoder(os.Stdout).Encode(state)
 	}
-	fmt.Printf("rooms: %s\nscore %d, lives %d\n", strings.Join(rooms, " → "), pl.Globals.Score, pl.Globals.Lives)
+	fmt.Printf("rooms: %s\nscore %v, lives %v\n", strings.Join(rooms, " → "), score, lives)
 	for _, e := range errs {
 		fmt.Println("error:", e)
 	}
@@ -477,4 +419,86 @@ func buildPlayer(out string) error {
 		return err
 	}
 	return os.WriteFile(filepath.Join(out, "wasm_exec.js"), shim, 0o644)
+}
+
+// playProject is gameviber play's run (the command's and the MCP tool's): the
+// game at path from room (or its first) for steps steps under the key
+// script; the state after (rooms passed, room, score, lives, instances by
+// object, the runtime errors), the last frame as PNG into shot if given.
+func playProject(path, room string, steps int, keys string, shot io.Writer) (map[string]any, error) {
+	p, err := open(path)
+	if err != nil {
+		return nil, err
+	}
+	script, err := parseKeys(keys)
+	if err != nil {
+		return nil, err
+	}
+	g, err := load.FromProject(p)
+	if err != nil {
+		return nil, err
+	}
+	var pl *load.Play
+	if room != "" {
+		pl, err = g.StartAt(room)
+	} else {
+		pl, err = g.Start()
+	}
+	if err != nil {
+		return nil, err
+	}
+	k := &keySet{held: map[runner.Key]bool{}, prev: map[runner.Key]bool{}}
+	keysAt := func(i int) []runner.Key { // the script's keys at step i (none after its end)
+		for _, sp := range script {
+			if i < sp.steps {
+				return sp.keys
+			}
+			i -= sp.steps
+		}
+		return nil
+	}
+	rooms := []string{pl.Room.Name}
+	for i := 0; i < steps && !pl.Ended; i++ {
+		k.prev, k.held = k.held, map[runner.Key]bool{}
+		for _, c := range keysAt(i) {
+			k.held[c] = true
+		}
+		if err := pl.Step(k); err != nil {
+			return nil, err
+		}
+		if pl.Room.Name != rooms[len(rooms)-1] {
+			rooms = append(rooms, pl.Room.Name)
+		}
+	}
+	if shot != nil {
+		var gr *gmfile.Room
+		for _, r := range p.Rooms {
+			if r != nil && r.Name == pl.Room.Name {
+				gr = r
+			}
+		}
+		w, h := pl.Room.W, pl.Room.H
+		if pl.Room.ViewsEnabled && len(pl.Room.Views) > 0 && pl.Room.Views[0].Visible {
+			w, h = pl.Room.Views[0].W, pl.Room.Views[0].H
+		}
+		img := image.NewRGBA(image.Rect(0, 0, w, h))
+		render.Frame(img, g.Game, pl.Room, render.LoadAssets(p), gr.BGColor, gr.DrawBGColor)
+		if err := png.Encode(shot, img); err != nil {
+			return nil, err
+		}
+	}
+	state := map[string]any{"rooms": rooms, "room": pl.Room.Name, "score": pl.Globals.Score, "lives": pl.Globals.Lives}
+	insts := map[string]int{}
+	for _, in := range pl.Room.Instances {
+		if !in.Destroyed {
+			insts[in.Obj.Name]++
+		}
+	}
+	state["instances"] = insts
+	var errs []string
+	for _, e := range g.Errors {
+		errs = append(errs, e.Error())
+	}
+	state["errors"] = errs
+	return state, nil
 }

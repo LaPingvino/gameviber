@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"github.com/LaPingvino/gameviber/import/gmfile"
 	"image"
@@ -395,5 +396,60 @@ func TestEditNewMoment(t *testing.T) {
 		if r, _ := http.Post(srv.URL+"/api/new?kind=moment&"+q, "", nil); r.StatusCode != http.StatusBadRequest {
 			t.Errorf("%s: %d", q, r.StatusCode)
 		}
+	}
+}
+
+// gameviber mcp: a session — initialize, a notification (no answer),
+// tools/list, check, play with a frame, an unknown tool and method.
+func TestMCP(t *testing.T) {
+	dir := t.TempDir() + "/game"
+	if err := cmdNew([]string{dir}); err != nil {
+		t.Fatal(err)
+	}
+	in := strings.Join([]string{
+		`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"t","version":"1"}}}`,
+		`{"jsonrpc":"2.0","method":"notifications/initialized"}`,
+		`{"jsonrpc":"2.0","id":2,"method":"tools/list"}`,
+		`{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"check","arguments":{}}}`,
+		`{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"play","arguments":{"steps":20,"keys":"right:20","shot":true}}}`,
+		`{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"nope"}}`,
+		`{"jsonrpc":"2.0","id":"x","method":"resources/list"}`,
+	}, "\n") + "\n"
+	var out bytes.Buffer
+	if err := serveMCP(dir, strings.NewReader(in), &out); err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(strings.TrimSpace(out.String()), "\n")
+	if len(lines) != 6 {
+		t.Fatalf("%d answers (the notification gets none):\n%s", len(lines), out.String())
+	}
+	var r []map[string]any
+	for _, l := range lines {
+		var m map[string]any
+		if err := json.Unmarshal([]byte(l), &m); err != nil {
+			t.Fatal(err)
+		}
+		r = append(r, m)
+	}
+	res := func(i int) map[string]any { m, _ := r[i]["result"].(map[string]any); return m }
+	if res(0)["protocolVersion"] != "2025-06-18" || res(0)["capabilities"].(map[string]any)["tools"] == nil {
+		t.Errorf("initialize: %v", r[0])
+	}
+	if n := len(res(1)["tools"].([]any)); n != 3 {
+		t.Errorf("%d tools", n)
+	}
+	check := res(2)["content"].([]any)[0].(map[string]any)["text"].(string)
+	if !strings.Contains(check, "0 problems") || res(2)["isError"] != false {
+		t.Errorf("check: %v", res(2))
+	}
+	play := res(3)["content"].([]any)
+	if len(play) != 2 || !strings.Contains(play[0].(map[string]any)["text"].(string), `"room":"level"`) || play[1].(map[string]any)["mimeType"] != "image/png" {
+		t.Errorf("play: %v", play)
+	}
+	if img, err := base64.StdEncoding.DecodeString(play[1].(map[string]any)["data"].(string)); err != nil || !bytes.HasPrefix(img, []byte("\x89PNG")) {
+		t.Errorf("the frame is no PNG: %v", err)
+	}
+	if r[4]["error"] == nil || r[5]["error"].(map[string]any)["code"] != float64(-32601) || r[5]["id"] != "x" {
+		t.Errorf("unknown tool / method: %v / %v", r[4], r[5])
 	}
 }

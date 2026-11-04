@@ -69,7 +69,8 @@ and the request to answer with whole files. Paste it into any chat (Claude, Chat
    before it is saved, `check` run after.
 2. With `gameviber edit` on this machine: an assistant panel calling a model with a key from the environment
    (`ANTHROPIC_API_KEY` …), the same context, the answer applied as in step 1. Never on Pages.
-3. The MCP server over `check`, `play -json` and `reference` (DESIGN), for assistants that work on the files
-   themselves.
+3. (BUILT 2026-11-04) The MCP server over `check`, `play` and `reference` (DESIGN), for assistants that work
+   on the files themselves: `gameviber mcp DIR` (stdin / stdout); in Claude Code
+   `claude mcp add gameviber -- gameviber mcp DIR`. `play` can return the last frame as an image.
 
 Questions for Joop: is copy-and-paste enough on Pages? Which model and key for step 2?
