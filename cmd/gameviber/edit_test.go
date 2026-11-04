@@ -617,13 +617,16 @@ func TestEditAsk(t *testing.T) {
 	if !strings.Contains(s, `data: "in game"`) || !strings.Contains(s, `data: "make the coins spin"`) || !strings.Contains(s, "event: done\ndata: \"ok\"") {
 		t.Errorf("stream: %s", s)
 	}
-	if a := askArgs("claude", "q", true); strings.Join(a, " ") != "claude -p q --permission-mode acceptEdits" {
+	if a := askArgs("claude", "q", true, ""); strings.Join(a, " ") != "claude -p q --allowedTools mcp__gameviber__* Bash(gameviber:*) --permission-mode acceptEdits" {
 		t.Errorf("claude: %v", a)
 	}
-	if a := askArgs("opencode", "q", false); strings.Join(a, " ") != "opencode run q" {
+	if a := askArgs("opencode", "q", false, ""); strings.Join(a, " ") != "opencode run q" {
 		t.Errorf("opencode: %v", a)
 	}
-	if askArgs("nonesuch", "q", false) != nil {
+	if a := askArgs("agy", "q", true, "gemini-3.8-flash-low"); strings.Join(a, " ") != `agy -p q --settings {"permissions":{"allow":["command(gameviber)"]}} --mode accept-edits --model gemini-3.8-flash-low` {
+		t.Errorf("agy: %v", a)
+	}
+	if askArgs("nonesuch", "q", false, "") != nil {
 		t.Error("unknown agent")
 	}
 }

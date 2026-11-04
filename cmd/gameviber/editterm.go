@@ -21,6 +21,7 @@ import (
 // agentPresets are the terminal's choices: name → command line.
 var agentPresets = []struct{ Name, Command string }{
 	{"Claude Code", "claude"},
+	{"Antigravity CLI", "agy"},
 	{"OpenCode", "opencode"},
 	{"Aider", "aider"},
 	{"Codex CLI", "codex"},

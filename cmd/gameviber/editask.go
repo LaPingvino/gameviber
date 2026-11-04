@@ -18,11 +18,33 @@ import (
 // It may change files only when the user ticks "may change files".
 
 // askArgs is the command line for a one-shot question to a preset agent;
-// edits lets it change files without asking. nil for an unknown agent.
-func askArgs(agent, prompt string, edits bool) []string {
+// edits lets it change files without asking; model, when given, picks the
+// agent's model. nil for an unknown agent.
+func askArgs(agent, prompt string, edits bool, model string) []string {
+	a := askArgsFor(agent, prompt, edits)
+	if a != nil && model != "" {
+		flag := "--model"
+		if agent == "codex" {
+			flag = "-m"
+		}
+		a = append(a, flag, model)
+	}
+	return a
+}
+
+func askArgsFor(agent, prompt string, edits bool) []string {
 	switch agent {
+	case "agy": // Antigravity CLI (Google's successor to Gemini CLI)
+		// headless agy can't ask before running a command: GameViber's own
+		// (check, play, reference) are allowed for this session only (--settings is never saved)
+		a := []string{"agy", "-p", prompt, "--settings", `{"permissions":{"allow":["command(gameviber)"]}}`}
+		if edits {
+			a = append(a, "--mode", "accept-edits")
+		}
+		return a
 	case "claude":
-		a := []string{"claude", "-p", prompt}
+		// print mode can't ask either: GameViber's MCP tools and its command allowed
+		a := []string{"claude", "-p", prompt, "--allowedTools", "mcp__gameviber__*", "Bash(gameviber:*)"}
 		if edits {
 			a = append(a, "--permission-mode", "acceptEdits")
 		}
@@ -74,8 +96,8 @@ func (a *editAsk) handle(mux *http.ServeMux) {
 // streams the agent's output lines, then "done" with the exit status.
 func (a *editAsk) ask(w http.ResponseWriter, r *http.Request) {
 	var q struct {
-		Agent, Command, Prompt, File string
-		Edits                        bool
+		Agent, Command, Prompt, File, Model string
+		Edits                               bool
 	}
 	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&q); err != nil || strings.TrimSpace(q.Prompt) == "" {
 		http.Error(w, "a question is needed", http.StatusBadRequest)
@@ -94,7 +116,7 @@ func (a *editAsk) ask(w http.ResponseWriter, r *http.Request) {
 	if strings.TrimSpace(q.Command) != "" { // the user's own command: the question in $GAMEVIBER_PROMPT
 		cmd = exec.Command("/bin/sh", "-c", q.Command)
 		cmd.Env = append(os.Environ(), "GAMEVIBER_PROMPT="+prompt)
-	} else if args := askArgs(q.Agent, prompt, q.Edits); args != nil {
+	} else if args := askArgs(q.Agent, prompt, q.Edits, strings.TrimSpace(q.Model)); args != nil {
 		writeAgentConfig(a.dir, q.Agent) // its GameViber tools, as for the terminal
 		cmd = exec.Command(args[0], args[1:]...)
 	} else {
