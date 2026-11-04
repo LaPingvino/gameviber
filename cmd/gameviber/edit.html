@@ -88,6 +88,11 @@ footer pre { margin: 0; font: 12px/1.45 ui-monospace, monospace; white-space: pr
   <div id="ansfiles"></div>
   <div class="row"><button id="answrite" disabled>Write the chosen files</button><button id="ansclose" class="new">Close</button></div>
 </dialog>
+<dialog id="instcode"><b id="instcodetitle">Creation code</b>
+  <p class="hint" style="margin:6px 0">GML run when this one instance is created (after its object's Create event) — e.g. <code>hspeed = 2</code> for this instance only.</p>
+  <textarea id="instcodetext" spellcheck="false" style="width:100%;height:12em;font:13px ui-monospace,monospace"></textarea>
+  <div class="row"><button id="instcodeok">Keep</button><button id="instcodeclose" class="new">Cancel</button></div>
+</dialog>
 <dialog id="meat"><b>Chat session (copy / paste)</b>
   <p class="hint" style="margin:6px 0">For any chat, no key: copy the message into the chat, paste its whole reply back and run it — the next message is then ready to copy. Files it writes are shown before they are written.</p>
   <div class="row"><b>To the chat</b><button id="meatcopy">Copy</button><span id="meatturn" class="hint"></span></div>
@@ -282,6 +287,9 @@ function drawRoom() {
   for (let x = 0; x < c.width; x += 32) { ctx.beginPath(); ctx.moveTo(x + .5, 0); ctx.lineTo(x + .5, c.height); ctx.stroke(); }
   for (let y = 0; y < c.height; y += 32) { ctx.beginPath(); ctx.moveTo(0, y + .5); ctx.lineTo(c.width, y + .5); ctx.stroke(); }
   for (const i of room.instances) { const sp = spriteOf(i.object); if (sp) drawSprite(ctx, sp, i.x, i.y); else { ctx.fillStyle = "#fff8"; ctx.fillRect(i.x, i.y, 8, 8); } }
+  for (const i of room.instances) if (i.code) { // an instance with creation code: a small marker
+    ctx.fillStyle = "#f5c542"; ctx.beginPath(); ctx.arc(i.x + 3, i.y + 3, 3, 0, 7); ctx.fill();
+  }
   if (room.settings && room.settings.views_enabled) { // the camera's size, from the room's corner
     const v = room.settings.view0;
     ctx.save(); ctx.setLineDash([6, 4]); ctx.strokeStyle = "#f5c542"; ctx.lineWidth = 2;
@@ -321,6 +329,18 @@ function roomSettingsForm() { // the room's own settings, under the palette
   sel.onchange = () => { v0.follow = sel.value; drawRoom(); markRoom(); };
   row("follows", sel);
   camRows.forEach((r) => (r.style.display = cam.checked ? "" : "none"));
+  // the room's own creation code: rooms/NAME/creation.gml (made empty when there is none yet)
+  const cc = Object.assign(document.createElement("button"), { type: "button", className: "new", textContent: "creation code…", title: "GML run when the room starts (rooms/…/creation.gml)" });
+  cc.onclick = async () => {
+    const p = roomPath + "/creation.gml";
+    if (!(await call("api/file?path=" + encodeURIComponent(p))).ok) {
+      await call("api/file?path=" + encodeURIComponent(p), { method: "PUT", body: "// runs when the room starts\n" });
+      await load();
+    }
+    const link = [...document.querySelectorAll("nav a")].find((x) => x.closest("details")?.querySelector("summary")?.textContent === roomPath && x.textContent === "creation.gml");
+    if (link) open(p, link);
+  };
+  f.append(Object.assign(document.createElement("label"), { textContent: "room code" }), cc);
   return f;
 }
 function at(e) {
@@ -342,6 +362,33 @@ $("canvas").addEventListener("mousedown", (e) => {
   drawRoom(); markRoom();
 });
 $("canvas").addEventListener("contextmenu", (e) => e.preventDefault());
+// double-click an instance: its creation code (LOOP item 8)
+let instEditing = null;
+$("canvas").addEventListener("dblclick", (e) => {
+  if (!room) return;
+  const [x, y] = at(e);
+  for (let k = room.instances.length - 1; k >= 0; k--) {
+    const i = room.instances[k], s = room.sprites[spriteOf(i.object)] || { W: 16, H: 16, OX: 0, OY: 0 };
+    if (x >= i.x - s.OX && x < i.x - s.OX + s.W && y >= i.y - s.OY && y < i.y - s.OY + s.H) {
+      if (chosen) { // the first click of the double-click placed one: take it back
+        const last = room.instances[room.instances.length - 1];
+        if (last !== i && last.object === chosen) room.instances.pop();
+      }
+      instEditing = i;
+      $("instcodetitle").textContent = "Creation code — " + i.object + " at " + i.x + ", " + i.y;
+      $("instcodetext").value = i.code || "";
+      $("instcode").showModal(); $("instcodetext").focus();
+      drawRoom(); markRoom();
+      return;
+    }
+  }
+});
+$("instcodeclose").onclick = () => $("instcode").close();
+$("instcodeok").onclick = () => {
+  const t = $("instcodetext").value;
+  if (instEditing) { if (t.trim()) instEditing.code = t; else delete instEditing.code; }
+  $("instcode").close(); drawRoom(); markRoom();
+};
 function markRoom() { $("save").disabled = !roomDirty(); $("status").textContent = roomDirty() ? "· unsaved" : ""; }
 async function openRoom(dir, a) {
   room = await (await call("api/room?path=" + encodeURIComponent(dir))).json();

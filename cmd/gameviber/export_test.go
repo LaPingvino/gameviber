@@ -269,3 +269,28 @@ func TestRoomCamera(t *testing.T) {
 		}
 	}
 }
+
+// TestInstanceCodeCheck: an instance's creation code is checked as GML.
+func TestInstanceCodeCheck(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "g")
+	if err := cmdNew([]string{dir}); err != nil {
+		t.Fatal(err)
+	}
+	file := filepath.Join(dir, "rooms", "level", "room.toml")
+	data, _ := os.ReadFile(file)
+	good := strings.Replace(string(data), "[[instance]]", "[[instance]]\n  code = \"hspeed = 2\"", 1)
+	os.WriteFile(file, []byte(good), 0o644)
+	var b strings.Builder
+	if n := checkRefs(dir, &b); n != 0 {
+		t.Errorf("valid instance code: %d problems: %s", n, b.String())
+	}
+	if p, err := gmfile.ReadDir(dir); err != nil || p.Rooms[0].Instances[0].Code != "hspeed = 2" {
+		t.Errorf("the code doesn't load: %v", err)
+	}
+	bad := strings.Replace(string(data), "[[instance]]", "[[instance]]\n  code = \"hspeed = (\"", 1)
+	os.WriteFile(file, []byte(bad), 0o644)
+	b.Reset()
+	if n := checkRefs(dir, &b); n != 1 || !strings.Contains(b.String(), "creation code") {
+		t.Errorf("broken instance code: %d: %q", n, b.String())
+	}
+}

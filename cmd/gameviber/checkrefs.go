@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/LaPingvino/gameviber/gml"
 	"github.com/LaPingvino/gameviber/import/gmfile"
 	"io"
 	"os"
@@ -70,12 +71,21 @@ func checkRefsVariant(dir, variant string, w io.Writer) int {
 	for _, rm := range sorted(rooms) {
 		file := filepath.ToSlash(filepath.Join("rooms", rm, "room.toml"))
 		var r struct {
-			Instance []struct{ Object string }
+			Instance []struct{ Object, Code string }
 		}
 		if _, err := toml.DecodeFile(filepath.Join(dir, file), &r); err != nil {
 			fmt.Fprintf(w, "%s: %v\n", file, err)
 			problems++
 			continue
+		}
+		for k, in := range r.Instance { // an instance's creation code is GML too
+			if in.Code == "" {
+				continue
+			}
+			if _, err := gml.Parse(in.Code); err != nil {
+				fmt.Fprintf(w, "%s: instance %d (%s) creation code: %v\n", file, k+1, in.Object, err)
+				problems++
+			}
 		}
 		seen := map[string]bool{}
 		for _, in := range r.Instance {
