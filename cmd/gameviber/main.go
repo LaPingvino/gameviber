@@ -54,6 +54,8 @@ func cliMain() {
 		err = cmdWeb(os.Args[2:])
 	case "export":
 		err = cmdExport(os.Args[2:])
+	case "sfx":
+		err = cmdSfx(os.Args[2:])
 	case "new":
 		err = cmdNew(os.Args[2:])
 	case "reference":
@@ -89,6 +91,7 @@ func usage() {
   gameviber run [-room R] GAME      play it in a window (arrow keys, space, enter; M sound, F11 full screen)
   gameviber web DIR OUT             a web page that plays the project DIR (OUT: index.html, game.wasm, project.tar)
   gameviber web|export -variant NAME …   with NAME.toml merged over game.toml (a demo build …)
+  gameviber sfx [-seed N] PRESET NAME DIR   a sound effect (coin, laser, explosion, powerup, hit, jump, blip) as DIR/sounds/NAME.wav
   gameviber export DIR OUT          the finished web build, installable as an app (OUT: a folder, or name.zip for itch.io)
                                     (PARTIAL: run it inside the GameViber source; it builds the wasm with go)
   gameviber play [flags] GAME       run a game headless (GAME: a GameMaker 5.3 .exe or a project folder)
