@@ -3,14 +3,11 @@
 package main
 
 import (
-	"archive/tar"
-	"bytes"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"syscall/js"
-	"testing/fstest"
 
 	"github.com/LaPingvino/gameviber/import/gmfile"
 )
@@ -45,24 +42,5 @@ func open(string) (*gmfile.Project, error) {
 	if err != nil {
 		return nil, err
 	}
-	fsys := fstest.MapFS{}
-	tr := tar.NewReader(bytes.NewReader(data))
-	for {
-		h, err := tr.Next()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return nil, err
-		}
-		if h.Typeflag != tar.TypeReg {
-			continue
-		}
-		b, err := io.ReadAll(tr)
-		if err != nil {
-			return nil, err
-		}
-		fsys[h.Name] = &fstest.MapFile{Data: b}
-	}
-	return gmfile.ReadFS(fsys, ".")
+	return projectFromTar(data)
 }

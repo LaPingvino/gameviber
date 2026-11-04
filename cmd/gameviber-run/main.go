@@ -29,7 +29,7 @@ func run(args []string) error {
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	if fs.NArg() != 1 && !inBrowser {
+	if fs.NArg() > 1 && !inBrowser { // none: the project appended to this program (open)
 		return fmt.Errorf("usage: gameviber run [-room R] GAME.exe|DIR")
 	}
 	p, err := open(fs.Arg(0))

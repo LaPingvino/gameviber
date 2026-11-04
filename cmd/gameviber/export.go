@@ -3,6 +3,7 @@ package main
 import (
 	"archive/zip"
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"image"
 	"image/color"
@@ -11,6 +12,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/LaPingvino/gameviber/import/gmfile"
@@ -22,8 +24,11 @@ import (
 // worker) — as a folder, or as a zip with index.html at its root (itch.io's
 // HTML5 upload, or any static host) when OUT ends in .zip.
 func cmdExport(args []string) error {
+	if len(args) == 3 && args[0] == "-desktop" {
+		return exportDesktop(args[1], args[2])
+	}
 	if len(args) != 2 {
-		return fmt.Errorf("usage: gameviber export DIR OUT   (OUT: a folder, or name.zip for itch.io)")
+		return fmt.Errorf("usage: gameviber export DIR OUT   (OUT: a folder, or name.zip for itch.io)\n       gameviber export -desktop DIR OUT   (OUT: a folder; the game as a program for this system)")
 	}
 	dir, out := args[0], args[1]
 	p, err := gmfile.ReadDir(dir)
@@ -179,4 +184,47 @@ func iconFrom(frame image.Image, n int) *image.RGBA {
 		}
 	}
 	return dst
+}
+
+// exportDesktop is `gameviber export -desktop DIR OUT`: the game as a program
+// for this system — the window player (gameviber-run) with the project packed
+// onto its end; started with no arguments it plays that project. Nothing else
+// is needed on the players' machines.
+func exportDesktop(dir, out string) error {
+	p, err := gmfile.ReadDir(dir)
+	if err != nil {
+		return err
+	}
+	name := p.Name()
+	if name == "" {
+		name = filepath.Base(filepath.Clean(dir))
+	}
+	player, err := runnerPath()
+	if err != nil {
+		return err
+	}
+	exe, err := os.ReadFile(player)
+	if err != nil {
+		return err
+	}
+	var tarBuf bytes.Buffer
+	if err := packProject(dir, &tarBuf); err != nil {
+		return err
+	}
+	if err := os.MkdirAll(out, 0o755); err != nil {
+		return err
+	}
+	file := cacheKey(name)
+	if runtime.GOOS == "windows" {
+		file += ".exe"
+	}
+	var size [8]byte
+	binary.LittleEndian.PutUint64(size[:], uint64(tarBuf.Len()))
+	data := append(append(append(exe, tarBuf.Bytes()...), size[:]...), "GVPROJ01"...)
+	path := filepath.Join(out, file)
+	if err := os.WriteFile(path, data, 0o755); err != nil {
+		return err
+	}
+	fmt.Printf("exported %s to %s (%s/%s; other systems: not yet)\n", name, path, runtime.GOOS, runtime.GOARCH)
+	return nil
 }

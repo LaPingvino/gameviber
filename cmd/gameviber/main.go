@@ -22,6 +22,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -307,16 +308,29 @@ func cmdRun(args []string) error {
 	// The window is a binary of its own (gameviber-run): Ebitengine needs a
 	// display as soon as it is linked in, and gameviber's other commands must
 	// work without one (servers, agents, tests).
-	exe, err := os.Executable()
-	path := filepath.Join(filepath.Dir(exe), "gameviber-run")
-	if _, statErr := os.Stat(path); err != nil || statErr != nil {
-		if path, err = exec.LookPath("gameviber-run"); err != nil {
-			return fmt.Errorf("the window is gameviber-run: go install ./cmd/gameviber-run (or go run ./cmd/gameviber-run %s)", strings.Join(args, " "))
-		}
+	path, err := runnerPath()
+	if err != nil {
+		return fmt.Errorf("%w (or go run ./cmd/gameviber-run %s)", err, strings.Join(args, " "))
 	}
 	cmd := exec.Command(path, args...)
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
 	return cmd.Run()
+}
+
+// runnerPath finds the window player, gameviber-run: next to this program,
+// else on the PATH.
+func runnerPath() (string, error) {
+	exe, err := os.Executable()
+	path := filepath.Join(filepath.Dir(exe), "gameviber-run")
+	if runtime.GOOS == "windows" {
+		path += ".exe"
+	}
+	if _, statErr := os.Stat(path); err != nil || statErr != nil {
+		if path, err = exec.LookPath("gameviber-run"); err != nil {
+			return "", fmt.Errorf("the window is gameviber-run: go install ./cmd/gameviber-run")
+		}
+	}
+	return path, nil
 }
 
 const webPage = `<!doctype html>
