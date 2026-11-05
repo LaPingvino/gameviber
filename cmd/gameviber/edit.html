@@ -168,7 +168,7 @@ footer pre { margin: 0; font: 12px/1.45 ui-monospace, monospace; white-space: pr
   <div id="soundview"><b id="sndname"></b><audio id="sndplay" controls></audio><p class="hint" id="sndnote"></p></div>
   <input type="file" id="sndfile" accept=".wav,.ogg,.opus,.mp3,.mid,audio/*" style="display:none">
   <div id="room"><div id="palette"></div><div id="stage"><canvas id="canvas"></canvas>
-    <p class="hint">Click: place the chosen object (on the 32 px grid; Shift: free) · right click: remove · <a href="#" id="astext">as text</a></p></div></div>
+    <p class="hint">Click: place the chosen object (on the 32 px grid; Shift: free) · right click: remove · <a href="#" id="astext">as text</a> · show path <select id="roompath" title="a path drawn over the room where it runs when started absolute (path_start(…, true)); a relative one starts at its instance"><option value="">none</option></select></p></div></div>
 </main>
 <footer><pre id="check">…</pre></footer>
 <script>
@@ -325,6 +325,14 @@ function drawRoom() {
   for (const i of room.instances) if (i.code) { // an instance with creation code: a small marker
     ctx.fillStyle = "#f5c542"; ctx.beginPath(); ctx.arc(i.x + 3, i.y + 3, 3, 0, 7); ctx.fill();
   }
+  const rp = roomPaths[$("roompath").value];
+  if (rp) { // the chosen path, as the runner follows it (LOOP 12)
+    const pl = pathPolyline(rp);
+    ctx.save(); ctx.strokeStyle = "#ffd166"; ctx.lineWidth = 2; ctx.setLineDash([]);
+    if (pl.length > 1) { ctx.beginPath(); pl.forEach((q, k) => k ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1])); ctx.stroke(); }
+    rp.points.forEach((q, k) => { ctx.fillStyle = k ? "#4cc9f0" : "#06d6a0"; ctx.beginPath(); ctx.arc(q[0], q[1], 4, 0, 7); ctx.fill(); });
+    ctx.restore();
+  }
   if (room.settings && room.settings.views_enabled) { // the camera's size, from the room's corner
     const v = room.settings.view0;
     ctx.save(); ctx.setLineDash([6, 4]); ctx.strokeStyle = "#f5c542"; ctx.lineWidth = 2;
@@ -332,6 +340,8 @@ function drawRoom() {
     ctx.fillStyle = "#f5c542"; ctx.font = "12px system-ui"; ctx.fillText("view" + (v.follow ? " → follows " + v.follow : ""), 6, 16); ctx.restore();
   }
 }
+let roomPaths = {};
+$("roompath").onchange = () => drawRoom();
 // room backgrounds (LOOP item 8): backgrounds/NAME.png, drawn tiled / stretched as the game draws them
 const bgImages = {};
 function bgImage(name) {
@@ -488,6 +498,16 @@ async function openRoom(dir, a) {
   pal.append(roomSettingsForm());
   document.querySelectorAll("nav a.on").forEach((x) => x.classList.remove("on"));
   a.classList.add("on"); drawRoom(); markRoom();
+  // the project's paths, to show over the room
+  const was = $("roompath").value;
+  roomPaths = {};
+  for (const f of (await (await call("api/files")).json()).files.filter((f) => /^paths\/[^/]+\.toml$/.test(f))) {
+    roomPaths[f.slice(6, -5)] = pathParse(await (await call("api/file?path=" + encodeURIComponent(f))).text());
+  }
+  $("roompath").replaceChildren(Object.assign(document.createElement("option"), { value: "", textContent: "none" }),
+    ...Object.keys(roomPaths).sort().map((n) => Object.assign(document.createElement("option"), { value: n, textContent: n })));
+  $("roompath").value = roomPaths[was] ? was : "";
+  drawRoom();
 }
 async function saveRoom() {
   if (!roomDirty()) return;
