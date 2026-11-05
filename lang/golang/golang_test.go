@@ -4,7 +4,9 @@ import (
 	"strings"
 	"testing"
 
-	_ "github.com/LaPingvino/gameviber/lang/golang"
+	"github.com/LaPingvino/gameviber/gml"
+	"github.com/LaPingvino/gameviber/gv"
+	"github.com/LaPingvino/gameviber/lang/golang"
 	"github.com/LaPingvino/gameviber/runner"
 )
 
@@ -128,5 +130,59 @@ func TestErrors(t *testing.T) {
 	room().Create(o, 0, 0)
 	if len(g.Errors) != 1 || !strings.Contains(g.Errors[0].Error(), "step.go") || !strings.Contains(g.Errors[0].Error(), "no_such_function") {
 		t.Errorf("runtime error: %v", g.Errors)
+	}
+}
+
+// A compiled stand-in: an event file the program has compiled in runs as
+// native Go — its source is not even read — with the same gv API, and a panic
+// in it is the event's error with the file's name.
+func TestCompiledStandIn(t *testing.T) {
+	golang.Compiled["objects/c/create.go"] = func(g *gv.Ctx) {
+		g.Set("x", g.Num("x")+7)
+		g.Set("r", g.Call("abs", -1.5))
+	}
+	golang.CompiledScripts["scripts/twice.go"] = func(g *gv.Ctx, args []gv.Value) gv.Value {
+		return gv.Wrap(gml.RealV(args[0].Num() * 2))
+	}
+	golang.Compiled["objects/c/step.go"] = func(g *gv.Ctx) { panic("boom") }
+	defer func() {
+		delete(golang.Compiled, "objects/c/create.go")
+		delete(golang.Compiled, "objects/c/step.go")
+		delete(golang.CompiledScripts, "scripts/twice.go")
+	}()
+	o := &runner.Object{Name: "c"}
+	g := &runner.Game{Objects: []*runner.Object{o}}
+	if err := g.ScriptIn("scripts/twice.go", "twice", "this is not Go"); err != nil {
+		t.Fatal(err)
+	}
+	h, err := g.CodeIn("objects/c/create.go", "neither is this")
+	if err != nil {
+		t.Fatal(err)
+	}
+	o.Events.Create = h
+	rm := room()
+	in := rm.Create(o, 0, 0)
+	if len(g.Errors) > 0 {
+		t.Fatal(g.Errors)
+	}
+	if x, _ := in.Get("x", nil); x.N != 7 {
+		t.Errorf("x = %v", x)
+	}
+	if r, _ := in.Get("r", nil); r.N != 1.5 {
+		t.Errorf("r = %v", r)
+	}
+	// the script, called from GML
+	gh, err := g.CodeIn("objects/c/draw.gml", "t = twice(21)")
+	if err != nil {
+		t.Fatal(err)
+	}
+	gh(rm, in)
+	if v, _ := in.Get("t", nil); v.N != 42 {
+		t.Errorf("twice(21) = %v", v)
+	}
+	sh, _ := g.CodeIn("objects/c/step.go", "")
+	sh(rm, in)
+	if len(g.Errors) == 0 || !strings.Contains(g.Errors[0].Error(), "objects/c/step.go: boom") {
+		t.Errorf("errors %q", g.Errors)
 	}
 }

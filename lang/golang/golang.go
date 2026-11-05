@@ -26,6 +26,7 @@ import (
 	"github.com/traefik/yaegi/interp"
 
 	"github.com/LaPingvino/gameviber/gml"
+	"github.com/LaPingvino/gameviber/gv"
 	"github.com/LaPingvino/gameviber/runner"
 )
 
@@ -34,113 +35,11 @@ func init() {
 	runner.ScriptLangs[".go"] = CompileScript
 }
 
-// Ctx is the code's view of GameViber: the running event's context, seen as
-// one instance (self, unless got through Other).
-type Ctx struct {
-	in   *gml.Interp
-	inst gml.Instance // nil: self as the event runs
-}
-
-// Value is a GameViber value.
-type Value struct{ v gml.Value }
-
-// Num is the value as a number; Str as a string; Bool as a truth (non-zero).
-func (v Value) Num() float64   { return v.v.N }
-func (v Value) Str() string    { return v.v.S }
-func (v Value) Bool() bool     { return !v.v.IsStr && v.v.N != 0 }
-func (v Value) String() string { return v.v.String() }
-
-// Get reads a name as GML would: the instance's variable (through Other: that
-// instance's), a global, a constant, a resource; zero when there is none.
-func (g *Ctx) Get(name string) Value {
-	if g.inst != nil {
-		if x, ok := g.inst.Get(name, nil); ok {
-			return Value{x}
-		}
-		return Value{}
-	}
-	x, _ := g.in.Var(name)
-	return Value{x}
-}
-
-// Num is Get(name).Num(); Str is Get(name).Str().
-func (g *Ctx) Num(name string) float64 { return g.Get(name).Num() }
-func (g *Ctx) Str(name string) string  { return g.Get(name).Str() }
-
-// Set assigns a name as GML would: a global, else the instance's variable
-// (made if new). v is a number, a string, a bool or a Value.
-func (g *Ctx) Set(name string, v any) {
-	if g.inst != nil {
-		g.inst.Set(name, nil, toGML(v))
-		return
-	}
-	g.in.SetVar(name, toGML(v))
-}
-
-// Call calls a GameViber function — through Other(), as that instance (the
-// caller as other), as GML's with does. A failure stops the event with its
-// error, as in GML.
-func (g *Ctx) Call(fn string, args ...any) Value {
-	in := g.in
-	if g.inst != nil && g.inst != in.Self {
-		self, otherWas := in.Self, in.Other
-		in.Self, in.Other = g.inst, self
-		defer func() { in.Self, in.Other = self, otherWas }()
-	}
-	vals := make([]gml.Value, len(args))
-	for i, a := range args {
-		vals[i] = toGML(a)
-	}
-	res, err := in.Call(fn, vals)
-	if err != nil {
-		panic(fmt.Errorf("%s: %w", fn, err))
-	}
-	return Value{res}
-}
-
-// Is is Call(fn, args...).Bool().
-func (g *Ctx) Is(fn string, args ...any) bool { return g.Call(fn, args...).Bool() }
-
-// Other is the other instance (a collision's); nil when there is none.
-func (g *Ctx) Other() *Ctx {
-	if g.in.Other == nil {
-		return nil
-	}
-	return &Ctx{in: g.in, inst: g.in.Other}
-}
-
-// toGML is a Go value in GML.
-func toGML(v any) gml.Value {
-	switch v := v.(type) {
-	case Value:
-		return v.v
-	case *Ctx:
-		inst := v.inst
-		if inst == nil {
-			inst = v.in.Self
-		}
-		if id, ok := inst.Get("id", nil); ok {
-			return id
-		}
-	case string:
-		return gml.StrV(v)
-	case bool:
-		return gml.BoolV(v)
-	case int:
-		return gml.RealV(float64(v))
-	case float64:
-		return gml.RealV(v)
-	case float32:
-		return gml.RealV(float64(v))
-	}
-	return gml.RealV(0)
-}
-
 // exports are the packages the code may import.
 var exports = interp.Exports{
 	"gv/gv": {
-		"Ctx":   reflect.ValueOf((*Ctx)(nil)),
-		"Value": reflect.ValueOf((*Value)(nil)),
+		"Ctx":   reflect.ValueOf((*gv.Ctx)(nil)),
+		"Value": reflect.ValueOf((*gv.Value)(nil)),
 	},
 	"math/math": {
 		"Abs": reflect.ValueOf(math.Abs), "Sqrt": reflect.ValueOf(math.Sqrt), "Floor": reflect.ValueOf(math.Floor),
@@ -199,15 +98,42 @@ func run(file string, f reflect.Value, args ...reflect.Value) (out []reflect.Val
 	return f.Call(args), nil
 }
 
-// Compile turns one event's Go into a handler.
+// Compiled are event files compiled into this program (an exported desktop
+// game registers them, by the file's path in the game folder): they run as
+// native Go instead of through yaegi. Scripts are CompiledScripts.
+var (
+	Compiled        = map[string]func(g *gv.Ctx){}
+	CompiledScripts = map[string]func(g *gv.Ctx, args []gv.Value) gv.Value{}
+)
+
+// call runs compiled code, a panic becoming the event's error (as run does).
+func call(file string, f func()) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("%s: %v", file, r)
+		}
+	}()
+	f()
+	return nil
+}
+
+// Compile turns one event's Go into a handler: its compiled stand-in when the
+// program has one, else interpreted.
 func Compile(g *runner.Game, file, src string) (runner.CollisionHandler, error) {
+	if c, ok := Compiled[file]; ok {
+		return func(r *runner.Room, self, other *runner.Instance) {
+			g.Enter(r, self, other, func(in *gml.Interp) error {
+				return call(file, func() { c(gv.New(in)) })
+			})
+		}, nil
+	}
 	f, err := load(file, src, "Event", "func Event(g *gv.Ctx) { ", "\n}")
 	if err != nil {
 		return nil, err
 	}
 	return func(r *runner.Room, self, other *runner.Instance) {
 		g.Enter(r, self, other, func(in *gml.Interp) error {
-			_, err := run(file, f, reflect.ValueOf(&Ctx{in: in}))
+			_, err := run(file, f, reflect.ValueOf(gv.New(in)))
 			return err
 		})
 	}, nil
@@ -217,20 +143,30 @@ func Compile(g *runner.Game, file, src string) (runner.CollisionHandler, error) 
 // is: as the calling instance, its arguments as args, its result returned
 // (none: 0).
 func CompileScript(g *runner.Game, file, src string) (gml.Func, error) {
+	if c, ok := CompiledScripts[file]; ok {
+		return func(in *gml.Interp, args []gml.Value) (out gml.Value, err error) {
+			vals := make([]gv.Value, len(args))
+			for i, a := range args {
+				vals[i] = gv.Wrap(a)
+			}
+			err = call(file, func() { out = c(gv.New(in), vals).GML() })
+			return out, err
+		}, nil
+	}
 	f, err := load(file, src, "Script", "func Script(g *gv.Ctx, args []gv.Value) gv.Value { ", "\nreturn gv.Value{}\n}")
 	if err != nil {
 		return nil, err
 	}
 	return func(in *gml.Interp, args []gml.Value) (gml.Value, error) {
-		vals := make([]Value, len(args))
+		vals := make([]gv.Value, len(args))
 		for i, a := range args {
-			vals[i] = Value{a}
+			vals[i] = gv.Wrap(a)
 		}
-		out, err := run(file, f, reflect.ValueOf(&Ctx{in: in}), reflect.ValueOf(vals))
+		out, err := run(file, f, reflect.ValueOf(gv.New(in)), reflect.ValueOf(vals))
 		if err != nil {
 			return gml.Value{}, err
 		}
-		return out[0].Interface().(Value).v, nil
+		return out[0].Interface().(gv.Value).GML(), nil
 	}, nil
 }
 
