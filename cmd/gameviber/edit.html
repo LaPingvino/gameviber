@@ -1055,24 +1055,45 @@ function keyLoad() {
   $("keyprov").value = c.prov || "anthropic"; keyFill(c);
 }
 function keyFill(c) {
+  const env = envProviders.find((p) => "env-" + p.id === $("keyprov").value);
+  $("keykey").style.display = $("keybase").style.display = env ? "none" : "";
+  $("keynote").textContent = env ? "The key is on the computer running gameviber edit (its environment): the editor sends your messages there, and it adds the key — this page never sees it."
+    : "The key stays in this browser only (its storage for this page) and goes to that endpoint only — never to GameViber or the project.";
+  if (env) { $("keybase").value = env.base; $("keymodel").value = (c && c.prov === $("keyprov").value && c.model) || env.model; $("keykey").value = ""; return; }
   const d = keyDefaults[$("keyprov").value];
   const mine = c && c.prov === $("keyprov").value;
   $("keybase").value = (mine && c.base) || d.base; $("keymodel").value = (mine && c.model) || d.model; $("keykey").value = (mine && c.key) || "";
 }
 function keySave() { try { localStorage.setItem("gameviber-key", JSON.stringify({ prov: $("keyprov").value, base: $("keybase").value.trim(), model: $("keymodel").value.trim(), key: $("keykey").value.trim() })); } catch (e) {} }
+// a key on the computer running gameviber edit (env-anthropic / env-openai): the server adds it (api/llm)
+let envProviders = [];
+async function envProvidersLoad() {
+  try {
+    const r = await call("api/llm"); if (!r.ok) return;
+    envProviders = (await r.json()).providers || [];
+  } catch (e) { return; }
+  for (const p of envProviders.slice().reverse()) {
+    const o = Object.assign(document.createElement("option"), { value: "env-" + p.id, textContent: p.label });
+    $("keyprov").prepend(o);
+  }
+  if (envProviders.length && !localStorage.getItem("gameviber-key")) { $("keyprov").value = "env-" + envProviders[0].id; keyFill({}); }
+}
 async function keyAsk(text, shot) {
-  const prov = $("keyprov").value === "ollama" ? "openai" : $("keyprov").value, base = $("keybase").value.trim().replace(/\/$/, ""), model = $("keymodel").value.trim(), key = $("keykey").value.trim();
+  const env = envProviders.find((p) => "env-" + p.id === $("keyprov").value);
+  const prov = env ? env.id : $("keyprov").value === "ollama" ? "openai" : $("keyprov").value, base = $("keybase").value.trim().replace(/\/$/, ""), model = $("keymodel").value.trim(), key = $("keykey").value.trim();
   const msgs = meatHist.concat([{ role: "user", text, shot }]);
   if (prov === "anthropic") {
     const body = { model, max_tokens: 8192, messages: msgs.map((m) => ({ role: m.role, content: m.shot ? [{ type: "image", source: { type: "base64", media_type: "image/png", data: m.shot } }, { type: "text", text: m.text }] : m.text })) };
-    const r = await fetch(base + "/messages", { method: "POST", headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" }, body: JSON.stringify(body) });
+    const r = env ? await call("api/llm?prov=anthropic", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) })
+      : await fetch(base + "/messages", { method: "POST", headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" }, body: JSON.stringify(body) });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error((j.error && j.error.message) || r.status + " " + r.statusText);
     return (j.content || []).filter((c) => c.type === "text").map((c) => c.text).join("\n");
   }
   const body = { model, messages: msgs.map((m) => ({ role: m.role, content: m.shot ? [{ type: "image_url", image_url: { url: "data:image/png;base64," + m.shot } }, { type: "text", text: m.text }] : m.text })) };
   const headers = { "content-type": "application/json" }; if (key) headers.authorization = "Bearer " + key;
-  const r = await fetch(base + "/chat/completions", { method: "POST", headers, body: JSON.stringify(body) });
+  const r = env ? await call("api/llm?prov=openai", { method: "POST", headers, body: JSON.stringify(body) })
+    : await fetch(base + "/chat/completions", { method: "POST", headers, body: JSON.stringify(body) });
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error((j.error && (j.error.message || j.error)) || r.status + " " + r.statusText);
   return j.choices && j.choices[0] && j.choices[0].message ? j.choices[0].message.content || "" : "";
@@ -1137,7 +1158,7 @@ function meatParse(text) {
 }
 $("meatbtn").onclick = async () => { if (!meatTurn) await meatStart(); $("meat").showModal(); ollamaModels(); };
 $("meatclose").onclick = () => $("meat").close();
-keyLoad();
+keyLoad(); envProvidersLoad().then(() => { if (localStorage.getItem("gameviber-key")) keyLoad(); });
 $("keyprov").onchange = () => { let c = {}; try { c = JSON.parse(localStorage.getItem("gameviber-key") || "{}"); } catch (e) {} keyFill(c); ollamaModels(); };
 // the triggers waiting for the chat (the person's changes and the check after them), as message lines
 async function meatTriggers() {

@@ -54,6 +54,10 @@ explains its problems with the file and line.
 - In the editor: **Copy for an assistant** puts the project's context (its AGENTS.md, the files, the open file,
   the check) on the clipboard for any chat; **Paste an answer** takes the reply back — its files listed as new or
   changed, the ones you tick written, then checked.
+- With an API key: in the editor's **Chat session**, **Send with my key** talks to Anthropic, any OpenAI-compatible
+  service or Ollama. Running `gameviber edit` on your own machine, set `ANTHROPIC_API_KEY` or `OPENAI_API_KEY`
+  (and `OPENAI_BASE_URL` for OpenRouter and the like) where it runs: the editor offers "the key on this computer" and
+  the key never reaches the page or the project.
 - For assistants that work on the files themselves (Claude Code and other MCP clients): `gameviber mcp DIR` serves
   the project's `check`, `play` (with a screenshot when asked) and `reference` as MCP tools — in Claude Code:
   `claude mcp add gameviber -- gameviber mcp DIR`. Or once for every agent you have installed (Claude Code,
