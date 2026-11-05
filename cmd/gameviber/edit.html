@@ -70,7 +70,7 @@ footer pre { margin: 0; font: 12px/1.45 ui-monospace, monospace; white-space: pr
 .ok { color: var(--ok); } .bad { color: var(--bad); }
 </style></head>
 <body>
-<header><b>GameViber</b><span id="name"></span><span id="status"></span><span style="flex:1"></span><button id="bridgeoff" class="new" style="display:none" title="stop using the project on this computer (gameviber edit -bridge) and go back to the one in this browser">Disconnect</button><button id="reopenfolder" class="new" style="display:none" title="the folder you worked on last time"></button><button id="openfolder" class="new" style="display:none" title="work on a GameViber project folder on your disk — an agent in your own terminal (Claude Code, Antigravity …) can work on it at the same time">Open folder…</button><button id="reset" style="display:none;background:transparent;color:var(--muted);border:1px solid var(--line)">Reset to the starter game</button><button id="newobj" class="new">+ Object</button><button id="newevt" class="new">+ Event</button><button id="newroom" class="new">+ Room</button><button id="newspr" class="new">+ Sprite</button><button id="newsnd" class="new">+ Sound</button><button id="newsfx" class="new" title="make a sound effect: a coin, a jump, a laser … (saved as a sound)">+ Sound effect</button><button id="newmom" class="new" title="a timeline's moment">+ Moment</button><button id="pause" class="new" style="display:none">⏸ Pause</button><button id="step" class="new" style="display:none" disabled>⏭ Step</button><button id="askcopy" class="new" title="the project's context on the clipboard, to paste into any assistant (Claude, ChatGPT …)">Copy for an assistant</button><button id="askpaste" class="new" title="write the files from an assistant's answer into the project">Paste an answer</button><button id="meatbtn" class="new" title="work with any chat (no key): you copy messages between the chat and the editor, which runs what the chat asks">Chat session</button><button id="askbtn" class="new" style="display:none" title="one question to a coding agent (Claude Code, OpenCode …) — your own login, no key">Ask</button><button id="termbtn" class="new" style="display:none" title="a coding agent (Claude Code, OpenCode, Aider …) in a terminal, in this project's folder">Terminal</button><select id="playvariant" style="display:none" title="play a build variant: NAME.toml merged over game.toml"></select><button id="play">▶ Play</button></header>
+<header><b>GameViber</b><span id="name"></span><span id="status"></span><span style="flex:1"></span><button id="bridgeoff" class="new" style="display:none" title="stop using the project on this computer (gameviber edit -bridge) and go back to the one in this browser">Disconnect</button><button id="reopenfolder" class="new" style="display:none" title="the folder you worked on last time"></button><button id="openfolder" class="new" style="display:none" title="work on a GameViber project folder on your disk — an agent in your own terminal (Claude Code, Antigravity …) can work on it at the same time">Open folder…</button><button id="reset" style="display:none;background:transparent;color:var(--muted);border:1px solid var(--line)" title="start again from one of the starting games">New game…</button><button id="newobj" class="new">+ Object</button><button id="newevt" class="new">+ Event</button><button id="newroom" class="new">+ Room</button><button id="newspr" class="new">+ Sprite</button><button id="newsnd" class="new">+ Sound</button><button id="newsfx" class="new" title="make a sound effect: a coin, a jump, a laser … (saved as a sound)">+ Sound effect</button><button id="newmom" class="new" title="a timeline's moment">+ Moment</button><button id="pause" class="new" style="display:none">⏸ Pause</button><button id="step" class="new" style="display:none" disabled>⏭ Step</button><button id="askcopy" class="new" title="the project's context on the clipboard, to paste into any assistant (Claude, ChatGPT …)">Copy for an assistant</button><button id="askpaste" class="new" title="write the files from an assistant's answer into the project">Paste an answer</button><button id="meatbtn" class="new" title="work with any chat (no key): you copy messages between the chat and the editor, which runs what the chat asks">Chat session</button><button id="askbtn" class="new" style="display:none" title="one question to a coding agent (Claude Code, OpenCode …) — your own login, no key">Ask</button><button id="termbtn" class="new" style="display:none" title="a coding agent (Claude Code, OpenCode, Aider …) in a terminal, in this project's folder">Terminal</button><select id="playvariant" style="display:none" title="play a build variant: NAME.toml merged over game.toml"></select><button id="play">▶ Play</button></header>
 <dialog id="ask"><b>Ask a coding agent</b>
   <p class="hint" style="margin:6px 0">One question, answered in this project's folder by the agent you have installed (your own login — Claude Code Pro / Max, OpenCode …). The open file is mentioned to it.</p>
   <div class="row"><select id="askagent"><option value="claude">Claude Code</option><option value="agy">Antigravity CLI</option><option value="opencode">OpenCode</option><option value="gemini">Gemini CLI</option><option value="codex">Codex CLI</option><option value="aider">Aider</option></select>
@@ -87,6 +87,11 @@ footer pre { margin: 0; font: 12px/1.45 ui-monospace, monospace; white-space: pr
   <div class="row"><button id="ansread">Read the answer</button><span id="ansnote" class="hint"></span></div>
   <div id="ansfiles"></div>
   <div class="row"><button id="answrite" disabled>Write the chosen files</button><button id="ansclose" class="new">Close</button></div>
+</dialog>
+<dialog id="newgamedlg" style="width:min(520px,94vw)"><b>A new game from a starting point</b>
+  <p class="hint">This replaces the game in this browser — download or copy anything you want to keep first.</p>
+  <div id="newgamelist" style="display:grid;gap:6px;margin:8px 0"></div>
+  <div class="row"><span style="flex:1"></span><button id="newgameclose" class="new">Cancel</button></div>
 </dialog>
 <dialog id="sfxdlg" style="width:min(760px,94vw)"><b>Sound effect</b>
   <div class="row" id="sfxpresets" style="flex-wrap:wrap;gap:4px;margin:8px 0"></div>
@@ -1451,7 +1456,20 @@ if (gvBridge) { // paired with a project on this computer: its files, its agents
 } else if (window.gameviberStatic) { // the published page: the project lives in this browser
   $("reset").style.display = "";
   if (window.showDirectoryPicker) $("openfolder").style.display = "";
-  $("reset").onclick = () => { if (window.confirm("Throw away your changes and start again from the starter game?")) { window.gameviberWait.then(() => window.gameviberReset()); } };
+  // New game…: the starting points of `gameviber new -template` (LOOP item 10)
+  const starts = [["coins", "Collect the coins", "move with the arrow keys through a walled room, every coin, then again"],
+    ["platformer", "Platformer", "run and jump with gravity, coins, a flag to the next of two levels"],
+    ["topdown", "Gem hunt (top-down)", "four-way movement among blocks, ghosts that wander and chase, three lives"],
+    ["shooter", "Star defence (shooter)", "fire at saucers coming down faster and faster, three lives"]];
+  $("newgamelist").replaceChildren(...starts.map(([id, title, what]) => {
+    const b = Object.assign(document.createElement("button"), { type: "button", className: "new" });
+    b.style.textAlign = "left";
+    b.append(Object.assign(document.createElement("b"), { textContent: title }), " — " + what);
+    b.onclick = () => { $("newgamedlg").close(); window.gameviberWait.then(() => window.gameviberReset(id)); };
+    return b;
+  }));
+  $("reset").onclick = () => $("newgamedlg").showModal();
+  $("newgameclose").onclick = () => $("newgamedlg").close();
 }
 // Pause / step the game while playing (the player's gameviberPause / gameviberStep).
 let gamePaused = false;

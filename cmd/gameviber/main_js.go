@@ -60,10 +60,19 @@ func main() {
 			return nil
 		}))
 	}))
+	// gameviberReset([template]): the project replaced by a new game from a
+	// starting point (gameviber new -template; the starter without one).
 	js.Global().Set("gameviberReset", js.FuncOf(func(this js.Value, args []js.Value) any {
+		tmpl := "coins"
+		if len(args) > 0 && args[0].Type() == js.TypeString {
+			tmpl = args[0].String()
+		}
 		go func() {
 			os.RemoveAll(dir)
-			cmdNew([]string{dir})
+			if err := cmdNew([]string{"-template", tmpl, dir}); err != nil {
+				js.Global().Get("console").Call("error", "gameviber: "+err.Error())
+				cmdNew([]string{dir})
+			}
 			js.Global().Get("location").Call("reload")
 		}()
 		return nil
