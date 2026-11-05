@@ -9,6 +9,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
@@ -16,14 +17,22 @@ import (
 // coins in a walled room — every file plain text or a PNG drawn here, so it
 // is GameViber's own and free to share.
 func cmdNew(args []string) error {
-	if len(args) != 1 {
-		return fmt.Errorf("usage: gameviber new DIR")
+	tmpl := "coins"
+	if len(args) == 3 && (args[0] == "-template" || args[0] == "--template") {
+		tmpl, args = args[1], args[2:]
+	}
+	if len(args) != 1 || !slices.Contains(templates, tmpl) {
+		return fmt.Errorf("usage: gameviber new [-template %s] DIR", strings.Join(templates, "|"))
 	}
 	dir := args[0]
 	if _, err := os.Stat(dir); err == nil {
 		return fmt.Errorf("%s exists already", dir)
 	}
 	name := filepath.Base(dir)
+	if tmpl == "platformer" {
+		files, images := platformerFiles(name)
+		return writeTemplate(dir, files, images)
+	}
 	files := map[string]string{
 		"game.toml":                         fmt.Sprintf("name = %q\ngm_version = 530\nroom_order = [\"level\"]\n\n[settings]\n  author = \"\"\n", name),
 		"sprites/wall/sprite.toml":          spriteTOML,
@@ -74,6 +83,28 @@ func cmdNew(args []string) error {
 			return err
 		}
 	}
+	return finishNew(dir)
+}
+
+// writeTemplate writes a template's files and pictures (each picture a
+// one-frame sprite strip), then finishes as cmdNew does.
+func writeTemplate(dir string, files map[string]string, images map[string]image.Image) error {
+	for path, content := range files {
+		if err := writeFile(filepath.Join(dir, path), []byte(content)); err != nil {
+			return err
+		}
+	}
+	for name, img := range images {
+		var b bytes.Buffer
+		png.Encode(&b, img)
+		if err := writeFile(filepath.Join(dir, "sprites", name, "strip.png"), b.Bytes()); err != nil {
+			return err
+		}
+	}
+	return finishNew(dir)
+}
+
+func finishNew(dir string) error {
 	gitInit(dir)
 	fmt.Printf("a new game in %s — try: gameviber check %s; gameviber play -keys \"right:60,down:60\" -shot frame.png %s; gameviber run %s\n", dir, dir, dir, dir)
 	return nil
