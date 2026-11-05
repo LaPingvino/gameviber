@@ -92,3 +92,27 @@ func TestErrors(t *testing.T) {
 		t.Error("no error for an unknown language")
 	}
 }
+
+// A GameViber function called on an instance runs as that instance (GML's
+// with (other)): other.instance_destroy() and instance_destroy.call(other)
+// destroy the other one, not the caller.
+func TestCallOnInstance(t *testing.T) {
+	for _, src := range []string{"other.instance_destroy();", "instance_destroy.call(other);"} {
+		a := &runner.Object{Name: "a"}
+		b := &runner.Object{Name: "b"}
+		g := &runner.Game{Objects: []*runner.Object{a, b}}
+		h, err := g.CollisionCodeIn("objects/a/collision-b.js", src+" after = x;")
+		if err != nil {
+			t.Fatal(err)
+		}
+		r := room()
+		ia, ib := r.Create(a, 3, 1), r.Create(b, 20, 1)
+		h(r, ia, ib)
+		if len(g.Errors) > 0 {
+			t.Fatal(g.Errors)
+		}
+		if ia.Destroyed || !ib.Destroyed || ia.Vars["after"] != 3 {
+			t.Errorf("%s: a destroyed %v, b destroyed %v, self afterwards x %v", src, ia.Destroyed, ib.Destroyed, ia.Vars["after"])
+		}
+	}
+}
