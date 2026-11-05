@@ -180,8 +180,11 @@ goal of its own, weighed alongside the LLM-friendly rule.
    resolving names as GML does, instances as userdata, other:f() as GML's with, Check), registered in load, check
    and the editor's lists. CHOICES: Lua's own globals first (string, math, table …) — so GML's string() is Lua's
    tostring(); GameViber's truth values become Lua booleans (0 is true in Lua): gml.Value gained Bool (N stays 1
-   / 0, GML unchanged), set by boolVal / BoolV and the runner's predicate helper. NEXT: the same-game test with a
-   coins-lua template, AGENTS.md's Lua paragraph; then Go (yaegi).
+   / 0, GML unchanged), set by boolVal / BoolV and the runner's predicate helper. DONE 2026-11-05: the coins-lua template (New game…, gameviber new,
+   the tutorial), AGENTS.md's Lua paragraph, and the same-game test for Lua — 765 steps identical to GML, as JS.
+   Lua is first-class but for syntax colouring. SIZE: the static editor's wasm is 38.4 MB with goja and gopher-lua
+   (to compare without them; a build tag per language could trim the web build if it matters). NEXT: Go (yaegi):
+   lang/golang, a "gv" API package, interpreted everywhere; compiled into exported games after.
 
 ## Libraries around it (Joop 2026-11-02: an Opus decoder "would fit right along the gml stuff … and the game
 maker file decoder")
@@ -439,4 +442,5 @@ setting (on by default) rather than per-game code:
 - 2026-11-05 (13: JavaScript part 5 — overnight) — the GML-vs-JS same-game test: 765 identical steps of the starter game; it caught the missing `with (other)` (the JS player destroyed itself instead of the coin), fixed by calls on instances running as that instance. Full gate green, wasm builds.
 - 2026-11-05 (13: JavaScript part 6 — overnight) — a JavaScript starting point: template coins-js (CLI and editor), the equivalence test using it, the tutorial row. Seen in the static (Pages) build in headless Chromium: New game… lists "Collect the coins, in JavaScript" second. Full gate green, wasm builds.
 - 2026-11-05 (13: Lua part 1 — overnight) — lang/lua: 5 tests (events, truth values, other / with, scripts from GML, errors with file:line) — the truth test found instance_exists returning a plain 1 (now every runner predicate marks its result Bool); Lua in load, check (TestCheckLua) and the editor's file lists. Full gate green, wasm builds.
+- 2026-11-05 (13: Lua part 2 — overnight) — coins-lua (a shared starterLangs table now makes coins-js and coins-lua), AGENTS.md's Lua paragraph (with the string() → tostring() and booleans notes), TestStarterGMLvsLua: 765 identical steps. Seen in the static (Pages) build: New game… lists the Lua start third. Full gate green; the editor wasm 38.4 MB.
 

@@ -9,12 +9,13 @@ in this browser until you start a new game.
 
 ## 1. Pick a starting point
 
-Open **[the editor](editor/)** and press **New game…** at the top. Choose one of the five:
+Open **[the editor](editor/)** and press **New game…** at the top. Choose one of the six:
 
 | Starting point | What it is |
 |---|---|
 | Collect the coins | move with the arrow keys through a walled room and take every coin |
 | Collect the coins, in JavaScript | the same game, its player's code in JavaScript instead of GML |
+| Collect the coins, in Lua | the same game, its player's code in Lua |
 | Platformer | run and jump with gravity, collect the coins, touch the flag for the next level |
 | Gem hunt (top-down) | collect gems among wall blocks while ghosts wander and chase you; three lives |
 | Star defence (shooter) | fire at saucers that come down faster and faster; three lives |

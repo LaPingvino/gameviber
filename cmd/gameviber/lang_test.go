@@ -17,17 +17,22 @@ import (
 // starter and the coins-js template (its player's events in JavaScript), driven by one key script through
 // the coins, compared every step (the player's position, the score, the
 // instances left).
-func TestStarterGMLvsJavaScript(t *testing.T) {
+func TestStarterGMLvsJavaScript(t *testing.T) { starterVersus(t, "coins-js", "step.js") }
+
+// The same for Lua: the coins-lua template against the GML starter.
+func TestStarterGMLvsLua(t *testing.T) { starterVersus(t, "coins-lua", "step.lua") }
+
+func starterVersus(t *testing.T, tmpl, stepFile string) {
 	base := t.TempDir()
 	gmlDir, jsDir := filepath.Join(base, "gml"), filepath.Join(base, "js")
 	if err := cmdNew([]string{gmlDir}); err != nil {
 		t.Fatal(err)
 	}
-	if err := cmdNew([]string{"-template", "coins-js", jsDir}); err != nil { // the JavaScript starting point
+	if err := cmdNew([]string{"-template", tmpl, jsDir}); err != nil { // the other language's starting point
 		t.Fatal(err)
 	}
-	if _, err := os.Stat(filepath.Join(jsDir, "objects", "player", "step.js")); err != nil {
-		t.Fatal("coins-js has no step.js")
+	if _, err := os.Stat(filepath.Join(jsDir, "objects", "player", stepFile)); err != nil {
+		t.Fatalf("%s has no %s", tmpl, stepFile)
 	}
 	start := func(dir string) (*load.Game, *load.Play) {
 		p, err := gmfile.ReadDir(dir)
@@ -82,7 +87,7 @@ func TestStarterGMLvsJavaScript(t *testing.T) {
 			}
 			step++
 			if a, b := state(gPl), state(jPl); a != b {
-				t.Fatalf("step %d differs:\n GML %s\n JS  %s", step, a, b)
+				t.Fatalf("step %d differs:\n GML   %s\n %s %s", step, a, tmpl, b)
 			}
 			if step == 1 {
 				startScore = state(gPl)
@@ -90,7 +95,7 @@ func TestStarterGMLvsJavaScript(t *testing.T) {
 		}
 	}
 	if len(gG.Errors) > 0 || len(jG.Errors) > 0 {
-		t.Fatalf("errors: GML %v, JS %v", gG.Errors, jG.Errors)
+		t.Fatalf("errors: GML %v, %s %v", gG.Errors, tmpl, jG.Errors)
 	}
 	t.Logf("%d steps identical; first %s; last %s", step, startScore, state(gPl))
 	if gPl.Globals.Score == 0 {

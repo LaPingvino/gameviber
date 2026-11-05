@@ -127,6 +127,10 @@ the same way — the same function names, the instance's variables as plain name
 undeclared name assigned becomes an instance variable, so declare locals with let / const; a script's
 arguments are argument0 … (or arguments), and it may return a value. GML's with (other) instance_destroy() is
 other.instance_destroy(): a function called on an instance runs as that instance.
+
+Or Lua: step.lua, scripts/<name>.lua, the same names (x = x + 4); "local" for locals; GameViber's true / false
+are Lua booleans (in Lua 0 counts as true); Lua's own libraries come first, so GML's string() is tostring();
+other:instance_destroy() is GML's with (other) instance_destroy().
 `, name)))
 	return w.notes, w.err
 }
