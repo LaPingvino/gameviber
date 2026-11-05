@@ -110,7 +110,9 @@ footer pre { margin: 0; font: 12px/1.45 ui-monospace, monospace; white-space: pr
     <input id="keybase" size="26" placeholder="https://api.openai.com/v1" title="the endpoint: OpenAI, https://openrouter.ai/api/v1, http://localhost:11434/v1 (Ollama) …">
     <input id="keymodel" size="16" placeholder="model" list="keymodels"><datalist id="keymodels"></datalist>
     <input id="keykey" type="password" size="16" placeholder="API key" autocomplete="off">
-    <button id="keysend">Send with my key</button></div>
+    <button id="keysend">Send with my key</button>
+    <label class="hint" title="send the results back and run the replies by itself, up to this many turns"><input type="checkbox" id="keyauto"> auto, up to <input type="number" id="keyturns" value="5" min="1" max="30" style="width:3.5em"> turns</label>
+    <label class="hint" title="without this, a reply that writes files waits for your Run"><input type="checkbox" id="keywrites"> writes without asking</label></div>
   <p class="hint" id="keynote" style="margin:0">The key stays in this browser only (its storage for this page) and goes to that endpoint only — never to GameViber or the project.</p>
   <div class="row"><b>The chat's reply</b></div>
   <textarea id="meatin" spellcheck="false" style="height:9em" placeholder="paste the chat's whole reply"></textarea>
@@ -173,7 +175,17 @@ const gvBridge = (() => {
   return p ? { port: p[1], base: "http://127.0.0.1:" + p[1] + "/", token: p[2] } : null;
 })();
 let bridgeDown = false;
+// the person's own changes since the chat's last reply (LOOP item 11c: triggers) — every editing request
+// made outside the session's own runs
+const personChanges = [];
+function notePersonChange(path) {
+  const q = new URLSearchParams(path.split("?")[1] || ""), what = path.split("?")[0].replace(/^api\//, "");
+  const name = q.get("path") || q.get("name") || q.get("kind") || "";
+  const line = what + (name ? " " + name : "");
+  if (!personChanges.includes(line)) personChanges.push(line);
+}
 async function call(path, opts = {}) {
+  if (opts.method && opts.method !== "GET" && !window.meatBusy && /^api\/(file|room|room-settings|sprite|sprite-png|object|edit|new|sound|background-png|sfx-save)(\?|$)/.test(path)) notePersonChange(path);
   if (gvBridge) {
     try {
       const r = await fetch(gvBridge.base + path, { ...opts, headers: { ...(opts.headers || {}), "X-GameViber-Token": gvBridge.token } });
@@ -1122,18 +1134,50 @@ $("meatbtn").onclick = async () => { if (!meatTurn) await meatStart(); $("meat")
 $("meatclose").onclick = () => $("meat").close();
 keyLoad();
 $("keyprov").onchange = () => { let c = {}; try { c = JSON.parse(localStorage.getItem("gameviber-key") || "{}"); } catch (e) {} keyFill(c); ollamaModels(); };
+// the triggers waiting for the chat (the person's changes and the check after them), as message lines
+async function meatTriggers() {
+  if (!personChanges.length) return [];
+  const chk = await (await call("api/check")).json();
+  const out = ["## Since your last reply, the person changed", ...personChanges.map((c) => "- " + c), "", "### check", chk.report];
+  personChanges.length = 0;
+  return out;
+}
+async function withTriggers() { // the message about to go out, with any triggers added
+  const t = await meatTriggers();
+  if (t.length) $("meatout").value += "\n\n" + t.join("\n");
+}
+async function keySendOnce() {
+  await withTriggers();
+  const text = $("meatout").value, shot = meatShot;
+  const reply = await keyAsk(text, shot);
+  meatHist.push({ role: "user", text, shot }, { role: "assistant", text: reply });
+  meatLog("⇄ message " + meatTurn + " sent with the key; reply " + reply.length + " characters");
+  $("meatin").value = reply;
+  await $("meatread").onclick();
+}
 $("keysend").onclick = async () => {
   if ($("keyprov").value === "anthropic" && !$("keykey").value.trim()) { $("meatnote").textContent = "an Anthropic key is needed (console.anthropic.com)"; return; }
   keySave();
-  const text = $("meatout").value, shot = meatShot;
-  $("keysend").disabled = true; $("meatnote").textContent = "asking " + $("keymodel").value + " …";
+  $("keysend").disabled = true;
+  const auto = $("keyauto").checked, limit = Math.max(1, Math.min(30, Number($("keyturns").value) || 5));
+  let bad = 0, stop = "";
   try {
-    const reply = await keyAsk(text, shot);
-    meatHist.push({ role: "user", text, shot }, { role: "assistant", text: reply });
-    meatLog("⇄ message " + meatTurn + " sent with the key; reply " + reply.length + " characters");
-    $("meatin").value = reply;
-    await $("meatread").onclick();
-  } catch (e) { $("meatnote").textContent = "the model didn't answer: " + e.message + ($("keyprov").value === "ollama" && e instanceof TypeError ? " — " + ollamaHint() : ""); }
+    for (let turn = 1; ; turn++) {
+      $("meatnote").textContent = "asking " + $("keymodel").value + " …" + (auto ? " (turn " + turn + " of " + limit + ")" : "");
+      await keySendOnce();
+      if (!auto) break;
+      const p = meatPlan || { files: [], edits: [], cmds: [] };
+      if ((p.files.length || p.edits.length) && !$("keywrites").checked) { stop = "the reply writes files — look them over and press Run it"; break; }
+      if (!p.files.length && !p.edits.length && !p.cmds.length) { stop = "the reply asked for nothing — over to you"; break; }
+      await $("meatrun").onclick();
+      if (p.cmds.some((c) => c.trim() === "done")) { stop = "the chat says it is done"; break; }
+      const out = $("meatout").value;
+      bad = /could not edit|could not write| [1-9]\d* problems?\b|FAIL|"pass": false/.test(out) ? bad + 1 : 0;
+      if (bad >= 2) { stop = "two turns in a row with problems — over to you"; break; }
+      if (turn >= limit) { stop = "the turn limit (" + limit + ")"; break; }
+    }
+  } catch (e) { stop = "the model didn't answer: " + e.message + ($("keyprov").value === "ollama" && e instanceof TypeError ? " — " + ollamaHint() : ""); }
+  if (stop) { $("meatnote").textContent = "stopped: " + stop; meatLog("■ " + stop); }
   $("keysend").disabled = false;
 };
 $("meatshotcopy").onclick = async () => {
@@ -1144,7 +1188,7 @@ $("meatshotcopy").onclick = async () => {
   } catch (e) { $("meatnote").textContent = "could not copy the picture: right-click it → Copy image"; }
 };
 $("meatrestart").onclick = meatStart;
-$("meatcopy").onclick = async () => { $("meatnote").textContent = (await copyText($("meatout").value)) ? "copied — paste it into the chat" : "could not copy: select the text and copy it"; };
+$("meatcopy").onclick = async () => { await withTriggers(); $("meatnote").textContent = (await copyText($("meatout").value)) ? "copied — paste it into the chat" : "could not copy: select the text and copy it"; };
 $("meatread").onclick = async () => {
   meatPlan = meatParse($("meatin").value);
   const box = $("meatplan"); box.textContent = "";
@@ -1171,6 +1215,10 @@ $("meatread").onclick = async () => {
 };
 $("meatrun").onclick = async () => {
   if (!meatPlan) return;
+  window.meatBusy = true;
+  try { await meatRunPlan(); } finally { window.meatBusy = false; }
+};
+async function meatRunPlan() {
   const out = ["## Results of your reply " + meatTurn], done = [];
   meatShot = null;
   let report = null, wrote = 0;
