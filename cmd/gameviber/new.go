@@ -28,6 +28,21 @@ func cmdNew(args []string) error {
 	if _, err := os.Stat(dir); err == nil {
 		return fmt.Errorf("%s exists already", dir)
 	}
+	if tmpl == "coins-js" { // the coins starter, the player's events in JavaScript
+		if err := cmdNew([]string{dir}); err != nil {
+			return err
+		}
+		for ev, src := range starterJS {
+			player := filepath.Join(dir, "objects", "player")
+			if err := os.Remove(filepath.Join(player, ev+".gml")); err != nil {
+				return err
+			}
+			if err := os.WriteFile(filepath.Join(player, ev+".js"), []byte(src), 0o644); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
 	name := filepath.Base(dir)
 	if make, ok := templateFiles[tmpl]; ok {
 		files, images := make(name)

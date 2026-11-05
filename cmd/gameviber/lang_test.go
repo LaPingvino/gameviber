@@ -13,34 +13,21 @@ import (
 	"github.com/LaPingvino/gameviber/runner"
 )
 
-// The starter game's events in JavaScript, one for one with its GML.
-var starterJS = map[string]string{
-	"create":         "score = 0;\n",
-	"keyboard-37":    "if (place_free(x - 4, y)) x -= 4;\n",
-	"keyboard-39":    "if (place_free(x + 4, y)) x += 4;\n",
-	"keyboard-38":    "if (place_free(x, y - 4)) y -= 4;\n",
-	"keyboard-40":    "if (place_free(x, y + 4)) y += 4;\n",
-	"collision-coin": "score += 10;\nother.instance_destroy(); // GML: with (other) instance_destroy()\n",
-	"step":           "// every coin collected: back to the start, the coins again\nif (instance_number(coin) == 0) room_goto(room);\n",
-}
-
-// The same game written in GML and in JavaScript plays the same: the starter
-// game, its player's events translated, driven by one key script through
+// The same game written in GML and in JavaScript plays the same: the coins
+// starter and the coins-js template (its player's events in JavaScript), driven by one key script through
 // the coins, compared every step (the player's position, the score, the
 // instances left).
 func TestStarterGMLvsJavaScript(t *testing.T) {
 	base := t.TempDir()
 	gmlDir, jsDir := filepath.Join(base, "gml"), filepath.Join(base, "js")
-	for _, d := range []string{gmlDir, jsDir} {
-		if err := cmdNew([]string{d}); err != nil {
-			t.Fatal(err)
-		}
+	if err := cmdNew([]string{gmlDir}); err != nil {
+		t.Fatal(err)
 	}
-	for ev, src := range starterJS {
-		os.Remove(filepath.Join(jsDir, "objects", "player", ev+".gml"))
-		if err := os.WriteFile(filepath.Join(jsDir, "objects", "player", ev+".js"), []byte(src), 0o644); err != nil {
-			t.Fatal(err)
-		}
+	if err := cmdNew([]string{"-template", "coins-js", jsDir}); err != nil { // the JavaScript starting point
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(jsDir, "objects", "player", "step.js")); err != nil {
+		t.Fatal("coins-js has no step.js")
 	}
 	start := func(dir string) (*load.Game, *load.Play) {
 		p, err := gmfile.ReadDir(dir)
