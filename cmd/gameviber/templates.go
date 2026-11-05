@@ -11,7 +11,7 @@ import (
 // a small but whole game in GameViber's own files and pictures.
 
 // templates are the names -template takes ("coins" is the starter of before).
-var templates = []string{"coins", "coins-js", "coins-lua", "platformer", "topdown", "shooter"}
+var templates = []string{"coins", "coins-js", "coins-lua", "coins-go", "platformer", "topdown", "shooter"}
 
 // starterJS is the coins starter's player events in JavaScript, one for one
 // with its GML (TestStarterGMLvsJavaScript plays both and finds them the same):
@@ -37,12 +37,23 @@ var starterLua = map[string]string{
 	"step":           "-- every coin collected: back to the start, the coins again\nif instance_number(coin) == 0 then room_goto(room) end\n",
 }
 
+// starterGo is the same in Go, through g (gv.Ctx): the "coins-go" template.
+var starterGo = map[string]string{
+	"create":         "g.Set(\"score\", 0)\n",
+	"keyboard-37":    "if g.Is(\"place_free\", g.Num(\"x\")-4, g.Num(\"y\")) {\n\tg.Set(\"x\", g.Num(\"x\")-4)\n}\n",
+	"keyboard-39":    "if g.Is(\"place_free\", g.Num(\"x\")+4, g.Num(\"y\")) {\n\tg.Set(\"x\", g.Num(\"x\")+4)\n}\n",
+	"keyboard-38":    "if g.Is(\"place_free\", g.Num(\"x\"), g.Num(\"y\")-4) {\n\tg.Set(\"y\", g.Num(\"y\")-4)\n}\n",
+	"keyboard-40":    "if g.Is(\"place_free\", g.Num(\"x\"), g.Num(\"y\")+4) {\n\tg.Set(\"y\", g.Num(\"y\")+4)\n}\n",
+	"collision-coin": "g.Set(\"score\", g.Num(\"score\")+10)\ng.Other().Call(\"instance_destroy\") // GML: with (other) instance_destroy()\n",
+	"step":           "// every coin collected: back to the start, the coins again\nif g.Call(\"instance_number\", g.Get(\"coin\")).Num() == 0 {\n\tg.Call(\"room_goto\", g.Get(\"room\"))\n}\n",
+}
+
 // starterLangs are the coins starter's player events in other languages, by
 // template name and file extension.
 var starterLangs = map[string]struct {
 	ext    string
 	events map[string]string
-}{"coins-js": {".js", starterJS}, "coins-lua": {".lua", starterLua}}
+}{"coins-js": {".js", starterJS}, "coins-lua": {".lua", starterLua}, "coins-go": {".go", starterGo}}
 
 // templateFiles makes each template's files and pictures (all but "coins").
 var templateFiles = map[string]func(name string) (map[string]string, map[string]image.Image){
