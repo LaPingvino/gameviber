@@ -63,3 +63,34 @@ func TestTopdownTemplate(t *testing.T) {
 		t.Errorf("waiting for a ghost: lives/x/y %v, want 2040040 (a life less, back at the start)", v)
 	}
 }
+
+// TestShooterTemplate: sweeping fire scores; left alone, enemies keep coming
+// (the spawner's alarm re-arms itself) and those that get past cost lives.
+func TestShooterTemplate(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "sh")
+	if err := cmdNew([]string{"-template", "shooter", dir}); err != nil {
+		t.Fatal(err)
+	}
+	var rep strings.Builder
+	if n, err := checkProjectVariant(dir, "", &rep); err != nil || n != 0 {
+		t.Fatalf("check: %v %d problems\n%s", err, n, rep.String())
+	}
+	sweep := "space+left:30,space+right:60,space+left:60,space+right:60,space+left:60,space+right:60"
+	st, err := playProjectOpts(dir, playOpts{Keys: sweep, Steps: 340})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s, _ := st["score"].(int); s <= 0 {
+		t.Errorf("sweeping fire: score %v", st["score"])
+	}
+	st, err = playProjectOpts(dir, playOpts{Steps: 300, Expect: "lives"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n := st["instances"].(map[string]int)["enemy"]; n < 3 {
+		t.Errorf("left alone for 300 steps: %d enemies on screen, want the spawner to keep sending them", n)
+	}
+	if v := st["expect"].(map[string]any)["value"]; v != "2" {
+		t.Errorf("lives after one enemy got past: %v, want 2", v)
+	}
+}

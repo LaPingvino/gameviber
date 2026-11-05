@@ -11,12 +11,13 @@ import (
 // a small but whole game in GameViber's own files and pictures.
 
 // templates are the names -template takes ("coins" is the starter of before).
-var templates = []string{"coins", "platformer", "topdown"}
+var templates = []string{"coins", "platformer", "topdown", "shooter"}
 
 // templateFiles makes each template's files and pictures (all but "coins").
 var templateFiles = map[string]func(name string) (map[string]string, map[string]image.Image){
 	"platformer": platformerFiles,
 	"topdown":    topdownFiles,
+	"shooter":    shooterFiles,
 }
 
 func objectTOML(sprite string, solid bool, depth int) string {
@@ -217,6 +218,98 @@ func flagImage() image.Image {
 			case x > 10 && x <= 26 && y >= 2 && y <= 14 && (x-10) <= 16-(y-2)/2: // the pennant
 				img.SetNRGBA(x, y, color.NRGBA{0xe8, 0x4a, 0x3c, 255})
 			}
+		}
+	}
+	return img
+}
+
+// shooterFiles is a shooter: the ship moves left / right along the bottom and
+// fires with space (a short cooldown); enemies drop from the top, more often
+// as the score rises (the spawner's alarm); a hit scores 10; an enemy that
+// gets past or rams the ship costs a life; three lives, then the game starts
+// over.
+func shooterFiles(name string) (map[string]string, map[string]image.Image) {
+	sprite := func(l, r, b, t int) string {
+		return fmt.Sprintf("frames = 1\nframe_w = 32\nframe_h = 32\norigin = [16, 16]\nbbox_lrbt = [%d, %d, %d, %d]\nprecise = false\ntransparent = true\n", l, r, b, t)
+	}
+	files := map[string]string{
+		"game.toml":                   fmt.Sprintf("name = %q\ngm_version = 530\nroom_order = [\"space\"]\n\n[settings]\n  author = \"\"\n  icon = \"ship\"\n", name),
+		"sprites/ship/sprite.toml":    sprite(4, 27, 29, 6),
+		"sprites/enemy/sprite.toml":   sprite(4, 27, 27, 4),
+		"sprites/bullet/sprite.toml":  sprite(14, 17, 23, 8),
+		"objects/ship/object.toml":    objectTOML("ship", false, -1),
+		"objects/enemy/object.toml":   objectTOML("enemy", false, 0),
+		"objects/bullet/object.toml":  objectTOML("bullet", false, 1),
+		"objects/spawner/object.toml": objectTOML("-1", false, 0),
+		"objects/ship/create.gml":     "// frames until the next shot may go\ncooldown = 0\n",
+		"objects/ship/other-2.gml":    "// game start: three lives, shown in the caption with the score\nlives = 3\nshow_lives = true\n",
+		"objects/ship/other-6.gml":    "// no more lives: start the whole game over\ngame_restart()\n",
+		"objects/ship/step.gml": `// move along the bottom
+if keyboard_check(vk_left) && x > 24 x -= 6
+if keyboard_check(vk_right) && x < room_width - 24 x += 6
+// fire, at most every 8 steps
+cooldown -= 1
+if keyboard_check(vk_space) && cooldown <= 0 {
+  instance_create(x, y - 20, bullet)
+  cooldown = 8
+}
+`,
+		"objects/ship/collision-enemy.gml":   "// rammed: a life less, the enemy gone\nlives -= 1\nwith (other) instance_destroy()\n",
+		"objects/bullet/create.gml":          "vspeed = -10\n",
+		"objects/bullet/other-0.gml":         "// off the top: gone\ninstance_destroy()\n",
+		"objects/bullet/collision-enemy.gml": "score += 10\nwith (other) instance_destroy()\ninstance_destroy()\n",
+		"objects/enemy/create.gml":           "// down, a little faster or slower each\nvspeed = 1.5 + random(1.5)\n",
+		"objects/enemy/other-0.gml":          "// got past the ship: a life less\nif y > room_height {\n  lives -= 1\n  instance_destroy()\n}\n",
+		"objects/spawner/create.gml":         "alarm[0] = 30\n",
+		"objects/spawner/alarm-0.gml": `// an enemy somewhere along the top, then the next one: sooner as the score rises
+instance_create(32 + random(room_width - 64), -16, enemy)
+alarm[0] = max(12, 45 - score / 20)
+`,
+		"AGENTS.md": agentsMD + "\nThis game is a shooter: objects/ship/step.gml moves and fires, objects/spawner/alarm-0.gml sends the enemies (how\noften), objects/enemy/create.gml how fast they fall. `gameviber play -keys \"space:120\" -expect \"score > 0\" .` tests a change.\n",
+	}
+	files["rooms/space/room.toml"] = "caption = \"Star defence\"\nwidth = 480\nheight = 640\nspeed = 30\npersistent = false\nbackground_colour = \"#0B1026\"\ndraw_background_colour = true\nviews_enabled = false\n" +
+		"\n[[instance]]\n  object = \"spawner\"\n  x = 0\n  y = 0\n" +
+		"\n[[instance]]\n  object = \"ship\"\n  x = 240\n  y = 596\n"
+	return files, map[string]image.Image{"ship": shipImage(), "enemy": enemyImage(), "bullet": bulletImage()}
+}
+
+func shipImage() image.Image {
+	img := image.NewNRGBA(image.Rect(0, 0, 32, 32))
+	for y := 6; y < 30; y++ {
+		half := (y - 6) / 2 // a triangle widening downwards
+		for x := 16 - half; x < 16+half; x++ {
+			img.SetNRGBA(x, y, color.NRGBA{0x9c, 0xd4, 0xff, 255})
+		}
+	}
+	for y := 16; y < 22; y++ { // the cockpit
+		for x := 14; x < 18; x++ {
+			img.SetNRGBA(x, y, color.NRGBA{0x20, 0x40, 0x80, 255})
+		}
+	}
+	return img
+}
+
+func enemyImage() image.Image {
+	img := image.NewNRGBA(image.Rect(0, 0, 32, 32))
+	for y := range 32 {
+		for x := range 32 {
+			dx, dy := float64(x)-15.5, float64(y)-15.5
+			if dx*dx/144+dy*dy/64 < 1 { // a saucer
+				img.SetNRGBA(x, y, color.NRGBA{0xf0, 0x60, 0x50, 255})
+			}
+			if dx*dx+(dy+4)*(dy+4) < 25 && dy < -2 { // its dome
+				img.SetNRGBA(x, y, color.NRGBA{0xff, 0xd0, 0x80, 255})
+			}
+		}
+	}
+	return img
+}
+
+func bulletImage() image.Image {
+	img := image.NewNRGBA(image.Rect(0, 0, 32, 32))
+	for y := 8; y < 24; y++ {
+		for x := 14; x < 18; x++ {
+			img.SetNRGBA(x, y, color.NRGBA{0xff, 0xf0, 0x60, 255})
 		}
 	}
 	return img

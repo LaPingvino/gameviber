@@ -214,8 +214,18 @@ func (g *Game) Eval(r *Room, expr string) (gml.Value, error) {
 	return in.Run(list)
 }
 
+// run runs an event's code as self. Events nest — instance_create runs the
+// new instance's create event, instance_destroy its destroy event — so the
+// running code's self, other and room are put back afterwards: in GM the code
+// after instance_create still runs as its own instance.
 func (g *Game) run(r *Room, self, other *Instance, list []gml.Stmt) {
+	var outerSelf, outerOther gml.Instance
+	outerRoom := g.room
+	if g.in != nil {
+		outerSelf, outerOther = g.in.Self, g.in.Other
+	}
 	in := g.interp(r)
+	defer func() { in.Self, in.Other, g.room = outerSelf, outerOther, outerRoom }()
 	in.Self, in.Other = self, nil
 	if other != nil {
 		in.Other = other

@@ -290,3 +290,34 @@ func TestPreciseCollision(t *testing.T) {
 		t.Error("a 1-pixel box against the upper-left half: (3,3) is empty, (0,0) solid")
 	}
 }
+
+// TestSelfAfterNestedEvent: instance_create runs the new instance's create
+// event; the creating code then goes on as its own instance (self, other), as
+// in GM — it ran as the new one before (found with the shooter template: a
+// spawner's alarm set after instance_create went to the enemy).
+func TestSelfAfterNestedEvent(t *testing.T) {
+	maker := &Object{Name: "maker"}
+	ball := &Object{Name: "ball"}
+	g := &Game{Objects: []*Object{maker, ball}}
+	mk, err := g.Code("instance_create(30, 40, ball)\nafter_x = x\nalarm[0] = 7\nmine = 1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	bc, err := g.Code("born = 1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	maker.Events.Create, ball.Events.Create = mk, bc
+	r := &Room{W: 64, H: 64, G: &Globals{Vars: map[string]float64{}}}
+	m := r.Create(maker, 5, 6)
+	if len(g.Errors) > 0 {
+		t.Fatal(g.Errors)
+	}
+	b := r.Instances[1]
+	if m.Vars["after_x"] != 5 || m.Alarm[0] != 7 || m.Vars["mine"] != 1 {
+		t.Errorf("the maker after instance_create: x seen %v, alarm %v, mine %v", m.Vars["after_x"], m.Alarm[0], m.Vars["mine"])
+	}
+	if b.Vars["born"] != 1 || b.Alarm[0] >= 0 || b.Vars["mine"] != 0 {
+		t.Errorf("the ball: born %v, alarm %v, mine %v", b.Vars["born"], b.Alarm[0], b.Vars["mine"])
+	}
+}
