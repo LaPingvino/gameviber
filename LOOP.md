@@ -172,8 +172,11 @@ goal of its own, weighed alongside the LLM-friendly rule.
    JS, one key script, 765 steps compared — position, score, coins, room — identical, 2 coins collected). It
    found a real gap: JS had no `with (other)`; now a GameViber function called on an instance —
    other.instance_destroy(), or f.call(other) — runs as that instance with the caller as other, as GML's with
-   does (TestCallOnInstance; AGENTS.md says so). NEXT: a JS starter template / the tutorial's language choice;
-   then Lua (gopher-lua) the same way.
+   does (TestCallOnInstance; AGENTS.md says so). DONE 2026-11-05: the "coins-js" template (gameviber new
+   -template coins-js; the editor's New game… lists it second; the tutorial's table has it) — the coins starter
+   with the player's events in JavaScript, the same translations the 765-step test now plays from the template.
+   JavaScript is complete as a first-class language but for syntax colouring. NEXT: Lua (gopher-lua) the same
+   way — lang/lua, ".lua" in Langs / ScriptLangs, check, the same-game test; then Go (yaegi).
 
 ## Libraries around it (Joop 2026-11-02: an Opus decoder "would fit right along the gml stuff … and the game
 maker file decoder")
@@ -429,4 +432,5 @@ setting (on by default) rather than per-game code:
 - 2026-11-05 (13: JavaScript part 3 — overnight) — JavaScript scripts (scripts/<name>.js, called by name from GML and JS; a GML script from JS; self inside) and check for .js (syntax, file:line; only game code). Tests: the folder test extended (double.js → add1.gml, from JS and from GML, where_am_i reads x and arguments.length, the export keeps double.js), TestCheckJavaScript (clean, then a syntax error at scripts/half.js:2, a web page's .js ignored). Full gate green, wasm builds, the reference unchanged.
 - 2026-11-05 (13: JavaScript part 4 — overnight) — the editor knows .js (tree, save, assistant writes, completions, outline) and AGENTS.md explains JS. Seen in headless Chromium on a starter game with step.js and scripts/half.js: step.js open, completions for instance_c…, the check line "SyntaxError: Unexpected token ; at scripts/half.js:2:22". cmd/gameviber + gmfile tests green, wasm builds.
 - 2026-11-05 (13: JavaScript part 5 — overnight) — the GML-vs-JS same-game test: 765 identical steps of the starter game; it caught the missing `with (other)` (the JS player destroyed itself instead of the coin), fixed by calls on instances running as that instance. Full gate green, wasm builds.
+- 2026-11-05 (13: JavaScript part 6 — overnight) — a JavaScript starting point: template coins-js (CLI and editor), the equivalence test using it, the tutorial row. Seen in the static (Pages) build in headless Chromium: New game… lists "Collect the coins, in JavaScript" second. Full gate green, wasm builds.
 

@@ -11,7 +11,20 @@ import (
 // a small but whole game in GameViber's own files and pictures.
 
 // templates are the names -template takes ("coins" is the starter of before).
-var templates = []string{"coins", "platformer", "topdown", "shooter"}
+var templates = []string{"coins", "coins-js", "platformer", "topdown", "shooter"}
+
+// starterJS is the coins starter's player events in JavaScript, one for one
+// with its GML (TestStarterGMLvsJavaScript plays both and finds them the same):
+// the "coins-js" template.
+var starterJS = map[string]string{
+	"create":         "score = 0;\n",
+	"keyboard-37":    "if (place_free(x - 4, y)) x -= 4;\n",
+	"keyboard-39":    "if (place_free(x + 4, y)) x += 4;\n",
+	"keyboard-38":    "if (place_free(x, y - 4)) y -= 4;\n",
+	"keyboard-40":    "if (place_free(x, y + 4)) y += 4;\n",
+	"collision-coin": "score += 10;\nother.instance_destroy(); // GML: with (other) instance_destroy()\n",
+	"step":           "// every coin collected: back to the start, the coins again\nif (instance_number(coin) == 0) room_goto(room);\n",
+}
 
 // templateFiles makes each template's files and pictures (all but "coins").
 var templateFiles = map[string]func(name string) (map[string]string, map[string]image.Image){
