@@ -162,7 +162,11 @@ func FromProject(p *gmfile.Project) (*Game, error) {
 		name := ""
 		if sc != nil {
 			name = sc.Name
-			if err := g.Script(sc.Name, sc.Code); err != nil {
+			ext := ".gml"
+			if sc.Lang != "" {
+				ext = sc.Lang
+			}
+			if err := g.ScriptIn("scripts/"+sc.Name+ext, sc.Name, sc.Code); err != nil {
 				return nil, fmt.Errorf("script %s: %w", sc.Name, err)
 			}
 		}

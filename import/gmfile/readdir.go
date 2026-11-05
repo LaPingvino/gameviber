@@ -99,7 +99,15 @@ func ReadFS(fsys fs.FS, dir string) (*Project, error) {
 		if err != nil {
 			return nil, err
 		}
-		p.Scripts = append(p.Scripts, &Script{ID: len(p.Scripts), Name: strings.TrimSuffix(f, ".gml"), Code: string(code)})
+		ext := path.Ext(f)
+		if !slices.Contains(CodeExts, ext) {
+			continue
+		}
+		sc := &Script{ID: len(p.Scripts), Name: strings.TrimSuffix(f, ext), Code: string(code)}
+		if ext != ".gml" {
+			sc.Lang = ext
+		}
+		p.Scripts = append(p.Scripts, sc)
 	}
 	for _, n := range names("timelines") {
 		t := &Timeline{ID: len(p.Timelines), Name: n}

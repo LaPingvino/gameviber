@@ -28,13 +28,16 @@ func TestJavaScriptEvents(t *testing.T) {
 	fsys := fstest.MapFS{
 		"sprites/box/strip.png":          {Data: box.Bytes()},
 		"sprites/box/sprite.toml":        {Data: []byte("frames = 1\nframe_w = 16\nframe_h = 16\norigin = [0, 0]\nbbox_lrbt = [0, 15, 15, 0]\nprecise = false\ntransparent = false\n")},
+		"scripts/double.js":              {Data: []byte("// twice its argument, plus one through a GML script\nreturn add1(argument0 * 2) - 1;\n")},
+		"scripts/add1.gml":               {Data: []byte("return argument0 + 1\n")},
+		"scripts/where_am_i.js":          {Data: []byte("return x + arguments.length;\n")},
 		"game.toml":                      {Data: []byte("name = \"js\"\nroom_order = [\"r\"]\n")},
 		"objects/mover/object.toml":      {Data: []byte("sprite = \"box\"\nvisible = true\n")},
-		"objects/mover/create.js":        {Data: []byte("hits = 0;\n")},
+		"objects/mover/create.js":        {Data: []byte("hits = 0;\nd = double(21);\nw = where_am_i(1, 2);\n")},
 		"objects/mover/step.js":          {Data: []byte("x += 2; // two a step\nif (x > 40) instance_destroy();\n")},
 		"objects/mover/collision-pad.js": {Data: []byte("hits += 1;\nother.touched = 1;\n")},
 		"objects/pad/object.toml":        {Data: []byte("sprite = \"box\"\nvisible = true\n")},
-		"objects/pad/create.gml":         {Data: []byte("touched = 0\n")},
+		"objects/pad/create.gml":         {Data: []byte("touched = 0\ntwice = double(4)\n")},
 		"rooms/r/room.toml": {Data: []byte("width = 64\nheight = 64\nspeed = 30\n" +
 			"[[instance]]\nobject = \"mover\"\nx = 0\ny = 0\nid = 100001\n" +
 			"[[instance]]\nobject = \"pad\"\nx = 0\ny = 0\nid = 100002\n")},
@@ -72,7 +75,16 @@ func TestJavaScriptEvents(t *testing.T) {
 		t.Errorf("the JavaScript collision event: hits %v, pad touched %v", hits, touched)
 	}
 
-	// Written back out, the events keep their language.
+	// Scripts: a JS script from JS and from GML, a GML script from JS, self in a script.
+	pad := pl.Room.All("pad")[0]
+	if movers[0].Vars["d"] != 42 || pad.Vars["twice"] != 8 || movers[0].Vars["w"] != 2 {
+		t.Errorf("scripts: double(21) %v, from GML double(4) %v, where_am_i(1, 2) at x 0 %v", movers[0].Vars["d"], pad.Vars["twice"], movers[0].Vars["w"])
+	}
+
+	// Written back out, the events and scripts keep their language.
+	if _, err := os.Stat(filepath.Join(dir0(t, p), "scripts", "double.js")); err != nil {
+		t.Errorf("script written back: %v", err)
+	}
 	dir := t.TempDir()
 	if _, err := p.Export(dir, "js"); err != nil {
 		t.Fatal(err)
@@ -86,4 +98,14 @@ func TestJavaScriptEvents(t *testing.T) {
 			t.Errorf("step.js changed: %q", b)
 		}
 	}
+}
+
+// dir0 is the project exported to a new temporary folder.
+func dir0(t *testing.T, p *gmfile.Project) string {
+	t.Helper()
+	dir := t.TempDir()
+	if _, err := p.Export(dir, "js"); err != nil {
+		t.Fatal(err)
+	}
+	return dir
 }

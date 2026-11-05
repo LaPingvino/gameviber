@@ -92,6 +92,7 @@ type Script struct {
 	ID   int
 	Name string
 	Code string
+	Lang string // as Event.Lang: "" is GML, else the file's extension (".js" …)
 }
 
 // DataFile is a data file stored in the game.

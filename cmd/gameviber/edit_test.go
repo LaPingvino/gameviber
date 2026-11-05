@@ -739,3 +739,30 @@ func TestEditBridge(t *testing.T) {
 		t.Errorf("another origin got CORS: %q", r.Header.Get("Access-Control-Allow-Origin"))
 	}
 }
+
+// check reads JavaScript events and scripts too: a good one counts, a syntax
+// error is reported with its file and line; a .js file elsewhere (a web
+// page's) is not game code.
+func TestCheckJavaScript(t *testing.T) {
+	dir := t.TempDir() + "/game"
+	if err := cmdNew([]string{dir}); err != nil {
+		t.Fatal(err)
+	}
+	os.Remove(dir + "/objects/player/step.gml") // the step event in JavaScript instead
+	os.WriteFile(dir+"/objects/player/step.js", []byte("if (instance_number(coin) == 0) room_goto(room);\n"), 0o644)
+	os.MkdirAll(dir+"/scripts", 0o755)
+	os.WriteFile(dir+"/scripts/half.js", []byte("return argument0 / 2;\n"), 0o644)
+	os.MkdirAll(dir+"/web", 0o755)
+	os.WriteFile(dir+"/web/page.js", []byte("this is not ( code"), 0o644)
+	var b strings.Builder
+	n, err := checkProject(dir, &b)
+	if err != nil || n != 0 || !strings.Contains(b.String(), "code files, 0 problems") {
+		t.Fatalf("clean: %d problems, %v\n%s", n, err, b.String())
+	}
+	os.WriteFile(dir+"/scripts/half.js", []byte("let a = 1;\nreturn (argument0 / 2;\n"), 0o644)
+	b.Reset()
+	n, _ = checkProject(dir, &b)
+	if n != 1 || !strings.Contains(b.String(), "scripts/half.js:2") {
+		t.Errorf("a syntax error: %d problems\n%s", n, b.String())
+	}
+}

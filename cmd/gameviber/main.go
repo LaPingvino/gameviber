@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/LaPingvino/gameviber/import/gmfile"
+	"github.com/LaPingvino/gameviber/lang/js"
 	"github.com/LaPingvino/gameviber/load"
 	"github.com/LaPingvino/gameviber/render"
 	"github.com/LaPingvino/gameviber/runner"
@@ -86,7 +87,7 @@ func usage() {
                                     DIR: default the current folder) for coding agents
   gameviber setup-agents [AGENT …]  give your installed agents (agy, claude, gemini, opencode) these tools
                                     user-wide, in every GameViber project they start in
-  gameviber check DIR               check a project: every .gml parses, every function called exists
+  gameviber check DIR               check a project: every .gml / .js parses, every GML call exists
                                     (file:line:col: message; exit 1 when there is anything)
   gameviber run [-room R] GAME      play it in a window (arrow keys, space, enter; M sound, F11 full screen)
   gameviber web DIR OUT             a web page that plays the project DIR (OUT: index.html, game.wasm, project.tar)
@@ -287,13 +288,20 @@ func checkProjectVariant(dir, variant string, w io.Writer) (int, error) {
 		if err == nil && d.IsDir() && path != dir && strings.HasPrefix(d.Name(), ".") {
 			return filepath.SkipDir
 		}
-		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".gml") {
+		if err != nil || d.IsDir() || !(strings.HasSuffix(path, ".gml") || isJSCode(dir, path)) {
 			return err
 		}
 		files++
 		src, err := os.ReadFile(path)
 		if err != nil {
 			return err
+		}
+		if strings.HasSuffix(path, ".js") { // JavaScript: its syntax (unknown names show when it runs)
+			if err := js.Check(path, string(src)); err != nil {
+				fmt.Fprintln(w, err)
+				problems++
+			}
+			return nil
 		}
 		list, err := gml.Parse(string(src))
 		if err != nil {
@@ -340,8 +348,19 @@ func checkProjectVariant(dir, variant string, w io.Writer) (int, error) {
 		problems++
 	}
 	problems += refs
-	fmt.Fprintf(w, "%d .gml files, %d problems\n", files, problems)
+	fmt.Fprintf(w, "%d code files, %d problems\n", files, problems)
 	return problems, nil
+}
+
+// isJSCode reports whether path is a JavaScript event or script of the game
+// in dir (objects/<name>/*.js, scripts/*.js) — not, say, a web page's script.
+func isJSCode(dir, path string) bool {
+	rel, err := filepath.Rel(dir, path)
+	if err != nil || !strings.HasSuffix(rel, ".js") {
+		return false
+	}
+	parts := strings.Split(filepath.ToSlash(rel), "/")
+	return (len(parts) == 3 && parts[0] == "objects") || (len(parts) == 2 && parts[0] == "scripts")
 }
 
 func cmdRun(args []string) error {
