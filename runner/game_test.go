@@ -350,3 +350,40 @@ n = instance_count; first = instance_id[0]; past = instance_id[5]`)
 		t.Errorf("%v", v)
 	}
 }
+
+// volumeSounds records sound_volume calls.
+type volumeSounds struct {
+	playedSounds
+	vol map[string]float64
+}
+
+func (v *volumeSounds) Volume(name string, x float64) { v.vol[name] = x }
+
+// execute_string runs text as the instance (with arguments), get_integer
+// takes a typed number (the default otherwise), sound_volume reaches the
+// sound backend.
+func TestExecuteStringGetIntegerSoundVolume(t *testing.T) {
+	o := &Object{Name: "o"}
+	snd := &volumeSounds{vol: map[string]float64{}}
+	answers := []string{" 42 ", "lots"}
+	g := &Game{Objects: []*Object{o}, Sound: snd, AskString: func(q, def string) string {
+		a := answers[0]
+		answers = answers[1:]
+		return a
+	}}
+	h, err := g.Code(`execute_string("hp = argument0 + 1; x = 7", 9); n = get_integer("How many?", 3); m = get_integer("How many?", 5)
+sound_volume("boom", 0.25)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	o.Events.Step = h
+	r := &Room{W: 64, H: 64, G: &Globals{Vars: map[string]float64{}}}
+	in := r.Create(o, 0, 0)
+	r.Step(keyKeys{})
+	if len(g.Errors) > 0 {
+		t.Fatal(g.Errors)
+	}
+	if v := in.Vars; v["hp"] != 10 || in.X != 7 || v["n"] != 42 || v["m"] != 5 || snd.vol["boom"] != 0.25 {
+		t.Errorf("%v x=%v vol=%v", v, in.X, snd.vol)
+	}
+}

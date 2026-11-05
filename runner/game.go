@@ -3,6 +3,7 @@ package runner
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/LaPingvino/gameviber/gml"
@@ -98,6 +99,11 @@ type Sound interface {
 	Stop(name string)
 	StopAll()
 	Playing(name string) bool
+}
+
+// SoundVolume is a Sound that also sets a sound's volume (sound_volume).
+type SoundVolume interface {
+	Volume(name string, v float64)
 }
 
 func (g *Game) soundName(v gml.Value) string { return g.IDs.Name("sound", v) }
@@ -504,6 +510,37 @@ func (g *Game) coreFuncs() map[string]gml.Func {
 			return gml.StrV(""), nil
 		},
 		"draw_highscore": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // drawing comes with the draw events
+			return gml.RealV(0), nil
+		},
+		"get_integer": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (question, default): a number typed in; the default when it isn't one
+			q, def := "", 0.0
+			if len(a) > 0 {
+				q = a[0].String()
+			}
+			if len(a) > 1 {
+				def = a[1].N
+			}
+			if g.AskString != nil {
+				if v, err := strconv.ParseFloat(strings.TrimSpace(g.AskString(q, strconv.FormatFloat(def, 'f', -1, 64))), 64); err == nil {
+					return gml.RealV(v), nil
+				}
+			}
+			return gml.RealV(def), nil
+		},
+		"execute_string": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (code, arguments …): runs GML text as the calling instance
+			if len(a) == 0 {
+				return gml.RealV(0), nil
+			}
+			list, err := gml.Parse(a[0].String())
+			if err != nil {
+				return gml.Value{}, fmt.Errorf("execute_string: %w", err)
+			}
+			return in.RunArgs(list, a[1:])
+		},
+		"sound_volume": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (sound, value 0 … 1)
+			if sv, ok := g.Sound.(SoundVolume); ok && len(a) > 1 {
+				sv.Volume(g.soundName(a[0]), a[1].N)
+			}
 			return gml.RealV(0), nil
 		},
 		"get_string": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (question, default)

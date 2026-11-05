@@ -26,7 +26,8 @@ type sounds struct {
 	opus    map[string][]byte
 	players map[string]*audio.Player
 	midi    map[string]bool
-	muted   bool // M: everything silent (players keep going, so unmuting picks the music up)
+	muted   bool               // M: everything silent (players keep going, so unmuting picks the music up)
+	vol     map[string]float64 // sound_volume's, by sound (1 when not set)
 	warned  bool
 }
 
@@ -94,7 +95,7 @@ func (s *sounds) Play(name string, loop bool) {
 		return
 	}
 	s.players[name] = p
-	p.SetVolume(s.volume())
+	p.SetVolume(s.volume(name))
 	p.Play()
 }
 
@@ -146,21 +147,36 @@ func (s *sounds) playOpus(name string, data []byte, loop bool) {
 		return
 	}
 	s.players[name] = p
-	p.SetVolume(s.volume())
+	p.SetVolume(s.volume(name))
 	p.Play()
 }
 
-func (s *sounds) volume() float64 {
+func (s *sounds) volume(name string) float64 {
 	if s.muted {
 		return 0
 	}
+	if v, ok := s.vol[name]; ok {
+		return v
+	}
 	return 1
+}
+
+// Volume is sound_volume (runner.SoundVolume): 0 … 1, for this sound from now
+// on, the playing one included.
+func (s *sounds) Volume(name string, v float64) {
+	if s.vol == nil {
+		s.vol = map[string]float64{}
+	}
+	s.vol[name] = min(max(v, 0), 1)
+	if p := s.players[name]; p != nil {
+		p.SetVolume(s.volume(name))
+	}
 }
 
 // SetMuted turns all sound off or on (M) — as Stelo's and Pacmanio's button.
 func (s *sounds) SetMuted(m bool) {
 	s.muted = m
-	for _, p := range s.players {
-		p.SetVolume(s.volume())
+	for n, p := range s.players {
+		p.SetVolume(s.volume(n))
 	}
 }
