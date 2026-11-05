@@ -144,10 +144,11 @@ func ReadFS(fsys fs.FS, dir string) (*Project, error) {
 		o := &GMObject{ID: len(p.Objects), Name: n, Sprite: lookup(sprID, meta.Sprite), Solid: meta.Solid, Visible: meta.Visible,
 			Persistent: meta.Persistent, Depth: meta.Depth, Parent: lookup(objID, meta.Parent), Mask: lookup(sprID, meta.Mask)}
 		for _, f := range names(path.Join("objects", n)) {
-			if !strings.HasSuffix(f, ".gml") {
+			ext := path.Ext(f)
+			if !slices.Contains(CodeExts, ext) {
 				continue
 			}
-			ev, ok := parseEventFile(strings.TrimSuffix(f, ".gml"), objID)
+			ev, ok := parseEventFile(strings.TrimSuffix(f, ext), objID)
 			if !ok {
 				return nil, fmt.Errorf("objects/%s/%s: not an event file name", n, f)
 			}
@@ -156,6 +157,9 @@ func ReadFS(fsys fs.FS, dir string) (*Project, error) {
 				return nil, err
 			}
 			ev.Actions = codeAction(string(code))
+			if ext != ".gml" {
+				ev.Lang = ext
+			}
 			o.Events = append(o.Events, ev)
 		}
 		p.Objects = append(p.Objects, o)
