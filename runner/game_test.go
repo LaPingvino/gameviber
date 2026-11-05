@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"testing"
+	"time"
 
 	"github.com/LaPingvino/gameviber/gml"
 )
@@ -587,5 +588,32 @@ yes = show_question("Again?"); no = show_question("Quit?")`)
 	str := func(n string) string { x, _ := in.Get(n, nil); return x.S }
 	if str("name") != "Joop" || v["n"] != 42 || str("last") != "end" || v["e"] != 1 || v["had"] != 1 || v["gone"] != 1 || v["yes"] != 1 || v["no"] != 0 {
 		t.Errorf("%v name %q last %q", v, str("name"), str("last"))
+	}
+}
+
+// GM 5's time variables read the game's clock: the date's parts, and
+// current_time in milliseconds since the game began.
+func TestCurrentTime(t *testing.T) {
+	o := &Object{Name: "o"}
+	g := &Game{Objects: []*Object{o}}
+	h, err := g.Code(`t0 = current_time; yr = current_year; mo = current_month; d = current_day; wd = current_weekday; hh = current_hour; mi = current_minute; s = current_second`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	o.Events.Step = h
+	now := time.Date(2026, 11, 5, 21, 7, 9, 0, time.Local) // a Thursday
+	r := &Room{W: 64, H: 64, G: &Globals{Vars: map[string]float64{}, Now: func() time.Time { return now }}}
+	in := r.Create(o, 0, 0)
+	r.Step(keyKeys{})
+	now = now.Add(1500 * time.Millisecond)
+	h2, _ := g.Code(`t1 = current_time`)
+	o.Events.Step = h2
+	r.Step(keyKeys{})
+	if len(g.Errors) > 0 {
+		t.Fatal(g.Errors)
+	}
+	v := in.Vars
+	if v["t0"] != 0 || v["t1"] != 1500 || v["yr"] != 2026 || v["mo"] != 11 || v["d"] != 5 || v["wd"] != 4 || v["hh"] != 21 || v["mi"] != 7 || v["s"] != 9 {
+		t.Errorf("%v", v)
 	}
 }

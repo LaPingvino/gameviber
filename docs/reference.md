@@ -39,7 +39,7 @@ action_color, action_draw_font, action_draw_life, action_draw_life_images, actio
 
 ## Game-wide variables
 
-background_color, background_foreground, background_hspeed, background_htiled, background_index, background_visible, background_vspeed, background_vtiled, background_x, background_y, brush_color, caption_lives, caption_score, font_color, health, instance_count, instance_id, keyboard_key, keyboard_lastchar, keyboard_lastkey, keyboard_string, lives, mouse_button, mouse_x, mouse_y, pen_color, room, room_caption, room_height, room_persistent, room_speed, room_width, score, show_lives, show_score, view_enabled, view_height, view_hview, view_left, view_top, view_visible, view_width, view_wview, view_xview, view_yview
+background_color, background_foreground, background_hspeed, background_htiled, background_index, background_visible, background_vspeed, background_vtiled, background_x, background_y, brush_color, caption_lives, caption_score, current_day, current_hour, current_minute, current_month, current_second, current_time, current_weekday, current_year, font_color, health, instance_count, instance_id, keyboard_key, keyboard_lastchar, keyboard_lastkey, keyboard_string, lives, mouse_button, mouse_x, mouse_y, pen_color, room, room_caption, room_height, room_persistent, room_speed, room_width, score, show_lives, show_score, view_enabled, view_height, view_hview, view_left, view_top, view_visible, view_width, view_wview, view_xview, view_yview
 
 ## Instance variables
 

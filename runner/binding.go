@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"strings"
+	"time"
 
 	"github.com/LaPingvino/gameviber/gml"
 )
@@ -327,6 +328,8 @@ func (gv *GlobalVars) Get(name string, idx []int) (gml.Value, bool) {
 			return gml.RealV(float64(gv.G.Lives)), true
 		case "keyboard_string":
 			return gml.StrV(gv.G.KeyboardString), true
+		case "current_time", "current_year", "current_month", "current_day", "current_weekday", "current_hour", "current_minute", "current_second":
+			return gml.RealV(gv.G.clock(name)), true
 		}
 	}
 	k := varKey(name, idx)
@@ -438,4 +441,35 @@ func (gv *GlobalVars) view(name string, idx []int, set *gml.Value) (gml.Value, b
 		*p = int(set.N)
 	}
 	return gml.RealV(float64(*p)), true
+}
+
+// clock is GM 5's time variables: current_time in milliseconds since the game
+// began (GM 5's counted from the computer's start — games only use
+// differences), and the local date and time's parts (current_weekday: 0 is
+// Sunday, as GM's).
+func (g *Globals) clock(name string) float64 {
+	now := time.Now()
+	if g.Now != nil {
+		now = g.Now()
+	}
+	if g.Start.IsZero() {
+		g.Start = now
+	}
+	switch name {
+	case "current_time":
+		return float64(now.Sub(g.Start).Milliseconds())
+	case "current_year":
+		return float64(now.Year())
+	case "current_month":
+		return float64(now.Month())
+	case "current_day":
+		return float64(now.Day())
+	case "current_weekday":
+		return float64(now.Weekday())
+	case "current_hour":
+		return float64(now.Hour())
+	case "current_minute":
+		return float64(now.Minute())
+	}
+	return float64(now.Second())
 }

@@ -401,7 +401,8 @@ func (in *Interp) place(e Expr) ([]Instance, string, []int, error) {
 // GlobalBuiltins are GM 5's game-wide built-in variables: read and written
 // through Interp.Global whoever runs the code.
 var GlobalBuiltins = map[string]bool{
-	"score": true, "instance_count": true, "instance_id": true, "lives": true, "health": true, "keyboard_string": true, "keyboard_key": true,
+	"score": true, "current_time": true, "current_year": true, "current_month": true, "current_day": true, "current_weekday": true,
+	"current_hour": true, "current_minute": true, "current_second": true, "instance_count": true, "instance_id": true, "lives": true, "health": true, "keyboard_string": true, "keyboard_key": true,
 	"keyboard_lastkey": true, "keyboard_lastchar": true, "mouse_x": true, "mouse_y": true, "mouse_button": true,
 	"room": true, "room_speed": true, "room_caption": true, "room_persistent": true, "view_left": true, "view_top": true, "view_width": true, "view_height": true, "view_visible": true, "view_enabled": true,
 	"view_xview": true, "view_yview": true, "view_wview": true, "view_hview": true, "room_width": true, "room_height": true,

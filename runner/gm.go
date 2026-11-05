@@ -8,7 +8,10 @@
 // at the instance's position rounded to the nearest pixel.
 package runner
 
-import "math"
+import (
+	"math"
+	"time"
+)
 
 // Box is a bounding box in pixels, all edges inclusive (Game Maker's
 // bbox_left, bbox_right, bbox_top, bbox_bottom).
@@ -175,6 +178,11 @@ type Room struct {
 
 // Globals are Game Maker's game-wide state.
 type Globals struct {
+	// Now is the clock the current_* variables read (nil: the real time); a
+	// test play may set its own so runs repeat. Start is when the game began
+	// (current_time counts from it), set on the first read.
+	Now          func() time.Time
+	Start        time.Time
 	Score, Lives int
 	// lastID is the last instance id handed out (game-wide, as in GM 5).
 	lastID int
