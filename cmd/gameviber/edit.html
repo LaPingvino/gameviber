@@ -91,7 +91,7 @@ footer pre { margin: 0; font: 12px/1.45 ui-monospace, monospace; white-space: pr
 <dialog id="newgamedlg" style="width:min(520px,94vw)"><b>A new game from a starting point</b>
   <p class="hint">This replaces the game in this browser — download or copy anything you want to keep first.</p>
   <div id="newgamelist" style="display:grid;gap:6px;margin:8px 0"></div>
-  <div class="row"><span style="flex:1"></span><button id="newgameclose" class="new">Cancel</button></div>
+  <div class="row"><button id="openzip" class="new" title="a game saved with Download (a .zip)">Open a downloaded game (.zip)…</button><input type="file" id="zipfile" accept=".zip" style="display:none"><span id="zipnote" class="hint"></span><span style="flex:1"></span><button id="newgameclose" class="new">Cancel</button></div>
 </dialog>
 <dialog id="sfxdlg" style="width:min(760px,94vw)"><b>Sound effect</b>
   <div class="row" id="sfxpresets" style="flex-wrap:wrap;gap:4px;margin:8px 0"></div>
@@ -1619,6 +1619,15 @@ if (gvBridge) { // paired with a project on this computer: its files, its agents
   }));
   $("reset").onclick = () => $("newgamedlg").showModal();
   $("newgameclose").onclick = () => $("newgamedlg").close();
+  $("openzip").onclick = () => $("zipfile").click();
+  $("zipfile").addEventListener("change", async () => {
+    const f = $("zipfile").files[0]; $("zipfile").value = "";
+    if (!f) return;
+    $("zipnote").textContent = "opening " + f.name + " …";
+    await window.gameviberWait;
+    const err = await window.gameviberOpenZip(new Uint8Array(await f.arrayBuffer()));
+    if (err) $("zipnote").textContent = "could not open it: " + err;
+  });
 }
 // Pause / step the game while playing (the player's gameviberPause / gameviberStep).
 let gamePaused = false;

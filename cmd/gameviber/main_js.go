@@ -78,6 +78,37 @@ func main() {
 		}()
 		return nil
 	}))
+	// gameviberOpenZip(bytes) → a Promise of "" or the error: the project
+	// replaced by a downloaded GameViber zip (checked before anything goes).
+	js.Global().Set("gameviberOpenZip", js.FuncOf(func(this js.Value, args []js.Value) any {
+		data := make([]byte, args[0].Get("length").Int())
+		js.CopyBytesToGo(data, args[0])
+		return js.Global().Get("Promise").New(js.FuncOf(func(this js.Value, pr []js.Value) any {
+			resolve := pr[0]
+			go func() {
+				tmp := dir + ".new"
+				os.RemoveAll(tmp)
+				if err := unpackProjectZip(data, tmp); err != nil {
+					os.RemoveAll(tmp)
+					resolve.Invoke(err.Error())
+					return
+				}
+				// checked: now the real place (the page's file system can't
+				// rename folders, so the zip is unpacked again rather than moved)
+				os.RemoveAll(tmp)
+				os.RemoveAll(dir)
+				if err := unpackProjectZip(data, dir); err != nil {
+					os.RemoveAll(dir)
+					cmdNew([]string{dir}) // never leave the editor without a project
+					resolve.Invoke(err.Error())
+					return
+				}
+				resolve.Invoke("")
+				js.Global().Get("location").Call("reload")
+			}()
+			return nil
+		}))
+	}))
 	if ready := js.Global().Get("gameviberReady"); ready.Type() == js.TypeFunction {
 		ready.Invoke()
 	}

@@ -63,7 +63,8 @@ is done, at the turn limit, or when something keeps failing, and asks you before
 ## 5. Take it home
 
 **Download** (at the top of the editor) saves the whole game as a zip: keep it, share it, or unpack it and keep
-working on it on your own computer. With [Go](https://go.dev/dl/) installed:
+working on it on your own computer. **New game… → Open a downloaded game (.zip)** brings one back into the
+editor — yours, or one someone shared with you. With [Go](https://go.dev/dl/) installed:
 
 ```
 go install github.com/LaPingvino/gameviber/cmd/gameviber@latest

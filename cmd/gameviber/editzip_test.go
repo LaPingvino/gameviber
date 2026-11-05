@@ -60,3 +60,50 @@ func TestProjectZip(t *testing.T) {
 		t.Errorf("the unpacked zip doesn't play: %v %v", err, st["room"])
 	}
 }
+
+// TestUnpackProjectZip: Download's zip unpacks to the same files; a zip
+// without game.toml, and one with a path leaving the project, are refused.
+func TestUnpackProjectZip(t *testing.T) {
+	src := filepath.Join(t.TempDir(), "Coins")
+	if err := cmdNew([]string{"-template", "topdown", src}); err != nil {
+		t.Fatal(err)
+	}
+	var b bytes.Buffer
+	if err := zipProject(src, "Coins", &b); err != nil {
+		t.Fatal(err)
+	}
+	out := filepath.Join(t.TempDir(), "back")
+	if err := unpackProjectZip(b.Bytes(), out); err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range []string{"game.toml", "objects/ghost/step.gml", "sprites/gem/strip.png", "rooms/maze/room.toml"} {
+		a, _ := os.ReadFile(filepath.Join(src, f))
+		c, err := os.ReadFile(filepath.Join(out, f))
+		if err != nil || !bytes.Equal(a, c) {
+			t.Errorf("%s: %v (same %v)", f, err, bytes.Equal(a, c))
+		}
+	}
+	if st, err := playProjectOpts(out, playOpts{Steps: 3}); err != nil || st["room"] != "maze" {
+		t.Errorf("doesn't play: %v %v", err, st["room"])
+	}
+	mk := func(files map[string]string) []byte {
+		var z bytes.Buffer
+		w := zip.NewWriter(&z)
+		for n, c := range files {
+			f, _ := w.Create(n)
+			f.Write([]byte(c))
+		}
+		w.Close()
+		return z.Bytes()
+	}
+	if err := unpackProjectZip(mk(map[string]string{"notes.txt": "hi"}), filepath.Join(t.TempDir(), "x")); err == nil {
+		t.Error("a zip without game.toml was taken")
+	}
+	escape := filepath.Join(t.TempDir(), "y")
+	if err := unpackProjectZip(mk(map[string]string{"game.toml": "name = \"g\"\n", "../evil.txt": "x"}), escape); err == nil {
+		t.Error("a path leaving the project was taken")
+	}
+	if _, err := os.Stat(filepath.Join(filepath.Dir(escape), "evil.txt")); err == nil {
+		t.Error("evil.txt was written outside")
+	}
+}
