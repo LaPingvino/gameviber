@@ -11,6 +11,7 @@ import (
 
 	"github.com/LaPingvino/gameviber/gml"
 	"github.com/LaPingvino/gameviber/import/gmfile"
+	_ "github.com/LaPingvino/gameviber/lang/js" // event code in JavaScript (.js files)
 	"github.com/LaPingvino/gameviber/runner"
 )
 
@@ -208,15 +209,19 @@ func FromProject(p *gmfile.Project) (*Game, error) {
 }
 
 func (g *Game) event(ro *runner.Object, o *gmfile.GMObject, ev gmfile.Event) error {
-	src, err := g.Project.ActionsToGML(ev.Actions)
-	if err != nil {
-		return err
+	file := "objects/" + o.Name + "/" + g.Project.EventFile(ev) // names the code in errors; picks its language
+	src, ok := ev.Source()
+	if !ok {
+		var err error
+		if src, err = g.Project.ActionsToGML(ev.Actions); err != nil {
+			return err
+		}
 	}
 	unsupported := func() { g.Unsupported = append(g.Unsupported, fmt.Sprintf("%s: %s %d", o.Name, ev.Type, ev.Sub)) }
 	e := &ro.Events
 	switch ev.Type {
 	case "collision":
-		h, err := g.CollisionCode(src)
+		h, err := g.CollisionCodeIn(file, src)
 		if err != nil {
 			return err
 		}
@@ -228,7 +233,7 @@ func (g *Game) event(ro *runner.Object, o *gmfile.GMObject, ev gmfile.Event) err
 		}
 		return nil
 	}
-	h, err := g.Code(src)
+	h, err := g.CodeIn(file, src)
 	if err != nil {
 		return err
 	}

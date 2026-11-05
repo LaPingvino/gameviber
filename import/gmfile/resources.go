@@ -127,7 +127,15 @@ type Event struct {
 	Type    string
 	Sub     int32
 	Actions []Action
+	// Lang is the event's language when its code is not GML: the code
+	// file's extension (".js", ".lua", ".go"), its code the one code
+	// action's text. "" is GML (and every GM 5 file's event).
+	Lang string
 }
+
+// CodeExts are the extensions an event or script file may have: GML and the
+// languages runner.Langs may know.
+var CodeExts = []string{".gml", ".js", ".lua", ".go"}
 
 // GMObject is an object resource (ids: -1 none).
 type GMObject struct {

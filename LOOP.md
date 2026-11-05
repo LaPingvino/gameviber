@@ -155,8 +155,13 @@ goal of its own, weighed alongside the LLM-friendly rule.
    Var / SetVar / Func / Call / InstancesOf for adapters) and lang/js (goja: the event as a function body, a
    dynamic global object resolving names as GML does, instances as dynamic objects, values both ways, errors
    with file:line) — tested (instance vars, new vars, locals, functions, Math, other, syntax / runtime errors),
-   builds for wasm. NEXT: the folder loader reading objects/*/<event>.js and scripts/*.js (and `check`), then
-   the editor (colours, problems), then the GML-vs-JS same-game test.
+   builds for wasm. DONE 2026-11-05: the folder reader / writer / loader — objects/*/<event>.js read as an event
+   with Lang ".js" (any of gmfile.CodeExts: .gml .js .lua .go; an unregistered one fails to load with "no language
+   for .lua files in this build"), written back under its own extension, compiled through CodeIn with the file
+   path for errors; load registers lang/js. Tested (step moves, a collision sets other's variable, Export keeps
+   the .js). NEXT: scripts/*.js (callable by name from any language), `gameviber check` on .js files, the editor
+   (open / save .js, colours, problems), the assistant's first message naming the languages, then the
+   GML-vs-JS same-game test.
 
 ## Libraries around it (Joop 2026-11-02: an Opus decoder "would fit right along the gml stuff … and the game
 maker file decoder")
@@ -408,3 +413,5 @@ setting (on by default) rather than per-game code:
 
 - 2026-11-05 (13: JavaScript part 1 — overnight) — runner.Langs + CodeIn / CollisionCodeIn / Enter (run now goes through Enter), gml/host.go (names resolved for other languages exactly as GML resolves them), lang/js on goja: 3 tests pass, wasm builds, the full gate green. Choice logged: undeclared names assigned in JS become instance variables (GML's rule), so locals need let / const / var. goja has no tagged releases; pinned at the pseudo-version go get chose (2026-11-05). Not yet wired into the loader — nothing a player sees yet.
 \n
+- 2026-11-05 (13: JavaScript part 2 — overnight) — game folders may hold .js event files: gmfile.Event.Lang + Source(), Project.EventFile (the writer keeps the extension), the loader compiles them through runner.CodeIn; load/lang_test.go plays a two-object folder (JS step, JS collision with other, a GML create beside them) and round-trips it. Full gate green, wasm builds. Not yet: .js scripts, check, the editor.
+

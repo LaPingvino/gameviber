@@ -186,12 +186,35 @@ func (w *exporter) object(o *GMObject) {
 		"persistent": o.Persistent, "parent": c.name(10, o.Parent), "mask": c.name(5, o.Mask)}
 	w.toml(filepath.Join("objects", o.Name, "object.toml"), meta)
 	for _, ev := range o.Events {
-		w.code(filepath.Join("objects", o.Name, w.eventFile(ev)), ev.Actions)
+		rel := filepath.Join("objects", o.Name, w.p.EventFile(ev))
+		if src, ok := ev.Source(); ok {
+			w.file(rel, []byte(src)) // another language's code, as written
+			continue
+		}
+		w.code(rel, ev.Actions)
 	}
 }
 
-// eventFile names an event's file.
-func (w *exporter) eventFile(ev Event) string {
+// EventFile names an event's file in a game folder ("step.gml",
+// "collision-wall.js" …): by its type, and its language's extension.
+func (p *Project) EventFile(ev Event) string {
+	name := p.eventFileGML(ev)
+	if ev.Lang != "" {
+		name = strings.TrimSuffix(name, ".gml") + ev.Lang
+	}
+	return name
+}
+
+// Source is the code of an event in another language than GML; ok is false
+// for GML (whose code is its actions).
+func (ev Event) Source() (string, bool) {
+	if ev.Lang == "" || len(ev.Actions) != 1 || len(ev.Actions[0].Args) == 0 {
+		return "", false
+	}
+	return ev.Actions[0].Args[0], true
+}
+
+func (p *Project) eventFileGML(ev Event) string {
 	sub := strconv.Itoa(int(ev.Sub))
 	switch ev.Type {
 	case "create", "destroy", "draw":
@@ -199,7 +222,7 @@ func (w *exporter) eventFile(ev Event) string {
 	case "step":
 		return [...]string{"step.gml", "step-begin.gml", "step-end.gml"}[min(max(int(ev.Sub), 0), 2)]
 	case "collision":
-		return "collision-" + (&converter{p: w.p}).name(10, ev.Sub) + ".gml"
+		return "collision-" + (&converter{p: p}).name(10, ev.Sub) + ".gml"
 	}
 	return ev.Type + "-" + sub + ".gml"
 }
