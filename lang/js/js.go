@@ -21,7 +21,48 @@ import (
 	"github.com/LaPingvino/gameviber/runner"
 )
 
-func init() { runner.Langs[".js"] = Compile }
+func init() {
+	runner.Langs[".js"] = Compile
+	runner.ScriptLangs[".js"] = CompileScript
+}
+
+// scriptParams are a script's parameters: GML's argument0 … argument15, so a
+// script reads its arguments as in GML; JavaScript's own `arguments` works too.
+const scriptParams = "argument0, argument1, argument2, argument3, argument4, argument5, argument6, argument7, " +
+	"argument8, argument9, argument10, argument11, argument12, argument13, argument14, argument15"
+
+// CompileScript turns a script's JavaScript into a function called as a GML
+// script is: as the calling code's instance, with its arguments; what it
+// returns is the call's value (nothing: 0).
+func CompileScript(g *runner.Game, file, src string) (gml.Func, error) {
+	prog, err := goja.Compile(file, "(function("+scriptParams+"){"+src+"\n})", false)
+	if err != nil {
+		return nil, err
+	}
+	v := vmFor(g)
+	fv, err := v.rt.RunProgram(prog)
+	if err != nil {
+		return nil, err
+	}
+	fn, ok := goja.AssertFunction(fv)
+	if !ok {
+		return nil, fmt.Errorf("%s: not a function", file)
+	}
+	return func(in *gml.Interp, args []gml.Value) (gml.Value, error) {
+		outer := v.in
+		v.in = in
+		defer func() { v.in = outer }()
+		jsArgs := make([]goja.Value, len(args))
+		for i, a := range args {
+			jsArgs[i] = v.value(a)
+		}
+		res, err := fn(v.instance(in.Self), jsArgs...)
+		if err != nil {
+			return gml.Value{}, err
+		}
+		return v.gml(res), nil
+	}, nil
+}
 
 // vm is one game's JavaScript runtime: every event of that game runs in it,
 // one at a time (the game is single-threaded).
@@ -199,4 +240,11 @@ func (v *vm) gml(x goja.Value) gml.Value {
 		return gml.RealV(0)
 	}
 	return gml.RealV(x.ToFloat())
+}
+
+// Check is a JavaScript event or script file's syntax: nil, or the first
+// error with the file's line and column.
+func Check(file, src string) error {
+	_, err := goja.Compile(file, "(function("+scriptParams+"){"+src+"\n})", false)
+	return err
 }

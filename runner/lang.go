@@ -17,6 +17,43 @@ type Lang func(g *Game, file, src string) (CollisionHandler, error)
 // Langs are the languages besides GML, by file extension.
 var Langs = map[string]Lang{}
 
+// A ScriptLang compiles a script in another language than GML into a
+// function called as a GML script is: in the caller's context (self, other),
+// with its arguments, returning a value.
+type ScriptLang func(g *Game, file, src string) (gml.Func, error)
+
+// ScriptLangs are the script languages besides GML, by file extension.
+var ScriptLangs = map[string]ScriptLang{}
+
+// ScriptIn makes a script in the language its file name says (.gml or none:
+// GML), callable by name from every language's code.
+func (g *Game) ScriptIn(file, name, src string) error {
+	ext := strings.ToLower(path.Ext(file))
+	if ext == "" || ext == ".gml" {
+		return g.Script(name, src)
+	}
+	l := ScriptLangs[ext]
+	if l == nil {
+		return fmt.Errorf("%s: no language for %s files in this build", file, ext)
+	}
+	f, err := l(g, file, src)
+	if err != nil {
+		return err
+	}
+	if g.scripts == nil {
+		g.scripts = map[string][]gml.Stmt{}
+	}
+	if g.Funcs == nil {
+		g.Funcs = map[string]gml.Func{}
+	}
+	g.scripts[name] = nil // known by name (a script as a value, script_execute); its code is f
+	g.Funcs[name] = f
+	if g.in != nil {
+		g.in.Funcs[name] = f
+	}
+	return nil
+}
+
 func (g *Game) lang(file string) (Lang, error) {
 	ext := strings.ToLower(path.Ext(file))
 	if ext == "" || ext == ".gml" {

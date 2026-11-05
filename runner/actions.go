@@ -88,11 +88,10 @@ func (g *Game) actionFuncs() map[string]gml.Func {
 					name = g.ScriptNames[i]
 				}
 			}
-			sc, okk := g.scripts[name]
-			if !okk {
+			if _, okk := g.scripts[name]; !okk || g.Funcs[name] == nil {
 				return gml.Value{}, fmt.Errorf("no script %q", name)
 			}
-			return in.RunArgs(sc, a[1:])
+			return g.Funcs[name](in, a[1:]) // GML or another language's script alike
 		},
 		"action_sound": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (sound, loop)
 			if g.Sound != nil && len(a) > 0 {

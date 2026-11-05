@@ -86,7 +86,11 @@ func (p *Project) Export(dir, name string) (notes []string, err error) {
 	}
 	for _, s := range p.Scripts {
 		if s != nil {
-			w.file(filepath.Join("scripts", s.Name+".gml"), []byte(s.Code))
+			ext := ".gml"
+			if s.Lang != "" {
+				ext = s.Lang
+			}
+			w.file(filepath.Join("scripts", s.Name+ext), []byte(s.Code))
 		}
 	}
 	for _, o := range p.Objects {
