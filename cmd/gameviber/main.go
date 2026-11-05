@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/LaPingvino/gameviber/import/gmfile"
+	"github.com/LaPingvino/gameviber/lang/golang"
 	"github.com/LaPingvino/gameviber/lang/js"
 	"github.com/LaPingvino/gameviber/lang/lua"
 	"github.com/LaPingvino/gameviber/load"
@@ -88,7 +89,7 @@ func usage() {
                                     DIR: default the current folder) for coding agents
   gameviber setup-agents [AGENT …]  give your installed agents (agy, claude, gemini, opencode) these tools
                                     user-wide, in every GameViber project they start in
-  gameviber check DIR               check a project: every .gml / .js / .lua parses, every GML call exists
+  gameviber check DIR               check a project: every .gml / .js / .lua / .go parses, every GML call exists
                                     (file:line:col: message; exit 1 when there is anything)
   gameviber run [-room R] GAME      play it in a window (arrow keys, space, enter; M sound, F11 full screen)
   gameviber web DIR OUT             a web page that plays the project DIR (OUT: index.html, game.wasm, project.tar)
@@ -354,7 +355,10 @@ func checkProjectVariant(dir, variant string, w io.Writer) (int, error) {
 }
 
 // langCheck is each other language's syntax check, by extension.
-var langCheck = map[string]func(file, src string) error{".js": js.Check, ".lua": lua.Check}
+var langCheck = map[string]func(file, src string) error{".js": js.Check, ".lua": lua.Check,
+	".go": func(file, src string) error {
+		return golang.Check(file, src, strings.Contains(filepath.ToSlash(file), "scripts/"))
+	}}
 
 // isGameCode reports whether path is an event or script of the game in dir in
 // another language than GML (objects/<name>/*.js, scripts/*.lua …) — not, say,
