@@ -61,6 +61,7 @@ goal of its own, weighed alongside the LLM-friendly rule.
 > from the net, anything published beyond this repo and its Pages.
 
 ## Queue (top = next)
+- **Ship to production at once** (Joop 2026-11-05: "Feel free to put everything in production immediately: nobody can play this yet anyway"). Finished work goes live straight away: no opt-in env flags or staging for features that work (make them the default, keep the env only as an off switch), wire new windows into the real UI; GameViber Pages and releases may update on every push.
 
 1. [x] Research note (docs/RESEARCH.md; parts 1–5 done 2026-11-02): ENIGMA and LateralGM — the vibes only (what they cover, what made them
    too complex, what users valued); no code taken (GPL; GameViber is MIT), the GameMaker
