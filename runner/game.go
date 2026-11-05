@@ -28,6 +28,8 @@ type Game struct {
 	draw        drawState
 	// Timelines are the game's timelines by name (the loader's).
 	Timelines map[string]*Timeline
+	// Paths are the game's paths by name (the loader's).
+	Paths map[string]*Path
 	// HasNextRoom tells whether a room comes after the named one (the room
 	// order is the loader's); nil: assume one does.
 	HasNextRoom func(room string) bool
@@ -344,6 +346,23 @@ func (g *Game) coreFuncs() map[string]gml.Func {
 				return gml.Value{}, err
 			}
 			return gml.RealV(float64(g.room.Create(o, a[0].N, a[1].N).ID)), nil
+		},
+		// path_start(path, speed, endaction, absolute) / path_end(): the
+		// instance follows a path (LOOP item 12b).
+		"path_start": func(in *gml.Interp, a []gml.Value) (gml.Value, error) {
+			if len(a) < 4 {
+				return gml.Value{}, fmt.Errorf("needs path, speed, endaction, absolute")
+			}
+			p := g.Paths[g.IDs.Name("path", a[0])]
+			if p == nil {
+				return gml.Value{}, fmt.Errorf("no path %s", a[0])
+			}
+			g.self().PathStart(p, a[1].N, int(a[2].N), a[3].N > 0.5)
+			return gml.RealV(0), nil
+		},
+		"path_end": func(in *gml.Interp, a []gml.Value) (gml.Value, error) {
+			g.self().Path = nil
+			return gml.RealV(0), nil
 		},
 		"instance_destroy": func(in *gml.Interp, a []gml.Value) (gml.Value, error) {
 			g.room.Destroy(g.self())

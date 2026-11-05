@@ -212,6 +212,14 @@ func (r *Room) Step(in Input) {
 	})
 	each(func(i *Instance) {
 		i.XPrevious, i.YPrevious = i.X, i.Y
+		if i.Path != nil { // on a path: it moves along it (instead of its speed)
+			if i.stepPath() {
+				if h := i.Obj.handler(func(e *Events) Handler { return e.Other[8] }); h != nil {
+					h(r, i)
+				}
+			}
+			return
+		}
 		i.Move()
 	})
 	each(func(i *Instance) {

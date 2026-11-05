@@ -104,6 +104,15 @@ type Instance struct {
 	// position (timeline_index, timeline_position; speed 1).
 	Timeline    *Timeline
 	TimelinePos int
+	// Path is the path it follows (nil: none; path_index), PathPos its
+	// position on it (0–1, path_position), PathSpeed pixels a step (negative:
+	// backwards), PathEnd the end action, PathScale its size (1).
+	Path                 *Path
+	PathPos, PathPosPrev float64
+	PathSpeed, PathScale float64
+	PathOrientation      float64
+	PathEnd              int
+	pathOX, pathOY       float64 // where the path's origin is (relative paths)
 }
 
 // Timeline is a Game Maker timeline: handlers at step positions (moments).

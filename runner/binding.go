@@ -42,6 +42,11 @@ func (in *Instance) Get(name string, idx []int) (gml.Value, bool) {
 				return gml.RealV(-1), true
 			}
 			return in.Obj.IDs.SpriteValue(in.Sprite), true
+		case "path_index": // its id; -1 none
+			if in.Path == nil {
+				return gml.RealV(-1), true
+			}
+			return in.Obj.IDs.Value("path", in.Path.Name), true
 		case "object_index": // its object's id
 			return gml.RealV(float64(in.Obj.Index)), true
 		}
@@ -120,6 +125,21 @@ func (in *Instance) builtin(name string) (float64, bool) {
 		return b2f(in.Solid), true
 	case "timeline_position":
 		return float64(in.TimelinePos), true
+	case "path_position":
+		return in.PathPos, true
+	case "path_positionprevious":
+		return in.PathPosPrev, true
+	case "path_speed":
+		return in.PathSpeed, true
+	case "path_scale":
+		if in.PathScale == 0 {
+			return 1, true
+		}
+		return in.PathScale, true
+	case "path_orientation":
+		return in.PathOrientation, true
+	case "path_endaction":
+		return float64(in.PathEnd), true
 	}
 	return 0, false
 }
@@ -160,6 +180,18 @@ func (in *Instance) setBuiltin(name string, v float64) bool {
 		in.Depth = v
 	case "timeline_position":
 		in.TimelinePos = int(v)
+	case "path_position":
+		in.PathPos = math.Max(0, math.Min(1, v))
+	case "path_positionprevious":
+		in.PathPosPrev = v
+	case "path_speed":
+		in.PathSpeed = v
+	case "path_scale":
+		in.PathScale = v
+	case "path_orientation":
+		in.PathOrientation = v
+	case "path_endaction":
+		in.PathEnd = int(v)
 	case "solid":
 		in.Solid = v > 0.5
 	default:

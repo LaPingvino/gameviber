@@ -8,7 +8,7 @@ A GameMaker-style engine and toolset in Go: it runs GML, opens old GameMaker gam
 for the desktop and the browser (WebAssembly), and is made to be driven by people and LLM agents alike.
 MIT licensed · [source on GitHub](https://github.com/LaPingvino/gameviber)
 
-**Status (2026-11-03):** both sample games import from their 2006 executables and play — in a window, in the browser and headless — step for step identical to their hand ports. Every GameMaker 5 event type but path end runs; sound and music play; resources go by GameMaker's numeric ids. Text is drawn (sharp at the screen's resolution in the window and the browser), collisions can be precise, and there is an editor (below). Still to come: paths.
+**Status (2026-11-03):** both sample games import from their 2006 executables and play — in a window, in the browser and headless — step for step identical to their hand ports. Every GameMaker 5 event type runs, path end too (paths: `paths/NAME.toml`, `path_start`; 2026-11-05); sound and music play; resources go by GameMaker's numeric ids. Text is drawn (sharp at the screen's resolution in the window and the browser), collisions can be precise, and there is an editor (below). Still to come: drawing paths in the editor.
 
 | Step | What | Status |
 |---|---|---|

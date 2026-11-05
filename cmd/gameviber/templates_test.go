@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -92,5 +93,32 @@ func TestShooterTemplate(t *testing.T) {
 	}
 	if v := st["expect"].(map[string]any)["value"]; v != "2" {
 		t.Errorf("lives after one enemy got past: %v, want 2", v)
+	}
+}
+
+// TestPathsInAGame: a path in the project (paths/NAME.toml), started from GML,
+// moves the player; its end event runs; path_index names it while on it.
+func TestPathsInAGame(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "g")
+	if err := cmdNew([]string{dir}); err != nil {
+		t.Fatal(err)
+	}
+	os.MkdirAll(filepath.Join(dir, "paths"), 0o755)
+	os.WriteFile(filepath.Join(dir, "paths", "tour.toml"), []byte("smooth = false\nclosed = false\nprecision = 4\npoints = [[0, 0, 100], [64, 0, 100]]\n"), 0o644)
+	os.WriteFile(filepath.Join(dir, "objects", "player", "create.gml"), []byte("score = 0\npath_start(tour, 8, 0, false)\nwas = path_index\n"), 0o644)
+	os.WriteFile(filepath.Join(dir, "objects", "player", "other-8.gml"), []byte("score += 1\nshow_debug_message(\"end at \" + string(x))\n"), 0o644)
+	var rep strings.Builder
+	if n, err := checkProjectVariant(dir, "", &rep); err != nil || n != 0 {
+		t.Fatalf("check: %v %d\n%s", err, n, rep.String())
+	}
+	st, err := playProjectOpts(dir, playOpts{Steps: 20, Expect: "player.was"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if st["score"] != 1 || st["expect"].(map[string]any)["value"] != "0" {
+		t.Errorf("score %v, path_index while on it %v", st["score"], st["expect"])
+	}
+	if d := st["debug"].([]string); len(d) != 1 || d[0] != "end at 128" {
+		t.Errorf("debug %q (the player starts at 64; 64 px along)", d)
 	}
 }

@@ -113,7 +113,15 @@ func FromProject(p *gmfile.Project) (*Game, error) {
 			g.IDs.Sprites[x.Name] = id
 		}
 	}
-	var snd, bg, tl []string
+	var snd, bg, tl, pa []string
+	g.Paths = map[string]*runner.Path{}
+	for _, x := range p.Paths {
+		pa = append(pa, nameOf(x != nil, func() string { return x.Name }))
+		if x != nil {
+			g.Paths[x.Name] = &runner.Path{Name: x.Name, Points: x.Points, Smooth: x.Smooth, Closed: x.Closed, Precision: int(x.Precision)}
+			g.Resources[x.Name] = true
+		}
+	}
 	for _, x := range p.Sounds {
 		snd = append(snd, nameOf(x != nil, func() string { return x.Name }))
 	}
@@ -123,7 +131,7 @@ func FromProject(p *gmfile.Project) (*Game, error) {
 	for _, x := range p.Timelines {
 		tl = append(tl, nameOf(x != nil, func() string { return x.Name }))
 	}
-	for kind, names := range map[string][]string{"sound": snd, "background": bg, "timeline": tl} {
+	for kind, names := range map[string][]string{"sound": snd, "background": bg, "timeline": tl, "path": pa} {
 		g.IDs.Of[kind] = map[string]int{}
 		for id, n := range names {
 			if n != "" {
@@ -256,13 +264,13 @@ func (g *Game) event(ro *runner.Object, o *gmfile.GMObject, ev gmfile.Event) err
 			e.RoomEnd = h
 		case 6:
 			e.NoMoreLives = h
-		case 1, 2, 3, 7, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25:
+		case 1, 2, 3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25:
 			if e.Other == nil {
 				e.Other = map[int]runner.Handler{}
 			}
 			e.Other[int(ev.Sub)] = h
 		default:
-			unsupported() // path end (8: no paths yet)
+			unsupported()
 		}
 	case "destroy":
 		e.Destroy = h
