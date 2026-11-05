@@ -30,6 +30,24 @@ var laterGM = map[string]string{
 	"array_length":               "GM Studio 2.3; 5.3 has no array length — keep a count variable",
 	"ds_list_create":             "GM 6+ (data structures); 5.3 has arrays only",
 	"ds_map_create":              "GM 6+ (data structures); 5.3 has arrays only",
+	// Studio-era names models write most often (added 2026-11-05).
+	"audio_is_playing":            "GM Studio; in 5.3: sound_isplaying(snd)",
+	"mouse_check_button_released": "GM 6+; in 5.3: a mouse event (mouse-7.gml … released on the instance, mouse-56.gml anywhere)",
+	"draw_set_halign":             "GM 6+; 5.3 draws text from its top-left: centre it yourself with x - string_width(text) / 2",
+	"draw_set_valign":             "GM 6+; 5.3 draws text from its top-left: y - string_height(text) / 2 centres it",
+	"draw_text_color":             "GM 6+; in 5.3: font_color = c; draw_text(x, y, text)",
+	"draw_text_colour":            "GM 6+; in 5.3: font_color = c; draw_text(x, y, text)",
+	"draw_sprite_ext":             "GM 6+; in 5.3: draw_sprite(spr, img, x, y), or draw_sprite_stretched(spr, img, x, y, w, h) for a size (no rotation or blending)",
+	"draw_rectangle_color":        "GM 6+; in 5.3: brush_color = c (fill) and pen_color = c (outline), then draw_rectangle(x1, y1, x2, y2)",
+	"draw_rectangle_colour":       "GM 6+; in 5.3: brush_color = c and pen_color = c, then draw_rectangle(x1, y1, x2, y2)",
+	"ds_list_add":                 "GM 6+ (data structures); in 5.3 use an array and a count: list[n] = value; n += 1",
+	"window_set_caption":          "GM 6+; in 5.3: room_caption = \"…\"",
+	"layer_get_id":                "GM Studio 2 (layers); 5.3 orders drawing by each instance's depth (lower depth is drawn on top)",
+	"array_create":                "GM Studio; 5.3 makes an array by assigning to it: a[0] = 0 (a[i, j] for two dimensions)",
+	"alarm_set":                   "GM Studio; in 5.3: alarm[n] = steps",
+	"sprite_get_width":            "GM 6+; GameViber's GML has no call for a sprite's size — its width is in sprites/<name>/sprite.toml; keep it in a variable",
+	"sprite_get_height":           "GM 6+; GameViber's GML has no call for a sprite's size — its height is in sprites/<name>/sprite.toml; keep it in a variable",
+	"game_set_speed":              "GM Studio 2; in 5.3: room_speed = steps per second",
 }
 
 // hint says how to fix an unknown function: its 5.3 form when it is from a
