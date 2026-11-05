@@ -4,7 +4,9 @@ title: GameViber — game code in JavaScript, Lua and Go (proposal)
 
 # Game code in JavaScript, Lua and Go — proposal
 
-Status: **proposal, waiting for Joop's yes** (new Go modules need it). Asked 2026-11-05: "what about adding
+Status: **approved** (Joop, 2026-11-05, modules included): "yaegi is probably unavoidable for the wasm version,
+but it would be nice to have as much compiled as possible where possible too." Compiled wherever a compiler is
+at hand; interpreted only where it must be. Asked 2026-11-05: "what about adding
 the ability to support JS, Lua and pure Go in our own game code?"
 
 ## Why
