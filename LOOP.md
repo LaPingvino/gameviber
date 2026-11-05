@@ -164,9 +164,12 @@ goal of its own, weighed alongside the LLM-friendly rule.
    by name from GML and JS alike, script_execute / action scripts through the shared Funcs table) and `gameviber
    check` on objects/*/*.js and scripts/*.js (syntax with file:line; other .js files in the folder are not game
    code; the summary says "code files"). NOT YET in check: unknown names in JS (only at run time — goja's parser
-   could walk the calls later). NEXT: the editor (open / save .js, colours, problems), the assistant's first
-   message naming the languages, the docs (reference + AGENTS.md: a line on JS), then the GML-vs-JS same-game
-   test.
+   could walk the calls later). DONE 2026-11-05: the editor — .js in the tree, opened, saved (PUT api/file and the
+   assistant's writes accept .js), its problems in the check line with file:line, completions in .js too; the
+   assistant's outline marks JS events ("step [JavaScript]"); AGENTS.md (starter and import) has a paragraph on
+   JavaScript. Choice: no JS colouring yet (the GML overlay stays off for .js — a JS grammar is its own job).
+   NEXT: the GML-vs-JS same-game test (a template written in both, played step for step), then a JS starter
+   template / the tutorial's language choice; then Lua (gopher-lua) the same way.
 
 ## Libraries around it (Joop 2026-11-02: an Opus decoder "would fit right along the gml stuff … and the game
 maker file decoder")
@@ -420,4 +423,5 @@ setting (on by default) rather than per-game code:
 \n
 - 2026-11-05 (13: JavaScript part 2 — overnight) — game folders may hold .js event files: gmfile.Event.Lang + Source(), Project.EventFile (the writer keeps the extension), the loader compiles them through runner.CodeIn; load/lang_test.go plays a two-object folder (JS step, JS collision with other, a GML create beside them) and round-trips it. Full gate green, wasm builds. Not yet: .js scripts, check, the editor.
 - 2026-11-05 (13: JavaScript part 3 — overnight) — JavaScript scripts (scripts/<name>.js, called by name from GML and JS; a GML script from JS; self inside) and check for .js (syntax, file:line; only game code). Tests: the folder test extended (double.js → add1.gml, from JS and from GML, where_am_i reads x and arguments.length, the export keeps double.js), TestCheckJavaScript (clean, then a syntax error at scripts/half.js:2, a web page's .js ignored). Full gate green, wasm builds, the reference unchanged.
+- 2026-11-05 (13: JavaScript part 4 — overnight) — the editor knows .js (tree, save, assistant writes, completions, outline) and AGENTS.md explains JS. Seen in headless Chromium on a starter game with step.js and scripts/half.js: step.js open, completions for instance_c…, the check line "SyntaxError: Unexpected token ; at scripts/half.js:2:22". cmd/gameviber + gmfile tests green, wasm builds.
 

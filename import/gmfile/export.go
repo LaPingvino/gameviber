@@ -121,6 +121,11 @@ file per event: create, step, step-begin, step-end, alarm-N, collision-<object>,
 keyrelease-N, mouse-N, other-N, draw, destroy); drag-and-drop actions became action_*(…) calls (the last
 argument is GameMaker's "relative" box when the action has one). Rooms are rooms/<name>/room.toml.
 Check your changes with `+"`gameviber check`"+`; run with `+"`gameviber run`"+`.
+
+Any event or script may be JavaScript instead: step.js beside create.gml, scripts/<name>.js. It sees GameViber
+the same way — the same function names, the instance's variables as plain names (x += 4), other, global; an
+undeclared name assigned becomes an instance variable, so declare locals with let / const; a script's
+arguments are argument0 … (or arguments), and it may return a value.
 `, name)))
 	return w.notes, w.err
 }

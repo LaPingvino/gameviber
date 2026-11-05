@@ -938,7 +938,7 @@ function completeWith(w) {
 }
 function suggest() {
   const box = $("suggest"), at = wordAtCaret();
-  if (!names || !current || !/\.gml$/.test(current) || !at || at.word.length < 2) { box.hidden = true; return; }
+  if (!names || !current || !/\.(gml|js)$/.test(current) || !at || at.word.length < 2) { box.hidden = true; return; } // the same names in JavaScript
   const lw = at.word.toLowerCase();
   const hits = names.filter(([w]) => w.toLowerCase().startsWith(lw) && w !== at.word).slice(0, 8);
   if (!hits.length) { box.hidden = true; return; }
@@ -1095,8 +1095,8 @@ $("askcopy").onclick = async () => {
 
 // Paste an answer (the assistant's step 1): the files in an answer — a path on its own line (or the path in
 // the code fence's line) followed by a fenced block — listed against the project (new / changed / the
-// same), and the chosen ones written (PUT api/file: only .gml / .toml / .txt / .md inside the project).
-const pathRe = /^[A-Za-z0-9_][A-Za-z0-9_.\/-]*\.(gml|toml|txt|md)$/;
+// same), and the chosen ones written (PUT api/file: only .gml / .js / .toml / .txt / .md inside the project).
+const pathRe = /^[A-Za-z0-9_][A-Za-z0-9_.\/-]*\.(gml|js|toml|txt|md)$/;
 function cleanPath(l) {
   const p = l.trim().replace(/^(#+|\*+|-|file:|path:)\s*/i, "").replace(/[`*:]+$/g, "").replace(/^[`*]+/, "").trim();
   return pathRe.test(p) && !p.split("/").includes("..") ? p : null;
@@ -1243,7 +1243,7 @@ done
   room, score, lives, the instances, runtime errors and the game's show_debug_message lines, with a picture of the
   last frame; add "expect EXPR" (play 300 right:60 expect score >= 10) to test your change: pass or fail;
   done = the request is finished.
-Files are written first, then the requests run. Only .gml, .toml, .txt and .md files inside the project can be
+Files are written first, then the requests run. Only .gml, .js, .toml, .txt and .md files inside the project can be
 written. Prefer SEARCH / REPLACE for changes; read the lines before you change them. Take one step a reply and
 wait for the results.`;
 let meatTurn = 0, meatPlan = null, meatShot = null, meatHist = [];

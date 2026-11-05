@@ -119,6 +119,11 @@ one .gml file per event: create.gml, step.gml, keyboard-<key code>.gml (37 left,
 collision-<object>.gml, alarm-<n>.gml, draw.gml … Rooms are rooms/<name>/room.toml (instances, size, speed);
 game.toml lists the room order. GML is GameMaker 5's language.
 
+Any event or script may be JavaScript instead: step.js beside create.gml, scripts/<name>.js. It sees GameViber
+the same way — the same function names, the instance's variables as plain names (x += 4), other, global; an
+undeclared name assigned becomes an instance variable, so declare locals with let / const; a script's
+arguments are argument0 … (or arguments), and it may return a value.
+
 The loop: edit → ` + "`gameviber check .`" + ` (syntax, unknown functions, with file:line) →
 ` + "`gameviber play -keys \"right:40,down:30\" -json .`" + ` (headless: score, lives, instances, errors) or
 ` + "`-shot frame.png`" + ` to look → ` + "`gameviber run .`" + ` to play it. What GML and functions GameViber understands: ` + "`gameviber reference`" + `
