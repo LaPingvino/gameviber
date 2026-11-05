@@ -25,7 +25,140 @@ func (g *Game) motionFuncs() map[string]gml.Func {
 		}
 		return nil
 	}
+	random := func(in *gml.Interp, n float64) float64 {
+		v, _ := gml.Builtins["random"](in, []gml.Value{gml.RealV(n)})
+		return v.N
+	}
+	arg := func(a []gml.Value, i int) float64 {
+		if i < len(a) {
+			return a[i].N
+		}
+		return 0
+	}
+	// contact moves the instance pixel by pixel (dir, at most max; ≤ 0: 1000)
+	// while free decides; outside moves while it doesn't (move_outside_*).
+	step := func(s *Instance, dir, max float64, free func(x, y float64) bool, until bool) {
+		if max <= 0 {
+			max = 1000
+		}
+		dx, dy := math.Cos(dir*math.Pi/180), -math.Sin(dir*math.Pi/180)
+		for i := 0; i < int(max); i++ {
+			if until { // move_outside: stop once free
+				if free(s.X, s.Y) {
+					return
+				}
+			} else if !free(s.X+dx, s.Y+dy) { // move_contact: stop before touching
+				return
+			}
+			s.X, s.Y = s.X+dx, s.Y+dy
+		}
+	}
+	// bounce is move_bounce_*: when the next position isn't free, reverse the
+	// speed along the blocked axis (both at a corner). GM 5's advanced
+	// (precise) bounce is taken as this one.
+	bounce := func(s *Instance, free func(x, y float64) bool) {
+		if s.HSpeed == 0 && s.VSpeed == 0 || free(s.X+s.HSpeed, s.Y+s.VSpeed) {
+			return
+		}
+		h := !free(s.X+s.HSpeed, s.Y)
+		v := !free(s.X, s.Y+s.VSpeed)
+		if h {
+			s.HSpeed = -s.HSpeed
+		}
+		if v {
+			s.VSpeed = -s.VSpeed
+		}
+		if !h && !v {
+			s.HSpeed, s.VSpeed = -s.HSpeed, -s.VSpeed
+		}
+	}
+	solidFree := func(s *Instance) func(x, y float64) bool {
+		return func(x, y float64) bool { return g.room.PlaceFree(s, x, y) }
+	}
+	allFree := func(s *Instance) func(x, y float64) bool {
+		return func(x, y float64) bool { return g.room.PlaceEmpty(s, x, y) }
+	}
+	snap := func(v, n float64) float64 {
+		if n <= 0 {
+			return v
+		}
+		return math.Round(v/n) * n
+	}
+	zero := gml.RealV(0)
 	return map[string]gml.Func{
+		"move_contact_solid": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (dir, maxdist): up to a solid
+			s := g.self()
+			step(s, arg(a, 0), arg(a, 1), solidFree(s), false)
+			return zero, nil
+		},
+		"move_contact_all": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (dir, maxdist): up to any instance
+			s := g.self()
+			step(s, arg(a, 0), arg(a, 1), allFree(s), false)
+			return zero, nil
+		},
+		"move_outside_solid": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (dir, maxdist): out of solids
+			s := g.self()
+			step(s, arg(a, 0), arg(a, 1), solidFree(s), true)
+			return zero, nil
+		},
+		"move_outside_all": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (dir, maxdist): out of all instances
+			s := g.self()
+			step(s, arg(a, 0), arg(a, 1), allFree(s), true)
+			return zero, nil
+		},
+		"move_bounce_solid": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (adv): bounce against solids
+			s := g.self()
+			bounce(s, solidFree(s))
+			return zero, nil
+		},
+		"move_bounce_all": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (adv): bounce against all instances
+			s := g.self()
+			bounce(s, allFree(s))
+			return zero, nil
+		},
+		"move_snap": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (hsnap, vsnap): to the nearest grid point
+			s := g.self()
+			s.X, s.Y = snap(s.X, arg(a, 0)), snap(s.Y, arg(a, 1))
+			return zero, nil
+		},
+		"place_snapped": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (hsnap, vsnap): on the grid?
+			s := g.self()
+			ok := (arg(a, 0) <= 0 || math.Mod(s.X, arg(a, 0)) == 0) && (arg(a, 1) <= 0 || math.Mod(s.Y, arg(a, 1)) == 0)
+			if ok {
+				return gml.RealV(1), nil
+			}
+			return zero, nil
+		},
+		"move_random": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (hsnap, vsnap): a free place in the room, on the grid
+			s := g.self()
+			for try := 0; try < 100; try++ {
+				x, y := snap(random(in, float64(g.room.W)), arg(a, 0)), snap(random(in, float64(g.room.H)), arg(a, 1))
+				if g.room.PlaceFree(s, x, y) {
+					s.X, s.Y = x, y
+					break
+				}
+			}
+			return zero, nil
+		},
+		"move_wrap": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (hor, vert, margin): out one side, in the other
+			s, m := g.self(), arg(a, 2)
+			w, h := float64(g.room.W), float64(g.room.H)
+			if arg(a, 0) != 0 {
+				if s.X < -m {
+					s.X += w + 2*m
+				} else if s.X >= w+m {
+					s.X -= w + 2*m
+				}
+			}
+			if arg(a, 1) != 0 {
+				if s.Y < -m {
+					s.Y += h + 2*m
+				} else if s.Y >= h+m {
+					s.Y -= h + 2*m
+				}
+			}
+			return zero, nil
+		},
 		"motion_set": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (direction, speed)
 			if err := need(a, 2); err != nil {
 				return gml.Value{}, err

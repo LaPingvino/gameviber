@@ -387,3 +387,48 @@ sound_volume("boom", 0.25)`)
 		t.Errorf("%v x=%v vol=%v", v, in.X, snd.vol)
 	}
 }
+
+// GM 5's movement functions: contact / outside against a solid wall, bounce
+// off it, snapping, wrapping, a random free place.
+func TestMoveFunctions(t *testing.T) {
+	wall := &Object{Name: "wall", Solid: true, BBox: Box{0, 15, 0, 15}, Mask: true}
+	ball := &Object{Name: "ball", BBox: Box{0, 7, 0, 7}, Mask: true}
+	g := &Game{Objects: []*Object{wall, ball}}
+	code := func(src string) Handler {
+		h, err := g.Code(src)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return h
+	}
+	r := &Room{W: 128, H: 96, G: &Globals{Vars: map[string]float64{}}}
+	r.Create(wall, 64, 0)
+	run := func(x, y float64, src string) *Instance {
+		ball.Events.Step = code(src)
+		b := r.Create(ball, x, y)
+		r.Step(keyKeys{})
+		r.Destroy(b)
+		if len(g.Errors) > 0 {
+			t.Fatal(g.Errors)
+		}
+		return b
+	}
+	if b := run(10, 4, "move_contact_solid(0, -1)"); b.X != 56 {
+		t.Errorf("contact: x %v, want 56", b.X)
+	}
+	if b := run(60, 4, "move_outside_solid(180, 20)"); b.X != 56 {
+		t.Errorf("outside: x %v, want 56", b.X)
+	}
+	if b := run(54, 4, "hspeed = 4; vspeed = 1; move_bounce_solid(false)"); b.HSpeed != -4 || b.VSpeed != 1 {
+		t.Errorf("bounce: %v, %v", b.HSpeed, b.VSpeed)
+	}
+	if b := run(21, 30, "move_snap(16, 16); s = place_snapped(16, 16)"); b.X != 16 || b.Y != 32 || b.Vars["s"] != 1 {
+		t.Errorf("snap: %v,%v s=%v", b.X, b.Y, b.Vars["s"])
+	}
+	if b := run(-10, 100, "move_wrap(true, true, 0)"); b.X != 118 || b.Y != 4 {
+		t.Errorf("wrap: %v,%v", b.X, b.Y)
+	}
+	if b := run(0, 40, "move_random(8, 8)"); math.Mod(b.X, 8) != 0 || math.Mod(b.Y, 8) != 0 || !r.PlaceFree(b, b.X, b.Y) {
+		t.Errorf("random: %v,%v", b.X, b.Y)
+	}
+}
