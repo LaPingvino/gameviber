@@ -200,7 +200,7 @@ goal of its own, weighed alongside the LLM-friendly rule.
    error with the file (TestCompiledStandIn: an event, a script called from GML, a panic). NEXT step 2: export
    generates a Go program — each .go event / script rewritten into a function (import "gv" → the real path; the
    statement form wrapped as now, a whole file's Event / Script renamed), registered in those maps from an
-   init(), plus the player's main — and `go build`s it when Go is installed (else the interpreted player, as today).
+   init(), plus the player's main — and `go build`s it when Go is installed (else the interpreted player, as today). STEP 2 STARTED 2026-11-05: golang.Generate — each .go event / script becomes its own package fN (a whole file keeps its imports and helpers, its package clause renamed, "gv" pointed at the real package; statement files wrapped on their first line; a //line directive keeps the game's path for compile errors) plus a register.go whose init puts every function in Compiled / CompiledScripts by path. TestGenerateRunsLikeTheInterpreter builds and runs a generated program: a statement event calling a Go script through g.Call, a whole file with its own helper and math — compiled and interpreted give the same x / label / h, no errors. NEXT step 3: the window player as a library (cmd/gameviber-run's main → a package with Main()), then export -desktop with Go files: a temp module (the generated packages + a main calling the player), go build for the target (GOOS / GOARCH, CGO off), the project packed on as today; no Go installed → the prebuilt player, interpreted, as now.
 
 ## Libraries around it (Joop 2026-11-02: an Opus decoder "would fit right along the gml stuff … and the game
 maker file decoder")
@@ -462,4 +462,5 @@ setting (on by default) rather than per-game code:
 - 2026-11-05 (13: Go part 1 — overnight) — lang/golang (yaegi): 5 tests (statements through g, a whole file importing math, Other() with with-semantics, a script from GML, compile and runtime errors with the file), Go in load / check / the editor. Full gate green; the editor wasm 43.5 MB (yaegi without its stdlib table: +5 MB).
 - 2026-11-05 (13: Go part 2 — overnight) — coins-go (the player's events through g), AGENTS.md's Go paragraph, TestStarterGMLvsGo: 765 identical steps — GML, JS, Lua and Go now play the starter the same. Full gate green, wasm builds.
 - 2026-11-05 — 13 (compiled Go, step 1): gv as a real package; compiled stand-ins for .go events and scripts (lang/golang Compiled / CompiledScripts), tested; all tests green (the ebiten ones under xvfb), wasm builds.
+- 2026-11-05 — 13 (compiled Go, step 2): the generator (golang.Generate) and a test that builds its output and checks it runs exactly as the interpreter does.
 
