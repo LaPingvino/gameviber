@@ -118,6 +118,7 @@ func Attach(p *gmfile.Project, g *runner.Game) {
 	if hasDialogs {
 		g.AskString = askString
 	}
+	g.AskQuestion = askQuestion
 	if !Mute && audioAvailable() { // without a sound device the game plays silently
 		g.Sound = newSounds(p)
 	}

@@ -546,3 +546,46 @@ func TestDrawTextExtWraps(t *testing.T) {
 		t.Errorf("w %v hh %v", in.Vars["w"], in.Vars["hh"])
 	}
 }
+
+// memFiles is a FileStore in memory.
+type memFiles map[string][]byte
+
+func (m memFiles) Read(n string) ([]byte, error) {
+	if b, ok := m[n]; ok {
+		return b, nil
+	}
+	return nil, fmt.Errorf("no file %s", n)
+}
+func (m memFiles) Write(n string, b []byte) error { m[n] = append([]byte(nil), b...); return nil }
+func (m memFiles) Exists(n string) bool           { _, ok := m[n]; return ok }
+func (m memFiles) Delete(n string) error          { delete(m, n); return nil }
+
+// GM 5's file functions: write lines (string, real, appended), read them
+// back line by line to the end; exists / delete; show_question asks the
+// backend.
+func TestFileFunctions(t *testing.T) {
+	o := &Object{Name: "o"}
+	files := memFiles{}
+	g := &Game{Objects: []*Object{o}, Files: files, AskQuestion: func(q string) bool { return q == "Again?" }}
+	h, err := g.Code(`file_open_write("save.txt"); file_write_string("Joop"); file_writeln(); file_write_real(42); file_close()
+file_open_append("save.txt"); file_writeln(); file_write_string("end"); file_close()
+had = file_exists("save.txt")
+file_open_read("save.txt"); name = file_read_string(); file_readln(); n = file_read_real(); file_readln(); last = file_read_string(); e = file_eof(); file_close()
+file_delete("save.txt"); gone = !file_exists("save.txt")
+yes = show_question("Again?"); no = show_question("Quit?")`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	o.Events.Step = h
+	r := &Room{W: 64, H: 64, G: &Globals{Vars: map[string]float64{}}}
+	in := r.Create(o, 0, 0)
+	r.Step(keyKeys{})
+	if len(g.Errors) > 0 {
+		t.Fatal(g.Errors)
+	}
+	v := in.Vars
+	str := func(n string) string { x, _ := in.Get(n, nil); return x.S }
+	if str("name") != "Joop" || v["n"] != 42 || str("last") != "end" || v["e"] != 1 || v["had"] != 1 || v["gone"] != 1 || v["yes"] != 1 || v["no"] != 0 {
+		t.Errorf("%v name %q last %q", v, str("name"), str("last"))
+	}
+}

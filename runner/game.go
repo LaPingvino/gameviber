@@ -49,6 +49,12 @@ type Game struct {
 	Constants map[string]gml.Value
 	// Message shows show_message's text (the backend's); nil: not shown.
 	Message func(string)
+	// AskQuestion answers show_question (yes / no; the backend's); nil: no.
+	AskQuestion func(question string) bool
+	// Files is where the file_* functions read and write (nil: the working
+	// directory, through the os package).
+	Files FileStore
+	file  *openFile // GM 5's one open file
 	// ScreenSave writes what the screen shows to a file (screen_save; the
 	// screen backend's); nil: nothing is saved.
 	ScreenSave func(path string) error
@@ -334,7 +340,10 @@ func (g *Game) runnerFuncs() map[string]gml.Func {
 	for k, f := range g.motionFuncs() {
 		m[k] = f
 	}
-	m["keyboard_check_direct"] = m["keyboard_check"]               // the hardware's state: the same here
+	m["keyboard_check_direct"] = m["keyboard_check"] // the hardware's state: the same here
+	for k, f := range g.fileFuncs() {
+		m[k] = f
+	}
 	m["script_execute"] = g.actionFuncs()["action_execute_script"] // (script, arguments …): GM 5's call by script id
 	return m
 }
@@ -638,6 +647,12 @@ func (g *Game) coreFuncs() map[string]gml.Func {
 		"show_debug_message": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (text): for the developer (GameMaker 6+; here for tools and assistants)
 			if g.Debug != nil && len(a) > 0 {
 				g.Debug(a[0].String())
+			}
+			return gml.RealV(0), nil
+		},
+		"show_question": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (text): yes → true
+			if g.AskQuestion != nil && len(a) > 0 && g.AskQuestion(a[0].String()) {
+				return gml.RealV(1), nil
 			}
 			return gml.RealV(0), nil
 		},

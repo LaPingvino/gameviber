@@ -12,3 +12,9 @@ const hasDialogs = false
 func askString(question, def string) string { return def }
 
 func showMessage(m string) { log.Printf("%s", m) }
+
+// askQuestion: no dialog on the desktop yet — the answer is no (PARTIAL).
+func askQuestion(q string) bool {
+	log.Printf("show_question (answered no: no dialog yet): %s", q)
+	return false
+}

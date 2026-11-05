@@ -19,3 +19,6 @@ func askString(question, def string) string {
 }
 
 func showMessage(m string) { js.Global().Call("alert", m) }
+
+// askQuestion is show_question: the page's confirm (OK = yes).
+func askQuestion(q string) bool { return js.Global().Call("confirm", q).Bool() }
