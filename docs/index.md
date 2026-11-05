@@ -23,6 +23,8 @@ MIT licensed · [source on GitHub](https://github.com/LaPingvino/gameviber)
 
 ## Try it
 
+**New here? [Your first game, in about ten minutes](tutorial.html)** — pick a starting point in the editor, change how it plays, change a level, and work on it with an AI assistant.
+
 **[Play the demo](demo/)** — GameViber's own starter game (`gameviber new`), running in your browser: the arrow keys (or a finger held towards where to go)
 collect the coins. It is what `gameviber new` writes, built with `gameviber web`.
 
