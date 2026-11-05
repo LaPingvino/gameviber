@@ -107,3 +107,25 @@ func TestUnpackProjectZip(t *testing.T) {
 		t.Error("evil.txt was written outside")
 	}
 }
+
+// GET api/names: the editor's completions — GameViber's functions, built-in
+// variables, constants, and this game's own resources.
+func TestEditorNames(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "g")
+	if err := cmdNew([]string{dir}); err != nil {
+		t.Fatal(err)
+	}
+	n := projectNames(dir)
+	has := func(list []string, w string) bool {
+		for _, x := range list {
+			if x == w {
+				return true
+			}
+		}
+		return false
+	}
+	if !has(n.Functions, "instance_create") || !has(n.Functions, "draw_text_ext") || !has(n.Variables, "current_time") ||
+		!has(n.Variables, "hspeed") || !has(n.Constants, "vk_left") || !has(n.Resources, "player") || !has(n.Resources, "coin") {
+		t.Errorf("missing names: %d functions, %d variables, %d constants, resources %v", len(n.Functions), len(n.Variables), len(n.Constants), n.Resources)
+	}
+}

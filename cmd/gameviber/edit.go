@@ -174,6 +174,7 @@ func editHandler(dir string) http.Handler {
 	sfxHandlers(dir, mux)
 	llmHandlers(mux)
 	zipHandlers(dir, mux)
+	namesHandlers(dir, mux)
 	mux.HandleFunc("GET /api/background", rooms.background)
 	mux.HandleFunc("POST /api/new", rooms.newThing)
 	mux.HandleFunc("GET /api/object", rooms.object)
