@@ -22,6 +22,9 @@ func TestStarterGMLvsJavaScript(t *testing.T) { starterVersus(t, "coins-js", "st
 // The same for Lua: the coins-lua template against the GML starter.
 func TestStarterGMLvsLua(t *testing.T) { starterVersus(t, "coins-lua", "step.lua") }
 
+// And for Go: the coins-go template against the GML starter.
+func TestStarterGMLvsGo(t *testing.T) { starterVersus(t, "coins-go", "step.go") }
+
 func starterVersus(t *testing.T, tmpl, stepFile string) {
 	base := t.TempDir()
 	gmlDir, jsDir := filepath.Join(base, "gml"), filepath.Join(base, "js")

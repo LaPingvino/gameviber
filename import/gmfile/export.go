@@ -131,6 +131,11 @@ other.instance_destroy(): a function called on an instance runs as that instance
 Or Lua: step.lua, scripts/<name>.lua, the same names (x = x + 4); "local" for locals; GameViber's true / false
 are Lua booleans (in Lua 0 counts as true); Lua's own libraries come first, so GML's string() is tostring();
 other:instance_destroy() is GML's with (other) instance_destroy().
+
+Or Go: step.go, scripts/<name>.go — typed, so through g: g.Num("x") / g.Str / g.Get read a name as GML does,
+g.Set("x", 4) assigns it, g.Call("place_free", x, y) and g.Is(...) call GameViber's functions, and
+g.Other().Call("instance_destroy") is GML's with (other). A file is the event's statements, or a whole Go file
+with func Event(g *gv.Ctx); a script sees args []gv.Value and returns a gv.Value. Imports: gv and math.
 `, name)))
 	return w.notes, w.err
 }
