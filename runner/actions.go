@@ -328,6 +328,49 @@ func (g *Game) actionFuncs() map[string]gml.Func {
 			s.Timeline, s.TimelinePos = t, int(num(a, 1))
 			return ok, nil
 		},
+		// The path actions (LOOP item 12), by GameMaker's function names — an
+		// imported game's actions call them by the name stored in its file.
+		// ASSUMPTION [engine]: GameMaker 6–8's argument order (path, speed,
+		// end action, absolute); 5.3's are called the same way in the games
+		// we have (action_move, action_set_timeline …).
+		"action_path": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (path, speed, endaction, absolute)
+			if len(a) == 0 {
+				return ok, nil
+			}
+			name := g.IDs.Name("path", a[0])
+			p := g.Paths[name]
+			if p == nil {
+				if name == "" {
+					g.self().Path = nil
+					return ok, nil
+				}
+				return gml.Value{}, fmt.Errorf("no path %s", a[0].String())
+			}
+			g.self().PathStart(p, num(a, 1), int(num(a, 2)), num(a, 3) > 0.5)
+			return ok, nil
+		},
+		"action_path_end": func(in *gml.Interp, a []gml.Value) (gml.Value, error) {
+			g.self().Path = nil
+			return ok, nil
+		},
+		"action_path_position": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (position, relative)
+			s := g.self()
+			v := num(a, 0)
+			if num(a, 1) > 0.5 {
+				v += s.PathPos
+			}
+			s.PathPos = math.Max(0, math.Min(1, v))
+			return ok, nil
+		},
+		"action_path_speed": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (speed, relative)
+			s := g.self()
+			v := num(a, 0)
+			if num(a, 1) > 0.5 {
+				v += s.PathSpeed
+			}
+			s.PathSpeed = v
+			return ok, nil
+		},
 		"action_next_room": func(in *gml.Interp, a []gml.Value) (gml.Value, error) {
 			g.room.Goto = "@next"
 			return ok, nil

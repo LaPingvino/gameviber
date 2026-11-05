@@ -122,3 +122,25 @@ func TestPathsInAGame(t *testing.T) {
 		t.Errorf("debug %q (the player starts at 64; 64 px along)", d)
 	}
 }
+
+// TestPathActions: the D&D path actions as an imported game's converted
+// actions call them — action_path (relative), action_path_speed relative,
+// action_path_position, action_path_end.
+func TestPathActions(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "g")
+	if err := cmdNew([]string{dir}); err != nil {
+		t.Fatal(err)
+	}
+	os.MkdirAll(filepath.Join(dir, "paths"), 0o755)
+	os.WriteFile(filepath.Join(dir, "paths", "tour.toml"), []byte("points = [[0, 0, 100], [100, 0, 100]]\n"), 0o644)
+	os.WriteFile(filepath.Join(dir, "objects", "player", "create.gml"), []byte("score = 0\naction_path(tour, 4, 0, 0)\naction_path_speed(6, 1)\naction_path_position(0.5, 0)\n"), 0o644)
+	os.WriteFile(filepath.Join(dir, "objects", "player", "other-8.gml"), []byte("score += 1\nshow_debug_message(string(x))\naction_path_end()\n"), 0o644)
+	st, err := playProjectOpts(dir, playOpts{Steps: 6, Expect: "player.x"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// starts at 64 (the player's place), jumps to halfway (+50), then 10 px a step: the end (164) at step 5
+	if st["score"] != 1 || st["expect"].(map[string]any)["value"] != "164" {
+		t.Errorf("score %v x %v, debug %v", st["score"], st["expect"], st["debug"])
+	}
+}

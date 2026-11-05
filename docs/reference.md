@@ -31,7 +31,7 @@ cd_init, cd_number, cd_play, cd_playing, cd_present, cd_stop, cd_track, collisio
 
 ## Drag-and-drop actions (the last argument is "relative" when the action has one)
 
-action_another_room, action_change_object, action_create_object, action_end_sound, action_execute_script, action_if, action_if_aligned, action_if_collision, action_if_empty, action_if_life, action_if_next_room, action_if_number, action_if_object, action_if_score, action_if_variable, action_kill_object, action_move, action_move_contact, action_move_start, action_move_to, action_next_room, action_previous_room, action_restart_game, action_reverse_xdir, action_reverse_ydir, action_set_alarm, action_set_caption, action_set_gravity, action_set_hspeed, action_set_life, action_set_score, action_set_sprite, action_set_timeline, action_set_vspeed, action_sleep, action_sound
+action_another_room, action_change_object, action_create_object, action_end_sound, action_execute_script, action_if, action_if_aligned, action_if_collision, action_if_empty, action_if_life, action_if_next_room, action_if_number, action_if_object, action_if_score, action_if_variable, action_kill_object, action_move, action_move_contact, action_move_start, action_move_to, action_next_room, action_path, action_path_end, action_path_position, action_path_speed, action_previous_room, action_restart_game, action_reverse_xdir, action_reverse_ydir, action_set_alarm, action_set_caption, action_set_gravity, action_set_hspeed, action_set_life, action_set_score, action_set_sprite, action_set_timeline, action_set_vspeed, action_sleep, action_sound
 
 ## Drawing (in draw events)
 
