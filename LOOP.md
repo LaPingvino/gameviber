@@ -151,6 +151,12 @@ goal of its own, weighed alongside the LLM-friendly rule.
    possible too" — so the aspiration: compiled wherever a compiler is at hand (exported desktop games: Go game code
    compiled in; and look at compiling JS / Lua ahead of time where a mature path exists), interpreted only where
    it must be (the browser editor and the web player: yaegi, goja, gopher-lua). NEXT: start with JavaScript.
+   STARTED 2026-11-05: the seam (runner.Langs by extension, Game.CodeIn / CollisionCodeIn, Game.Enter; gml's
+   Var / SetVar / Func / Call / InstancesOf for adapters) and lang/js (goja: the event as a function body, a
+   dynamic global object resolving names as GML does, instances as dynamic objects, values both ways, errors
+   with file:line) — tested (instance vars, new vars, locals, functions, Math, other, syntax / runtime errors),
+   builds for wasm. NEXT: the folder loader reading objects/*/<event>.js and scripts/*.js (and `check`), then
+   the editor (colours, problems), then the GML-vs-JS same-game test.
 
 ## Libraries around it (Joop 2026-11-02: an Opus decoder "would fit right along the gml stuff … and the game
 maker file decoder")
@@ -399,3 +405,6 @@ setting (on by default) rather than per-game code:
 - 2026-11-05 (editor: GML colouring — overnight) — keywords, functions, built-in variables, constants, the game's own resources (the api/names lists the completions use), strings, numbers and comments coloured in .gml files: a <pre id="hl"> under the textarea with the same metrics, the textarea's own text transparent (caret and selection still its own), following its position, size, scroll and visibility through a MutationObserver and a ResizeObserver — so the ten places that show / hide the code panel stay untouched, and the textarea remains the real control for keyboard and screen readers (the overlay is aria-hidden). Code no longer soft-wraps (both layers must wrap alike). Colours as theme tokens: dark, high-contrast ones on the light theme (the first try's yellow variables were hard to read on cream), lighter ones in dark mode. Checked in headless Chromium: a line with a keyword, function, resource, variables, a number, a string and a comment — colours exact under the text, no doubled glyphs (shots looked at). NEXT: item 13 waits on Joop.
 - 2026-11-05 — Joop approved item 13 and its modules (goja, gopher-lua, yaegi), with the aspiration to compile as much as possible where possible, interpreting only where unavoidable (wasm).
 
+
+- 2026-11-05 (13: JavaScript part 1 — overnight) — runner.Langs + CodeIn / CollisionCodeIn / Enter (run now goes through Enter), gml/host.go (names resolved for other languages exactly as GML resolves them), lang/js on goja: 3 tests pass, wasm builds, the full gate green. Choice logged: undeclared names assigned in JS become instance variables (GML's rule), so locals need let / const / var. goja has no tagged releases; pinned at the pseudo-version go get chose (2026-11-05). Not yet wired into the loader — nothing a player sees yet.
+\n

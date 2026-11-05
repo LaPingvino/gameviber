@@ -236,20 +236,10 @@ func (g *Game) Eval(r *Room, expr string) (gml.Value, error) {
 // running code's self, other and room are put back afterwards: in GM the code
 // after instance_create still runs as its own instance.
 func (g *Game) run(r *Room, self, other *Instance, list []gml.Stmt) {
-	var outerSelf, outerOther gml.Instance
-	outerRoom := g.room
-	if g.in != nil {
-		outerSelf, outerOther = g.in.Self, g.in.Other
-	}
-	in := g.interp(r)
-	defer func() { in.Self, in.Other, g.room = outerSelf, outerOther, outerRoom }()
-	in.Self, in.Other = self, nil
-	if other != nil {
-		in.Other = other
-	}
-	if _, err := in.Run(list); err != nil && len(g.Errors) < 100 {
-		g.Errors = append(g.Errors, err)
-	}
+	g.Enter(r, self, other, func(in *gml.Interp) error {
+		_, err := in.Run(list)
+		return err
+	})
 }
 
 func (g *Game) interp(r *Room) *gml.Interp {
