@@ -119,6 +119,9 @@ func Attach(p *gmfile.Project, g *runner.Game) {
 		g.AskString = askString
 	}
 	g.AskQuestion = askQuestion
+	if f := gameFiles(p); f != nil {
+		g.Files = f
+	}
 	if !Mute && audioAvailable() { // without a sound device the game plays silently
 		g.Sound = newSounds(p)
 	}
@@ -325,3 +328,6 @@ func (g *Game) drawTexts(screen *eb.Image, texts []render.TextCall) {
 		screen.DrawImage(img, op)
 	}
 }
+
+// gmfileProject names the project type for the files_* helpers.
+type gmfileProject = gmfile.Project
