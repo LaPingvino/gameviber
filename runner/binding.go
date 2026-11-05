@@ -297,6 +297,22 @@ func (gv *GlobalVars) Get(name string, idx []int) (gml.Value, bool) {
 	if idx == nil && name == "room_persistent" && gv.Room != nil {
 		return gml.RealV(b2f(gv.Room.Persistent)), true
 	}
+	if gv.Room != nil && (name == "instance_count" && idx == nil || name == "instance_id" && len(idx) == 1) { // GM 5: the instances in the room, and their ids by place
+		n := 0
+		for _, i := range gv.Room.Instances {
+			if i.Destroyed {
+				continue
+			}
+			if name == "instance_id" && n == idx[0] {
+				return gml.RealV(float64(i.ID)), true
+			}
+			n++
+		}
+		if name == "instance_id" {
+			return gml.RealV(-4), true // noone, past the end
+		}
+		return gml.RealV(float64(n)), true
+	}
 	if idx == nil && gv.Room != nil && (name == "room_width" || name == "room_height") {
 		if name == "room_width" {
 			return gml.RealV(float64(gv.Room.W)), true

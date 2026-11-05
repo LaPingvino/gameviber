@@ -325,7 +325,8 @@ func (g *Game) runnerFuncs() map[string]gml.Func {
 	for k, f := range g.motionFuncs() {
 		m[k] = f
 	}
-	m["keyboard_check_direct"] = m["keyboard_check"] // the hardware's state: the same here
+	m["keyboard_check_direct"] = m["keyboard_check"]               // the hardware's state: the same here
+	m["script_execute"] = g.actionFuncs()["action_execute_script"] // (script, arguments …): GM 5's call by script id
 	return m
 }
 

@@ -321,3 +321,32 @@ func TestSelfAfterNestedEvent(t *testing.T) {
 		t.Errorf("the ball: born %v, alarm %v, mine %v", b.Vars["born"], b.Alarm[0], b.Vars["mine"])
 	}
 }
+
+// GM 5's script_execute (by name or by id) and instance_count / instance_id[]
+// (mouse_check_button is GM 6+: cmd/gameviber/hints.go).
+func TestScriptExecuteInstanceCount(t *testing.T) {
+	o := &Object{Name: "o"}
+	g := &Game{Objects: []*Object{o}, ScriptNames: []string{"twice"}}
+	if err := g.Script("twice", "return argument0 * 2"); err != nil {
+		t.Fatal(err)
+	}
+	h, err := g.Code(`a = script_execute(twice, 4); b = script_execute(0, 5)
+n = instance_count; first = instance_id[0]; past = instance_id[5]`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	o.Events.Step = h
+	r := &Room{W: 64, H: 64, G: &Globals{Vars: map[string]float64{}}}
+	in := r.Create(o, 0, 0)
+	r.Create(o, 8, 0)
+	gone := r.Create(o, 16, 0)
+	gone.Destroyed = true
+	r.Step(keyKeys{})
+	if len(g.Errors) > 0 {
+		t.Fatal(g.Errors)
+	}
+	v := in.Vars
+	if v["a"] != 8 || v["b"] != 10 || v["n"] != 2 || v["first"] != float64(in.ID) || v["past"] != -4 {
+		t.Errorf("%v", v)
+	}
+}

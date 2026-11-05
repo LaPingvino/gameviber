@@ -27,7 +27,7 @@ abs, arccos, arcsin, arctan, arctan2, ceil, choose, chr, cos, degtorad, exp, flo
 
 ## Game functions (instances, rooms, sound, highscores …)
 
-cd_init, cd_number, cd_play, cd_playing, cd_present, cd_stop, cd_track, collision_point, collision_rectangle, distance_to_object, distance_to_point, draw_highscore, event_user, game_end, game_restart, get_string, highscore_add, highscore_clear, highscore_name, highscore_value, instance_change, instance_create, instance_destroy, instance_exists, instance_find, instance_nearest, instance_number, instance_place, io_clear, io_handle, keyboard_check, keyboard_check_direct, keyboard_clear, keyboard_wait, motion_add, motion_set, move_towards_point, path_end, path_start, place_free, place_meeting, room_goto, room_goto_next, room_goto_previous, room_next, room_previous, room_restart, screen_redraw, screen_refresh, set_graphics_mode, show_debug_message, show_error, show_message, sound_isplaying, sound_loop, sound_play, sound_stop, sound_stop_all
+cd_init, cd_number, cd_play, cd_playing, cd_present, cd_stop, cd_track, collision_point, collision_rectangle, distance_to_object, distance_to_point, draw_highscore, event_user, game_end, game_restart, get_string, highscore_add, highscore_clear, highscore_name, highscore_value, instance_change, instance_create, instance_destroy, instance_exists, instance_find, instance_nearest, instance_number, instance_place, io_clear, io_handle, keyboard_check, keyboard_check_direct, keyboard_clear, keyboard_wait, motion_add, motion_set, move_towards_point, path_end, path_start, place_free, place_meeting, room_goto, room_goto_next, room_goto_previous, room_next, room_previous, room_restart, screen_redraw, screen_refresh, script_execute, set_graphics_mode, show_debug_message, show_error, show_message, sound_isplaying, sound_loop, sound_play, sound_stop, sound_stop_all
 
 ## Drag-and-drop actions (the last argument is "relative" when the action has one)
 
@@ -39,7 +39,7 @@ action_color, action_draw_font, action_draw_life, action_draw_life_images, actio
 
 ## Game-wide variables
 
-background_color, background_foreground, background_hspeed, background_htiled, background_index, background_visible, background_vspeed, background_vtiled, background_x, background_y, brush_color, caption_lives, caption_score, font_color, health, keyboard_key, keyboard_lastchar, keyboard_lastkey, keyboard_string, lives, mouse_button, mouse_x, mouse_y, pen_color, room, room_caption, room_height, room_persistent, room_speed, room_width, score, show_lives, show_score, view_enabled, view_height, view_hview, view_left, view_top, view_visible, view_width, view_wview, view_xview, view_yview
+background_color, background_foreground, background_hspeed, background_htiled, background_index, background_visible, background_vspeed, background_vtiled, background_x, background_y, brush_color, caption_lives, caption_score, font_color, health, instance_count, instance_id, keyboard_key, keyboard_lastchar, keyboard_lastkey, keyboard_string, lives, mouse_button, mouse_x, mouse_y, pen_color, room, room_caption, room_height, room_persistent, room_speed, room_width, score, show_lives, show_score, view_enabled, view_height, view_hview, view_left, view_top, view_visible, view_width, view_wview, view_xview, view_yview
 
 ## Instance variables
 
