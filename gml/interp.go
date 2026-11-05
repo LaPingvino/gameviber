@@ -14,6 +14,10 @@ type Value struct {
 	S     string
 	N     float64
 	IsStr bool
+	// Bool marks a truth value (a comparison's, a predicate's: boolVal);
+	// N is still 1 or 0, as GML has it. A language with a boolean type
+	// (Lua, where 0 is true) sees true / false instead.
+	Bool bool
 }
 
 // RealV and StrV make values.
@@ -31,11 +35,14 @@ func (v Value) String() string {
 	return strconv.FormatFloat(v.N, 'f', -1, 64)
 }
 
-func boolVal(b bool) Value {
+func boolVal(b bool) Value { return BoolV(b) }
+
+// BoolV is a truth value: 1 or 0, marked Bool.
+func BoolV(b bool) Value {
 	if b {
-		return RealV(1)
+		return Value{N: 1, Bool: true}
 	}
-	return RealV(0)
+	return Value{N: 0, Bool: true}
 }
 
 // Instance is what the runner gives the interpreter for an instance: its

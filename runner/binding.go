@@ -275,7 +275,7 @@ func (gv *GlobalVars) background(name string, idx []int, set *gml.Value) (gml.Va
 	if set != nil {
 		*flag = set.True()
 	}
-	return gml.RealV(b2f(*flag)), true
+	return gml.BoolV(*flag), true
 }
 
 // Get reads a global variable.
@@ -296,7 +296,7 @@ func (gv *GlobalVars) Get(name string, idx []int) (gml.Value, bool) {
 		return gml.StrV(gv.Room.Caption), true
 	}
 	if idx == nil && name == "room_persistent" && gv.Room != nil {
-		return gml.RealV(b2f(gv.Room.Persistent)), true
+		return gml.BoolV((gv.Room.Persistent)), true
 	}
 	if gv.Room != nil && (name == "instance_count" && idx == nil || name == "instance_id" && len(idx) == 1) { // GM 5: the instances in the room, and their ids by place
 		n := 0
@@ -410,7 +410,7 @@ func (gv *GlobalVars) view(name string, idx []int, set *gml.Value) (gml.Value, b
 		if set != nil {
 			gv.Room.ViewsEnabled = set.True()
 		}
-		return gml.RealV(b2f(gv.Room.ViewsEnabled)), true
+		return gml.BoolV((gv.Room.ViewsEnabled)), true
 	}
 	if i < 0 || i > 7 {
 		return gml.Value{}, false
@@ -433,7 +433,7 @@ func (gv *GlobalVars) view(name string, idx []int, set *gml.Value) (gml.Value, b
 		if set != nil {
 			v.Visible = set.True()
 		}
-		return gml.RealV(b2f(v.Visible)), true
+		return gml.BoolV((v.Visible)), true
 	default:
 		return gml.Value{}, false
 	}

@@ -766,3 +766,23 @@ func TestCheckJavaScript(t *testing.T) {
 		t.Errorf("a syntax error: %d problems\n%s", n, b.String())
 	}
 }
+
+// check reads Lua events and scripts too, with the file and line of a syntax
+// error.
+func TestCheckLua(t *testing.T) {
+	dir := t.TempDir() + "/game"
+	if err := cmdNew([]string{dir}); err != nil {
+		t.Fatal(err)
+	}
+	os.Remove(dir + "/objects/player/step.gml")
+	os.WriteFile(dir+"/objects/player/step.lua", []byte("if instance_number(coin) == 0 then room_goto(room) end\n"), 0o644)
+	var b strings.Builder
+	if n, err := checkProject(dir, &b); err != nil || n != 0 {
+		t.Fatalf("clean: %d problems, %v\n%s", n, err, b.String())
+	}
+	os.WriteFile(dir+"/objects/player/step.lua", []byte("x = 1\nif x then\n"), 0o644)
+	b.Reset()
+	if n, _ := checkProject(dir, &b); n != 1 || !strings.Contains(b.String(), "step.lua") {
+		t.Errorf("a syntax error: %d problems\n%s", n, b.String())
+	}
+}

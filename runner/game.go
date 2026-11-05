@@ -339,12 +339,8 @@ func (g *Game) runnerFuncs() map[string]gml.Func {
 }
 
 func (g *Game) coreFuncs() map[string]gml.Func {
-	b := func(v bool) gml.Value {
-		if v {
-			return gml.RealV(1)
-		}
-		return gml.RealV(0)
-	}
+	b := gml.BoolV // a truth value (1 / 0, marked: Lua sees a boolean)
+
 	return map[string]gml.Func{
 		"instance_create": func(in *gml.Interp, a []gml.Value) (gml.Value, error) {
 			if len(a) < 3 {

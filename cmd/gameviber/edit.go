@@ -83,7 +83,7 @@ func editHandler(dir string) http.Handler {
 				return nil
 			}
 			switch filepath.Ext(p) {
-			case ".gml", ".js", ".toml", ".txt", ".md":
+			case ".gml", ".js", ".lua", ".toml", ".txt", ".md":
 				rel, _ := filepath.Rel(dir, p)
 				files = append(files, filepath.ToSlash(rel))
 			}
@@ -258,7 +258,7 @@ func projectPath(dir, rel string) (string, bool) {
 
 func editable(p string) bool {
 	switch filepath.Ext(p) {
-	case ".gml", ".js", ".toml", ".txt", ".md": // .js: events and scripts in JavaScript
+	case ".gml", ".js", ".lua", ".toml", ".txt", ".md": // .js: events and scripts in JavaScript
 		return true
 	}
 	return false
