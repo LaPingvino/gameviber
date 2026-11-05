@@ -432,3 +432,37 @@ func TestMoveFunctions(t *testing.T) {
 		t.Errorf("random: %v,%v", b.X, b.Y)
 	}
 }
+
+// collision_line / collision_circle / collision_ellipse, instance_position
+// and instance_furthest against two 16×16 walls.
+func TestCollisionShapes(t *testing.T) {
+	wall := &Object{Name: "wall", Solid: true, BBox: Box{0, 15, 0, 15}, Mask: true}
+	probe := &Object{Name: "probe"}
+	g := &Game{Objects: []*Object{wall, probe}}
+	h, err := g.Code(`a = collision_line(0, 8, 100, 8, wall, false, true) != noone
+b = collision_line(0, 40, 100, 40, wall, false, true) != noone
+c = collision_line(70, 0, 30, 50, wall, false, true) != noone
+d = collision_circle(50, 8, 15, wall, false, true) != noone
+e = collision_circle(50, 8, 13, wall, false, true) != noone
+f = collision_ellipse(30, 0, 66, 16, wall, false, true) != noone
+p = instance_position(70, 10, wall); q = instance_position(10, 10, wall)
+far = instance_furthest(0, 0, wall)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	probe.Events.Step = h
+	r := &Room{W: 200, H: 100, G: &Globals{Vars: map[string]float64{}}}
+	r.Create(wall, 64, 0)
+	w2 := r.Create(wall, 150, 60)
+	w1 := r.All("wall")[0]
+	in := r.Create(probe, 0, 0)
+	r.Step(keyKeys{})
+	if len(g.Errors) > 0 {
+		t.Fatal(g.Errors)
+	}
+	v := in.Vars
+	if v["a"] != 1 || v["b"] != 0 || v["c"] != 1 || v["d"] != 1 || v["e"] != 0 || v["f"] != 1 ||
+		v["p"] != float64(w1.ID) || v["q"] != gml.NooneID || v["far"] != float64(w2.ID) {
+		t.Errorf("%v", v)
+	}
+}

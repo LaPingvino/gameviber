@@ -254,6 +254,53 @@ func (g *Game) motionFuncs() map[string]gml.Func {
 			x, y := int(a[0].N), int(a[1].N)
 			return g.collide(a, 2, Box{x, x, y, y})
 		},
+		"collision_line": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (x1, y1, x2, y2, object, precise, notme)
+			if err := need(a, 5); err != nil {
+				return gml.Value{}, err
+			}
+			x1, y1, x2, y2 := a[0].N, a[1].N, a[2].N, a[3].N
+			return g.collideWith(a, 4, func(b Box) bool { return segmentHitsBox(x1, y1, x2, y2, b) })
+		},
+		"collision_circle": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (x, y, radius, object, precise, notme)
+			if err := need(a, 4); err != nil {
+				return gml.Value{}, err
+			}
+			cx, cy, r := a[0].N, a[1].N, a[2].N
+			return g.collideWith(a, 3, func(b Box) bool { return ellipseHitsBox(cx, cy, r, r, b) })
+		},
+		"collision_ellipse": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (x1, y1, x2, y2, object, precise, notme): the ellipse in that rectangle
+			if err := need(a, 5); err != nil {
+				return gml.Value{}, err
+			}
+			x1, y1, x2, y2 := a[0].N, a[1].N, a[2].N, a[3].N
+			return g.collideWith(a, 4, func(b Box) bool {
+				return ellipseHitsBox((x1+x2)/2, (y1+y2)/2, math.Abs(x2-x1)/2, math.Abs(y2-y1)/2, b)
+			})
+		},
+		"instance_position": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (x, y, object): the instance at that point; noone if none
+			if err := need(a, 3); err != nil {
+				return gml.Value{}, err
+			}
+			x, y := int(a[0].N), int(a[1].N)
+			return g.collideWith([]gml.Value{a[2]}, 0, func(b Box) bool { return b.Overlaps(Box{x, x, y, y}) })
+		},
+		"instance_furthest": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (x, y, object): by position; noone if none
+			if err := need(a, 3); err != nil {
+				return gml.Value{}, err
+			}
+			o, err := g.obj(a[2])
+			if err != nil {
+				return gml.Value{}, err
+			}
+			var far *Instance
+			best := -1.0
+			for _, x := range g.room.All(o.Name) {
+				if d := math.Hypot(x.X-a[0].N, x.Y-a[1].N); d > best {
+					far, best = x, d
+				}
+			}
+			return id(far), nil
+		},
 		"collision_rectangle": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (x1, y1, x2, y2, object, precise, notme)
 			if err := need(a, 5); err != nil {
 				return gml.Value{}, err
@@ -268,6 +315,11 @@ func (g *Game) motionFuncs() map[string]gml.Func {
 // a[k+2] notme leaves self out. PARTIAL: precise (a[k+1]) is taken as the
 // bounding box, as all our collisions are.
 func (g *Game) collide(a []gml.Value, k int, b Box) (gml.Value, error) {
+	return g.collideWith(a, k, b.Overlaps)
+}
+
+// collideWith is collide with any shape: hit tells whether a box meets it.
+func (g *Game) collideWith(a []gml.Value, k int, hit func(Box) bool) (gml.Value, error) {
 	o, err := g.obj(a[k])
 	if err != nil {
 		return gml.Value{}, err
@@ -277,7 +329,7 @@ func (g *Game) collide(a []gml.Value, k int, b Box) (gml.Value, error) {
 		if notMe && x == g.self() || !x.Obj.Mask {
 			continue
 		}
-		if x.BoxAt(x.X, x.Y).Overlaps(b) {
+		if hit(x.BoxAt(x.X, x.Y)) {
 			return gml.RealV(float64(x.ID)), nil
 		}
 	}
@@ -297,4 +349,42 @@ func boxDistance(a, b Box) float64 {
 	dx := max(0, a.L-b.R, b.L-a.R)
 	dy := max(0, a.T-b.B, b.T-a.B)
 	return math.Hypot(float64(dx), float64(dy))
+}
+
+// segmentHitsBox: does the segment (x1, y1)–(x2, y2) cross the box (its
+// pixels, L … R+1 by T … B+1)? Liang–Barsky clipping.
+func segmentHitsBox(x1, y1, x2, y2 float64, b Box) bool {
+	t0, t1 := 0.0, 1.0
+	dx, dy := x2-x1, y2-y1
+	for _, e := range [4][2]float64{{-dx, x1 - float64(b.L)}, {dx, float64(b.R+1) - x1}, {-dy, y1 - float64(b.T)}, {dy, float64(b.B+1) - y1}} {
+		p, q := e[0], e[1]
+		if p == 0 {
+			if q < 0 {
+				return false
+			}
+			continue
+		}
+		r := q / p
+		if p < 0 {
+			t0 = max(t0, r)
+		} else {
+			t1 = min(t1, r)
+		}
+		if t0 > t1 {
+			return false
+		}
+	}
+	return true
+}
+
+// ellipseHitsBox: does the ellipse (centre, radii) meet the box? Its point
+// nearest the centre is inside the ellipse.
+func ellipseHitsBox(cx, cy, rx, ry float64, b Box) bool {
+	px := min(max(cx, float64(b.L)), float64(b.R+1))
+	py := min(max(cy, float64(b.T)), float64(b.B+1))
+	if rx <= 0 || ry <= 0 {
+		return px == cx && py == cy
+	}
+	dx, dy := (px-cx)/rx, (py-cy)/ry
+	return dx*dx+dy*dy <= 1
 }
