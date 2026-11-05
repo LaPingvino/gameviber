@@ -2,6 +2,7 @@ package runner
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 
@@ -201,6 +202,40 @@ func (g *Game) drawFuncs() map[string]gml.Func {
 			}
 			return ok, nil
 		},
+		"draw_triangle": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (x1, y1, x2, y2, x3, y3): brush inside, pen edges
+			if d() != nil {
+				pts := [][2]float64{{num(a, 0), num(a, 1)}, {num(a, 2), num(a, 3)}, {num(a, 4), num(a, 5)}}
+				fillPolygon(d(), pts, g.colour("brush_color"))
+				for i := range pts {
+					p, q := pts[i], pts[(i+1)%3]
+					d().Line(p[0], p[1], q[0], q[1], g.colour("pen_color"))
+				}
+			}
+			return ok, nil
+		},
+		"draw_roundrect": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (x1, y1, x2, y2): a rectangle with rounded corners
+			if d() != nil {
+				drawRoundRect(d(), num(a, 0), num(a, 1), num(a, 2), num(a, 3), g.colour("brush_color"), g.colour("pen_color"))
+			}
+			return ok, nil
+		},
+		"draw_arrow": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (x1, y1, x2, y2, size): a line with a head at (x2, y2)
+			if d() != nil {
+				x1, y1, x2, y2, size := num(a, 0), num(a, 1), num(a, 2), num(a, 3), num(a, 4)
+				pen := g.colour("pen_color")
+				d().Line(x1, y1, x2, y2, pen)
+				if l := math.Hypot(x2-x1, y2-y1); l > 0 {
+					ux, uy := (x2-x1)/l, (y2-y1)/l
+					size = min(size, l)
+					for _, sgn := range []float64{1, -1} { // the head's two sides, 30° off the line
+						c, s := math.Cos(math.Pi/6), sgn*math.Sin(math.Pi/6)
+						hx, hy := ux*c-uy*s, ux*s+uy*c
+						d().Line(x2, y2, x2-hx*size, y2-hy*size, pen)
+					}
+				}
+			}
+			return ok, nil
+		},
 		"draw_point": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (x, y)
 			if d() != nil {
 				d().Point(num(a, 0), num(a, 1), g.colour("pen_color"))
@@ -240,3 +275,66 @@ func HasDraw(in *Instance) bool {
 }
 
 var _ = fmt.Sprint
+
+// fillPolygon fills a convex polygon row by row with horizontal lines (each
+// pixel row whose centre lies inside).
+func fillPolygon(d Drawer, pts [][2]float64, colour int32) {
+	top, bottom := math.Inf(1), math.Inf(-1)
+	for _, p := range pts {
+		top, bottom = min(top, p[1]), max(bottom, p[1])
+	}
+	for y := math.Ceil(top - 0.5); y+0.5 <= bottom; y++ {
+		cy := y + 0.5
+		l, r := math.Inf(1), math.Inf(-1)
+		for i := range pts {
+			p, q := pts[i], pts[(i+1)%len(pts)]
+			if (p[1] <= cy) == (q[1] <= cy) {
+				continue
+			}
+			x := p[0] + (cy-p[1])*(q[0]-p[0])/(q[1]-p[1])
+			l, r = min(l, x), max(r, x)
+		}
+		if l <= r {
+			d.Line(math.Round(l), y, math.Round(r)-1, y, colour)
+		}
+	}
+}
+
+// drawRoundRect is GM 5's draw_roundrect: the brush inside, the pen around,
+// corners rounded with a radius of a quarter of the shorter side, at most 8.
+// ASSUMPTION [engine]: GM 5 used Windows' RoundRect; its corner size is not
+// documented, this one looks alike.
+func drawRoundRect(d Drawer, x1, y1, x2, y2 float64, fill, pen int32) {
+	l, r, t, b := math.Round(min(x1, x2)), math.Round(max(x1, x2)), math.Round(min(y1, y2)), math.Round(max(y1, y2))
+	rad := math.Min(8, math.Floor(math.Min(r-l, b-t)/4))
+	inset := func(y float64) float64 { // how far the row's ends are pulled in by the corners
+		dy := 0.0
+		if y < t+rad {
+			dy = t + rad - y
+		} else if y > b-rad {
+			dy = y - (b - rad)
+		}
+		if dy <= 0 || rad <= 0 {
+			return 0
+		}
+		return math.Round(rad - math.Sqrt(max(0, rad*rad-dy*dy)))
+	}
+	for y := t; y <= b; y++ {
+		k := inset(y)
+		if y == t || y == b {
+			d.Line(l+k, y, r-k, y, pen)
+			continue
+		}
+		d.Line(l+k+1, y, r-k-1, y, fill)
+		d.Point(l+k, y, pen)
+		d.Point(r-k, y, pen)
+		if k2 := inset(y - 1); y > t && k2 > k+1 { // close the corner's steps
+			d.Line(l+k, y, l+k2-1, y, pen)
+			d.Line(r-k2+1, y, r-k, y, pen)
+		}
+		if k2 := inset(y + 1); y < b && k2 > k+1 {
+			d.Line(l+k, y, l+k2-1, y, pen)
+			d.Line(r-k2+1, y, r-k, y, pen)
+		}
+	}
+}

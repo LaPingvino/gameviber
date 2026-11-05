@@ -182,3 +182,42 @@ draw_point(600, 400)
 		t.Errorf("line middle %v, point %v", at(450, 125), at(600, 400))
 	}
 }
+
+// draw_triangle, draw_roundrect and draw_arrow in a frame: the brush inside,
+// the pen on the edges; the shot kept in GAMEVIBER_SHOT_DIR when set (for a
+// look).
+func TestDrawTriangleRoundrectArrow(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "g")
+	if err := cmdNew([]string{dir}); err != nil {
+		t.Fatal(err)
+	}
+	os.WriteFile(filepath.Join(dir, "objects", "player", "draw.gml"), []byte(`brush_color = c_red
+pen_color = c_white
+draw_triangle(100, 300, 200, 300, 150, 200)
+draw_roundrect(300, 100, 460, 180)
+pen_color = c_yellow
+draw_arrow(100, 420, 300, 420, 20)
+`), 0o644)
+	var shot bytes.Buffer
+	if _, err := playProjectOpts(dir, playOpts{Steps: 2, Shot: &shot}); err != nil {
+		t.Fatal(err)
+	}
+	if d := os.Getenv("GAMEVIBER_SHOT_DIR"); d != "" {
+		os.WriteFile(filepath.Join(d, "shapes2.png"), shot.Bytes(), 0o644)
+	}
+	img, err := png.Decode(bytes.NewReader(shot.Bytes()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	at := func(x, y int) [3]uint32 { r, g, b, _ := img.At(x, y).RGBA(); return [3]uint32{r >> 8, g >> 8, b >> 8} }
+	red, white, yellow := [3]uint32{255, 0, 0}, [3]uint32{255, 255, 255}, [3]uint32{255, 255, 0}
+	if at(150, 270) != red || at(150, 300) != white || at(100, 250) == red {
+		t.Errorf("triangle: inside %v, base %v, outside %v", at(150, 270), at(150, 300), at(100, 250))
+	}
+	if at(380, 140) != red || at(380, 100) != white || at(300, 140) != white || at(300, 100) == white {
+		t.Errorf("roundrect: inside %v, top %v, left %v, corner %v", at(380, 140), at(380, 100), at(300, 140), at(300, 100))
+	}
+	if at(200, 420) != yellow || at(290, 415) != yellow || at(290, 425) != yellow {
+		t.Errorf("arrow: line %v, head %v %v", at(200, 420), at(290, 415), at(290, 425))
+	}
+}
