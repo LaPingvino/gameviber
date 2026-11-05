@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"image/png"
 	"os"
 	"path/filepath"
@@ -250,5 +251,31 @@ draw_sprite_stretched(player, 0, 340, 100, 60, 180)
 	}
 	if p := at(370, 200); p[1] < 180 || p[0] > 150 {
 		t.Errorf("stretched player %v, want green", p)
+	}
+}
+
+// A test play's clock moves by steps: current_time reads the same in every
+// run — 0 on the first step, 1000 a second of steps later (room speed 30).
+func TestPlayClockRepeats(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "g")
+	if err := cmdNew([]string{dir}); err != nil {
+		t.Fatal(err)
+	}
+	os.WriteFile(filepath.Join(dir, "objects", "player", "step.gml"), []byte(`show_debug_message(string(current_time) + " " + string(current_year))
+`), 0o644)
+	var runs [2][]string
+	for i := range runs {
+		res, err := playProjectOpts(dir, playOpts{Steps: 31})
+		if err != nil {
+			t.Fatal(err)
+		}
+		d, _ := res["debug"].([]string)
+		runs[i] = d
+	}
+	if len(runs[0]) < 31 || fmt.Sprint(runs[0]) != fmt.Sprint(runs[1]) {
+		t.Fatalf("runs differ or too short: %q / %q", runs[0], runs[1])
+	}
+	if runs[0][0] != "0 2026" || runs[0][30] != "1000 2026" {
+		t.Errorf("first %q, after 30 steps %q", runs[0][0], runs[0][30])
 	}
 }

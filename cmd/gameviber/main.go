@@ -24,6 +24,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/LaPingvino/gameviber/import/gmfile"
 	"github.com/LaPingvino/gameviber/load"
@@ -565,6 +566,18 @@ func playProjectOpts(path string, o playOpts) (map[string]any, error) {
 		}
 	}
 	var pl *load.Play
+	// A clock that moves one step's time per step (the room's speed, 30 when
+	// unset) from a fixed moment, so current_time and the date read the same
+	// in every run of the same play.
+	stepsDone := 0
+	clockStart := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+	g.Clock = func() time.Time {
+		speed := 30
+		if pl != nil && pl.Room != nil && pl.Room.Speed > 0 {
+			speed = pl.Room.Speed
+		}
+		return clockStart.Add(time.Duration(stepsDone) * time.Second / time.Duration(speed))
+	}
 	if room != "" {
 		pl, err = g.StartAt(room)
 	} else {
@@ -585,6 +598,7 @@ func playProjectOpts(path string, o playOpts) (map[string]any, error) {
 	}
 	rooms := []string{pl.Room.Name}
 	for i := 0; i < steps && !pl.Ended; i++ {
+		stepsDone = i
 		k.prev, k.held = k.held, map[runner.Key]bool{}
 		for _, c := range keysAt(i) {
 			k.held[c] = true

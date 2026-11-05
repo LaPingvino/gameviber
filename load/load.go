@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"image"
 	"strings"
+	"time"
 
 	"github.com/LaPingvino/gameviber/gml"
 	"github.com/LaPingvino/gameviber/import/gmfile"
@@ -19,6 +20,9 @@ type Game struct {
 	Project *gmfile.Project
 	// Unsupported lists events the runner has no slot for yet (by object).
 	Unsupported []string
+	// Clock is the time the game's current_* variables read (nil: the real
+	// time) — a test play sets one that moves by steps so runs repeat.
+	Clock func() time.Time
 }
 
 // FromProject builds the runner's objects from the project's.

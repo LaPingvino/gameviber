@@ -33,7 +33,7 @@ func (g *Game) StartAt(name string) (*Play, error) {
 // Start begins the game at its first room. Score and lives start at 0
 // (ASSUMPTION [engine]: GM 5's defaults; both sample games set their own).
 func (g *Game) Start() (*Play, error) {
-	p := &Play{G: g, Globals: &runner.Globals{Vars: map[string]float64{}}}
+	p := &Play{G: g, Globals: g.newGlobals()}
 	for _, id := range g.Project.RoomOrder {
 		if int(id) < len(g.Project.Rooms) && g.Project.Rooms[id] != nil {
 			p.order = append(p.order, g.Project.Rooms[id].Name)
@@ -126,7 +126,7 @@ func (p *Play) Step(in runner.Input) error {
 	case "@restart":
 		p.Room.Every(func(e *runner.Events) runner.Handler { return e.Other[3] }) // game end
 		p.Room.End()
-		p.Globals = &runner.Globals{Vars: map[string]float64{}}
+		p.Globals = p.G.newGlobals()
 		p.kept = nil
 		return p.enterGame(p.order[0])
 	case "@end":
@@ -135,4 +135,9 @@ func (p *Play) Step(in runner.Input) error {
 		return nil
 	}
 	return p.enter(to)
+}
+
+// newGlobals is a fresh set of game-wide values, on the game's clock.
+func (g *Game) newGlobals() *runner.Globals {
+	return &runner.Globals{Vars: map[string]float64{}, Now: g.Clock}
 }
