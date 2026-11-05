@@ -388,9 +388,4 @@ func compare(a, b float64, op int) bool {
 	return a == b
 }
 
-func boolV(b bool) gml.Value {
-	if b {
-		return gml.RealV(1)
-	}
-	return gml.RealV(0)
-}
+func boolV(b bool) gml.Value { return gml.BoolV(b) }

@@ -7,6 +7,7 @@ require (
 	github.com/LaPingvino/gopus v0.1.0
 	github.com/dop251/goja v0.0.0-20261105002551-2413f2132ac8
 	github.com/hajimehoshi/ebiten/v2 v2.9.8
+	github.com/yuin/gopher-lua v1.1.2
 	golang.org/x/image v0.31.0
 )
 

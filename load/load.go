@@ -11,7 +11,8 @@ import (
 
 	"github.com/LaPingvino/gameviber/gml"
 	"github.com/LaPingvino/gameviber/import/gmfile"
-	_ "github.com/LaPingvino/gameviber/lang/js" // event code in JavaScript (.js files)
+	_ "github.com/LaPingvino/gameviber/lang/js"  // event code in JavaScript (.js files)
+	_ "github.com/LaPingvino/gameviber/lang/lua" // and in Lua (.lua files)
 	"github.com/LaPingvino/gameviber/runner"
 )
 

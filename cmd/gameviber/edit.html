@@ -938,7 +938,7 @@ function completeWith(w) {
 }
 function suggest() {
   const box = $("suggest"), at = wordAtCaret();
-  if (!names || !current || !/\.(gml|js)$/.test(current) || !at || at.word.length < 2) { box.hidden = true; return; } // the same names in JavaScript
+  if (!names || !current || !/\.(gml|js|lua)$/.test(current) || !at || at.word.length < 2) { box.hidden = true; return; } // the same names in JavaScript
   const lw = at.word.toLowerCase();
   const hits = names.filter(([w]) => w.toLowerCase().startsWith(lw) && w !== at.word).slice(0, 8);
   if (!hits.length) { box.hidden = true; return; }
@@ -1096,7 +1096,7 @@ $("askcopy").onclick = async () => {
 // Paste an answer (the assistant's step 1): the files in an answer — a path on its own line (or the path in
 // the code fence's line) followed by a fenced block — listed against the project (new / changed / the
 // same), and the chosen ones written (PUT api/file: only .gml / .js / .toml / .txt / .md inside the project).
-const pathRe = /^[A-Za-z0-9_][A-Za-z0-9_.\/-]*\.(gml|js|toml|txt|md)$/;
+const pathRe = /^[A-Za-z0-9_][A-Za-z0-9_.\/-]*\.(gml|js|lua|toml|txt|md)$/;
 function cleanPath(l) {
   const p = l.trim().replace(/^(#+|\*+|-|file:|path:)\s*/i, "").replace(/[`*:]+$/g, "").replace(/^[`*]+/, "").trim();
   return pathRe.test(p) && !p.split("/").includes("..") ? p : null;

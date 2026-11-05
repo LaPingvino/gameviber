@@ -28,6 +28,7 @@ import (
 
 	"github.com/LaPingvino/gameviber/import/gmfile"
 	"github.com/LaPingvino/gameviber/lang/js"
+	"github.com/LaPingvino/gameviber/lang/lua"
 	"github.com/LaPingvino/gameviber/load"
 	"github.com/LaPingvino/gameviber/render"
 	"github.com/LaPingvino/gameviber/runner"
@@ -87,7 +88,7 @@ func usage() {
                                     DIR: default the current folder) for coding agents
   gameviber setup-agents [AGENT …]  give your installed agents (agy, claude, gemini, opencode) these tools
                                     user-wide, in every GameViber project they start in
-  gameviber check DIR               check a project: every .gml / .js parses, every GML call exists
+  gameviber check DIR               check a project: every .gml / .js / .lua parses, every GML call exists
                                     (file:line:col: message; exit 1 when there is anything)
   gameviber run [-room R] GAME      play it in a window (arrow keys, space, enter; M sound, F11 full screen)
   gameviber web DIR OUT             a web page that plays the project DIR (OUT: index.html, game.wasm, project.tar)
@@ -288,7 +289,7 @@ func checkProjectVariant(dir, variant string, w io.Writer) (int, error) {
 		if err == nil && d.IsDir() && path != dir && strings.HasPrefix(d.Name(), ".") {
 			return filepath.SkipDir
 		}
-		if err != nil || d.IsDir() || !(strings.HasSuffix(path, ".gml") || isJSCode(dir, path)) {
+		if err != nil || d.IsDir() || !(strings.HasSuffix(path, ".gml") || isGameCode(dir, path)) {
 			return err
 		}
 		files++
@@ -296,8 +297,8 @@ func checkProjectVariant(dir, variant string, w io.Writer) (int, error) {
 		if err != nil {
 			return err
 		}
-		if strings.HasSuffix(path, ".js") { // JavaScript: its syntax (unknown names show when it runs)
-			if err := js.Check(path, string(src)); err != nil {
+		if check := langCheck[filepath.Ext(path)]; check != nil { // JavaScript, Lua: their syntax (unknown names show when it runs)
+			if err := check(path, string(src)); err != nil {
 				fmt.Fprintln(w, err)
 				problems++
 			}
@@ -352,11 +353,15 @@ func checkProjectVariant(dir, variant string, w io.Writer) (int, error) {
 	return problems, nil
 }
 
-// isJSCode reports whether path is a JavaScript event or script of the game
-// in dir (objects/<name>/*.js, scripts/*.js) — not, say, a web page's script.
-func isJSCode(dir, path string) bool {
+// langCheck is each other language's syntax check, by extension.
+var langCheck = map[string]func(file, src string) error{".js": js.Check, ".lua": lua.Check}
+
+// isGameCode reports whether path is an event or script of the game in dir in
+// another language than GML (objects/<name>/*.js, scripts/*.lua …) — not, say,
+// a web page's script.
+func isGameCode(dir, path string) bool {
 	rel, err := filepath.Rel(dir, path)
-	if err != nil || !strings.HasSuffix(rel, ".js") {
+	if err != nil || langCheck[filepath.Ext(rel)] == nil {
 		return false
 	}
 	parts := strings.Split(filepath.ToSlash(rel), "/")
