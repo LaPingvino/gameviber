@@ -139,6 +139,7 @@ footer pre { margin: 0; font: 12px/1.45 ui-monospace, monospace; white-space: pr
     <canvas id="pathcanvas" width="640" height="480" style="margin-top:6px;max-width:100%;border:1px solid var(--line);background:#1b2433;cursor:crosshair"></canvas>
   </div>
   <textarea id="text" spellcheck="false" disabled></textarea>
+  <div id="suggest" role="listbox" aria-label="completions" hidden style="position:fixed;bottom:10px;right:14px;z-index:20;display:flex;gap:4px;flex-wrap:wrap;max-width:60vw;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:4px 6px;font:12px ui-monospace,monospace"></div>
   <iframe id="game" title="the game" style="display:none;width:100%;height:100%;border:0;background:#111"></iframe>
   <div id="sprite"><div><canvas id="spr"></canvas><div id="frames"></div>
     <div class="row" id="frameops" style="margin-top:6px;gap:4px;flex-wrap:wrap"><button type="button" class="new" id="fradd" title="a blank frame after this one">+ Frame</button><button type="button" class="new" id="frcopy" title="a copy of this frame after it">Copy frame</button><button type="button" class="new" id="frdel">Delete frame</button><button type="button" class="new" id="frleft" title="move this frame left">◀</button><button type="button" class="new" id="frright" title="move this frame right">▶</button></div>
@@ -903,11 +904,50 @@ async function save() {
   const r = await call("api/file?path=" + encodeURIComponent(current), { method: "PUT", body });
   if (!r.ok) { $("check").className = "bad"; $("check").textContent = await r.text(); return; }
   saved = body; mark(); showCheck(await r.json());
+  loadNames(); // a new script or object is a name too
 }
 $("text").addEventListener("input", mark);
 $("save").onclick = save;
 document.addEventListener("keydown", (e) => { if ((e.ctrlKey || e.metaKey) && e.key === "s") { e.preventDefault(); save(); } });
 $("text").addEventListener("keydown", (e) => { if (e.key === "Tab") { e.preventDefault(); document.execCommand("insertText", false, "\t"); } });
+// --- Completions: GameViber's functions, variables, constants and this game's resources (api/names), for the
+// word being typed in a .gml file; click one, or Ctrl+Space for the first. Escape hides them. ---
+let names = null;
+async function loadNames() {
+  try { const n = await (await call("api/names")).json(); names = [].concat(n.functions.map((w) => [w, "f"]), n.variables.map((w) => [w, "v"]), n.constants.map((w) => [w, "c"]), n.resources.map((w) => [w, "r"])); } catch (e) { names = null; }
+}
+function wordAtCaret() {
+  const ta = $("text"), before = ta.value.slice(0, ta.selectionStart);
+  const m = /[A-Za-z_][A-Za-z0-9_]*$/.exec(before);
+  return m ? { word: m[0], start: ta.selectionStart - m[0].length } : null;
+}
+function completeWith(w) {
+  const at = wordAtCaret(); if (!at) return;
+  const ta = $("text"); ta.focus(); ta.setSelectionRange(at.start, ta.selectionStart);
+  document.execCommand("insertText", false, w); $("suggest").hidden = true;
+}
+function suggest() {
+  const box = $("suggest"), at = wordAtCaret();
+  if (!names || !current || !/\.gml$/.test(current) || !at || at.word.length < 2) { box.hidden = true; return; }
+  const lw = at.word.toLowerCase();
+  const hits = names.filter(([w]) => w.toLowerCase().startsWith(lw) && w !== at.word).slice(0, 8);
+  if (!hits.length) { box.hidden = true; return; }
+  box.textContent = "";
+  for (const [w, kind] of hits) {
+    const b = Object.assign(document.createElement("button"), { type: "button", textContent: w, title: { f: "function", v: "variable", c: "constant", r: "resource" }[kind] });
+    b.setAttribute("role", "option");
+    b.onmousedown = (e) => { e.preventDefault(); completeWith(w); };
+    box.append(b);
+  }
+  box.hidden = false;
+}
+$("text").addEventListener("input", suggest);
+$("text").addEventListener("keydown", (e) => {
+  if (e.key === " " && e.ctrlKey) { e.preventDefault(); const first = $("suggest").querySelector("button"); if (first) completeWith(first.textContent); }
+  else if (e.key === "Escape") $("suggest").hidden = true;
+});
+$("text").addEventListener("blur", () => { $("suggest").hidden = true; });
+loadNames();
 // --- Play (step E3): the game in the editor, from the saved files ---
 let playing = false, before = null;
 $("play").onclick = () => {
