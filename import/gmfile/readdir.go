@@ -70,6 +70,19 @@ func ReadFS(fsys fs.FS, dir string) (*Project, error) {
 		b := img.Bounds()
 		p.Backgrounds = append(p.Backgrounds, &Background{ID: len(p.Backgrounds), Name: strings.TrimSuffix(f, ".png"), W: int32(b.Dx()), H: int32(b.Dy()), Img: img})
 	}
+	for _, f := range names("paths") { // ids by name order, as the other resources
+		if !strings.HasSuffix(f, ".toml") {
+			continue
+		}
+		var pt pathTOML
+		if _, err := decodeTOML(fsys, path.Join(dir, "paths", f), &pt); err != nil {
+			return nil, fmt.Errorf("paths/%s: %w", f, err)
+		}
+		if pt.Precision == 0 {
+			pt.Precision = 4 // GameMaker's default
+		}
+		p.Paths = append(p.Paths, &Path{ID: len(p.Paths), Name: strings.TrimSuffix(f, ".toml"), Smooth: pt.Smooth, Closed: pt.Closed, Precision: pt.Precision, Points: pt.Points})
+	}
 	for _, f := range names("sounds") {
 		data, err := fs.ReadFile(fsys, path.Join(dir, "sounds", f))
 		if err != nil {

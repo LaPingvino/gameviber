@@ -16,7 +16,7 @@ import (
 )
 
 // Export writes the project in GameViber's text format (docs/DESIGN.md §2):
-// game.toml, sprites/<name>/strip.png + sprite.toml, backgrounds/<name>.png,
+// game.toml, sprites/<name>/strip.png + sprite.toml, backgrounds/<name>.png, paths/<name>.toml,
 // sounds/<name><ext>, scripts/<name>.gml, objects/<name>/object.toml + one
 // .gml per event, timelines/<name>/moment-<step>.gml, rooms/<name>/room.toml
 // (+ creation.gml), AGENTS.md. Problems that don't stop the export (an image
@@ -64,6 +64,11 @@ func (p *Project) Export(dir, name string) (notes []string, err error) {
 			continue
 		}
 		w.png(filepath.Join("backgrounds", b.Name+".png"), img)
+	}
+	for _, pa := range p.Paths {
+		if pa != nil {
+			w.toml(filepath.Join("paths", pa.Name+".toml"), pathTOML{Smooth: pa.Smooth, Closed: pa.Closed, Precision: pa.Precision, Points: pa.Points})
+		}
 	}
 	for _, s := range p.Sounds {
 		if s == nil || s.Data == nil {
@@ -288,4 +293,14 @@ func MIDIToOpus(mid []byte) ([]byte, error) {
 		return nil, fmt.Errorf("ffmpeg: %v %s", err, b)
 	}
 	return os.ReadFile(out)
+}
+
+// pathTOML is paths/<name>.toml: a GameMaker path — its points (x, y and the
+// speed there, in percent), straight or smooth, open or closed, and the
+// smooth curve's precision (1–8).
+type pathTOML struct {
+	Smooth    bool         `toml:"smooth"`
+	Closed    bool         `toml:"closed"`
+	Precision int32        `toml:"precision"`
+	Points    [][3]float64 `toml:"points"`
 }

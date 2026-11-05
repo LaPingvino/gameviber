@@ -62,3 +62,31 @@ func TestExportStelo(t *testing.T) {
 	})
 	t.Logf("%d GML files, %d PNGs; rooms in order: %s", gmls, pngs, strings.Join(game.RoomOrder, ", "))
 }
+
+// TestPathsRoundTrip: paths written as paths/<name>.toml and read back —
+// points, smooth, closed, precision; ids by name order.
+func TestPathsRoundTrip(t *testing.T) {
+	p := &Project{Paths: []*Path{
+		{ID: 0, Name: "patrol", Smooth: true, Closed: true, Precision: 6, Points: [][3]float64{{32, 32, 100}, {320, 32, 50}, {320, 240, 100}}},
+		nil, // a deleted path keeps its id in GameMaker's numbering; the text form drops it
+		{ID: 2, Name: "drop", Points: [][3]float64{{0, 0, 100}, {0, 400, 200}}},
+	}}
+	dir := t.TempDir()
+	if _, err := p.Export(dir, "g"); err != nil {
+		t.Fatal(err)
+	}
+	q, err := ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(q.Paths) != 2 || q.Paths[0].Name != "drop" || q.Paths[1].Name != "patrol" || q.Paths[1].ID != 1 {
+		t.Fatalf("paths: %+v", q.Paths)
+	}
+	pa := q.Paths[1]
+	if !pa.Smooth || !pa.Closed || pa.Precision != 6 || len(pa.Points) != 3 || pa.Points[1] != [3]float64{320, 32, 50} {
+		t.Errorf("patrol: %+v", pa)
+	}
+	if d := q.Paths[0]; d.Smooth || d.Closed || d.Precision != 4 || d.Points[1][2] != 200 {
+		t.Errorf("drop (precision 0 written, GameMaker's 4 read): %+v", d)
+	}
+}
