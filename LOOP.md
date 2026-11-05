@@ -193,7 +193,14 @@ goal of its own, weighed alongside the LLM-friendly rule.
    43.5 MB with yaegi). DONE 2026-11-05: coins-go (New game…, gameviber new, the
    tutorial), AGENTS.md's Go paragraph, the same-game test for Go (765 identical steps). ALL THREE LANGUAGES are now
    first-class beside GML, each proven equal to GML on the starter. NEXT: the aspiration — Go game code COMPILED into exported desktop games (the same gv API as a real package, the event
-   files generated into a Go program; interpreted only in the browser).
+   files generated into a Go program; interpreted only in the browser). COMPILED STARTED 2026-11-05: step 1 —
+   the API is now the real package github.com/LaPingvino/gameviber/gv (Ctx, Value, New, Wrap, GML, ToGML; yaegi
+   still sees it as "gv"), and lang/golang has golang.Compiled / CompiledScripts (by the file's path in the game
+   folder): a file the program has compiled in runs as native Go, its source not read, a panic still the event's
+   error with the file (TestCompiledStandIn: an event, a script called from GML, a panic). NEXT step 2: export
+   generates a Go program — each .go event / script rewritten into a function (import "gv" → the real path; the
+   statement form wrapped as now, a whole file's Event / Script renamed), registered in those maps from an
+   init(), plus the player's main — and `go build`s it when Go is installed (else the interpreted player, as today).
 
 ## Libraries around it (Joop 2026-11-02: an Opus decoder "would fit right along the gml stuff … and the game
 maker file decoder")
@@ -454,4 +461,5 @@ setting (on by default) rather than per-game code:
 - 2026-11-05 (13: Lua part 2 — overnight) — coins-lua (a shared starterLangs table now makes coins-js and coins-lua), AGENTS.md's Lua paragraph (with the string() → tostring() and booleans notes), TestStarterGMLvsLua: 765 identical steps. Seen in the static (Pages) build: New game… lists the Lua start third. Full gate green; the editor wasm 38.4 MB.
 - 2026-11-05 (13: Go part 1 — overnight) — lang/golang (yaegi): 5 tests (statements through g, a whole file importing math, Other() with with-semantics, a script from GML, compile and runtime errors with the file), Go in load / check / the editor. Full gate green; the editor wasm 43.5 MB (yaegi without its stdlib table: +5 MB).
 - 2026-11-05 (13: Go part 2 — overnight) — coins-go (the player's events through g), AGENTS.md's Go paragraph, TestStarterGMLvsGo: 765 identical steps — GML, JS, Lua and Go now play the starter the same. Full gate green, wasm builds.
+- 2026-11-05 — 13 (compiled Go, step 1): gv as a real package; compiled stand-ins for .go events and scripts (lang/golang Compiled / CompiledScripts), tested; all tests green (the ebiten ones under xvfb), wasm builds.
 
