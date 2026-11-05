@@ -48,7 +48,8 @@ func main() {
 				out := js.Global().Get("Object").New()
 				out.Set("status", res.StatusCode)
 				out.Set("type", res.Header.Get("Content-Type"))
-				if ct := res.Header.Get("Content-Type"); ct == "application/x-tar" || ct == "image/png" || strings.HasPrefix(ct, "audio/") {
+				out.Set("disposition", res.Header.Get("Content-Disposition"))
+				if ct := res.Header.Get("Content-Type"); ct == "application/x-tar" || ct == "application/zip" || ct == "image/png" || strings.HasPrefix(ct, "audio/") {
 					u := js.Global().Get("Uint8Array").New(len(data))
 					js.CopyBytesToJS(u, data)
 					out.Set("body", u)
