@@ -80,7 +80,7 @@ func usage() {
 
   gameviber reference [FILE]        what GameViber's GML understands: events, functions, variables
   gameviber edit DIR                the editor, in your browser (served on this machine only)
-  gameviber new [-template coins|platformer] DIR                 a small starter game to build on (collect the coins)
+  gameviber new [-template coins|platformer|topdown] DIR                 a small starter game to build on (collect the coins)
   gameviber import GAME.exe DIR     turn a GameMaker 5.3 game into a GameViber project in DIR
   gameviber mcp [DIR]               the project's check / play / reference as an MCP server (stdin / stdout;
                                     DIR: default the current folder) for coding agents

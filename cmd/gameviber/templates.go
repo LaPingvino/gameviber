@@ -11,15 +11,141 @@ import (
 // a small but whole game in GameViber's own files and pictures.
 
 // templates are the names -template takes ("coins" is the starter of before).
-var templates = []string{"coins", "platformer"}
+var templates = []string{"coins", "platformer", "topdown"}
+
+// templateFiles makes each template's files and pictures (all but "coins").
+var templateFiles = map[string]func(name string) (map[string]string, map[string]image.Image){
+	"platformer": platformerFiles,
+	"topdown":    topdownFiles,
+}
+
+func objectTOML(sprite string, solid bool, depth int) string {
+	return fmt.Sprintf("sprite = %q\nsolid = %v\nvisible = true\ndepth = %d\npersistent = false\nparent = \"-1\"\nmask = \"-1\"\n", sprite, solid, depth)
+}
+
+// topdownFiles is a gem hunt seen from above: move in four directions among
+// wall blocks, collect the gems; two ghosts wander (turning at walls) and
+// chase the player when near; a ghost's touch costs a life and sends the
+// player back to the start; three lives, then the game starts over; every
+// gem collected: the room again.
+func topdownFiles(name string) (map[string]string, map[string]image.Image) {
+	small := "frames = 1\nframe_w = 32\nframe_h = 32\norigin = [0, 0]\nbbox_lrbt = [4, 27, 27, 4]\nprecise = false\ntransparent = true\n"
+	files := map[string]string{
+		"game.toml":                  fmt.Sprintf("name = %q\ngm_version = 530\nroom_order = [\"maze\"]\n\n[settings]\n  author = \"\"\n  icon = \"player\"\n", name),
+		"sprites/wall/sprite.toml":   spriteTOML,
+		"sprites/player/sprite.toml": small,
+		"sprites/ghost/sprite.toml":  small,
+		"sprites/gem/sprite.toml":    "frames = 1\nframe_w = 32\nframe_h = 32\norigin = [0, 0]\nbbox_lrbt = [8, 23, 23, 8]\nprecise = false\ntransparent = true\n",
+		"objects/wall/object.toml":   objectTOML("wall", true, 0),
+		"objects/gem/object.toml":    objectTOML("gem", false, 1),
+		"objects/ghost/object.toml":  objectTOML("ghost", false, -1),
+		"objects/player/object.toml": objectTOML("player", false, -2),
+		"objects/player/other-2.gml": "// game start: three lives, shown in the caption with the score\nlives = 3\nshow_lives = true\n",
+		"objects/player/other-6.gml": "// no more lives: start the whole game over\ngame_restart()\n",
+		"objects/player/step.gml": `// move in four directions, not into walls
+if keyboard_check(vk_left) && place_free(x - 4, y) x -= 4
+if keyboard_check(vk_right) && place_free(x + 4, y) x += 4
+if keyboard_check(vk_up) && place_free(x, y - 4) y -= 4
+if keyboard_check(vk_down) && place_free(x, y + 4) y += 4
+// every gem collected: the room again (gems and ghosts back)
+if instance_number(gem) = 0 room_restart()
+`,
+		"objects/player/collision-gem.gml":   "score += 10\nwith (other) instance_destroy()\n",
+		"objects/player/collision-ghost.gml": "// caught: a life less, back to the start (the ghost to its own, so it can't wait there)\nlives -= 1\nx = xstart\ny = ystart\nwith (other) { x = xstart; y = ystart }\n",
+		"objects/ghost/create.gml":           "// the way it is going: dx, dy each -1, 0 or 1\ndx = choose(-1, 1)\ndy = 0\n",
+		"objects/ghost/step.gml": `// near the player: head for them along the longer distance
+if point_distance(x, y, player.x, player.y) < 160 {
+  if abs(player.x - x) > abs(player.y - y) { dx = sign(player.x - x); dy = 0 } else { dx = 0; dy = sign(player.y - y) }
+}
+// go on, or at a wall pick another way at random
+if place_free(x + dx * 2, y + dy * 2) { x += dx * 2; y += dy * 2 } else {
+  d = choose(0, 1, 2, 3)
+  dx = 0
+  dy = 0
+  if d = 0 dx = 1 else if d = 1 dx = -1 else if d = 2 dy = 1 else dy = -1
+}
+`,
+		"AGENTS.md": agentsMD + "\nThis game is a top-down gem hunt: objects/player/step.gml moves the player, objects/ghost/step.gml has the\nghosts' wandering and chasing, objects/player/collision-ghost.gml what a catch costs.\n`gameviber play -keys \"right:30,down:20\" -expect \"score > 0\" .` tests a change.\n",
+	}
+	var b strings.Builder
+	b.WriteString("caption = \"Gem hunt\"\nwidth = 640\nheight = 480\nspeed = 30\npersistent = false\nbackground_colour = \"#2E4A2E\"\ndraw_background_colour = true\nviews_enabled = false\n")
+	inst := func(o string, x, y int) {
+		fmt.Fprintf(&b, "\n[[instance]]\n  object = %q\n  x = %d\n  y = %d\n", o, x, y)
+	}
+	for x := 0; x < 640; x += 32 {
+		inst("wall", x, 0)
+		inst("wall", x, 448)
+	}
+	for y := 32; y < 448; y += 32 {
+		inst("wall", 0, y)
+		inst("wall", 608, y)
+	}
+	for _, bx := range []int{96, 224, 352, 480} { // 2x2 blocks, two rows
+		for _, by := range []int{96, 256} {
+			for _, d := range [][2]int{{0, 0}, {32, 0}, {0, 32}, {32, 32}} {
+				inst("wall", bx+d[0], by+d[1])
+			}
+		}
+	}
+	for _, g := range [][2]int{{176, 48}, {432, 48}, {48, 192}, {304, 192}, {560, 192}, {176, 368}, {432, 368}, {560, 400}} {
+		inst("gem", g[0], g[1])
+	}
+	inst("ghost", 304, 400)
+	inst("ghost", 560, 48)
+	inst("player", 40, 40)
+	files["rooms/maze/room.toml"] = b.String()
+	return files, map[string]image.Image{"wall": wallImage(), "player": playerImage(), "ghost": ghostImage(), "gem": gemImage()}
+}
+
+func ghostImage() image.Image {
+	img := image.NewNRGBA(image.Rect(0, 0, 32, 32))
+	body := color.NRGBA{0xc0, 0x7c, 0xe8, 255}
+	for y := range 32 {
+		for x := range 32 {
+			dx, dy := float64(x)-15.5, float64(y)-13
+			in := (dy < 0 && dx*dx+dy*dy < 13*13) || (dy >= 0 && y < 28 && dx > -13 && dx < 13)
+			if y >= 24 && y < 28 && (x/5)%2 == 1 { // the wavy hem
+				in = false
+			}
+			if in {
+				img.SetNRGBA(x, y, body)
+			}
+			if (dx+5)*(dx+5)+(dy+2)*(dy+2) < 6 || (dx-5)*(dx-5)+(dy+2)*(dy+2) < 6 { // eyes
+				img.SetNRGBA(x, y, color.NRGBA{255, 255, 255, 255})
+			}
+		}
+	}
+	return img
+}
+
+func gemImage() image.Image {
+	img := image.NewNRGBA(image.Rect(0, 0, 32, 32))
+	for y := range 32 {
+		for x := range 32 {
+			dx, dy := x-16, y-16
+			if dx < 0 {
+				dx = -dx
+			}
+			if dy < 0 {
+				dy = -dy
+			}
+			if dx+dy <= 8 {
+				c := color.NRGBA{0x4a, 0xd8, 0xe8, 255}
+				if x < 16 && y < 16 {
+					c = color.NRGBA{0xb0, 0xf4, 0xfc, 255} // the light facet
+				}
+				img.SetNRGBA(x, y, c)
+			}
+		}
+	}
+	return img
+}
 
 // platformerFiles is a platformer: run (left / right), jump (up) with
 // gravity, land on walls, collect the coins, then touch the flag for the next
 // level (after the last: the first again); falling off restarts the level.
 func platformerFiles(name string) (map[string]string, map[string]image.Image) {
-	obj := func(sprite string, solid bool, depth int) string {
-		return fmt.Sprintf("sprite = %q\nsolid = %v\nvisible = true\ndepth = %d\npersistent = false\nparent = \"-1\"\nmask = \"-1\"\n", sprite, solid, depth)
-	}
+	obj := objectTOML
 	files := map[string]string{
 		"game.toml":                  fmt.Sprintf("name = %q\ngm_version = 530\nroom_order = [\"level1\", \"level2\"]\n\n[settings]\n  author = \"\"\n  icon = \"player\"\n", name),
 		"sprites/wall/sprite.toml":   spriteTOML,

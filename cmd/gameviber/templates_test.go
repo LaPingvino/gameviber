@@ -37,3 +37,29 @@ func TestPlatformerTemplate(t *testing.T) {
 		t.Error("an unknown template made a game")
 	}
 }
+
+// TestTopdownTemplate: three lives at the start, a gem taken by walking to it,
+// and a ghost's catch costing a life and sending the player back to the start.
+func TestTopdownTemplate(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "td")
+	if err := cmdNew([]string{"-template", "topdown", dir}); err != nil {
+		t.Fatal(err)
+	}
+	var rep strings.Builder
+	if n, err := checkProjectVariant(dir, "", &rep); err != nil || n != 0 {
+		t.Fatalf("check: %v %d problems\n%s", err, n, rep.String())
+	}
+	play := func(keys string, steps int) (map[string]any, string) {
+		st, err := playProjectOpts(dir, playOpts{Keys: keys, Steps: steps, Expect: "lives * 1000000 + player.x * 1000 + player.y"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return st, st["expect"].(map[string]any)["value"].(string)
+	}
+	if st, v := play("right:30", 40); st["score"] != 10 || v != "3160040" {
+		t.Errorf("the first gem: score %v, lives/x/y %v; want 10, 3160040", st["score"], v)
+	}
+	if _, v := play("right:30", 300); v != "2040040" {
+		t.Errorf("waiting for a ghost: lives/x/y %v, want 2040040 (a life less, back at the start)", v)
+	}
+}

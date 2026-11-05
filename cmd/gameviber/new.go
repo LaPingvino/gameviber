@@ -29,8 +29,8 @@ func cmdNew(args []string) error {
 		return fmt.Errorf("%s exists already", dir)
 	}
 	name := filepath.Base(dir)
-	if tmpl == "platformer" {
-		files, images := platformerFiles(name)
+	if make, ok := templateFiles[tmpl]; ok {
+		files, images := make(name)
 		return writeTemplate(dir, files, images)
 	}
 	files := map[string]string{
