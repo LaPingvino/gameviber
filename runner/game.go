@@ -465,6 +465,22 @@ func (g *Game) coreFuncs() map[string]gml.Func {
 		"set_graphics_mode": func(*gml.Interp, []gml.Value) (gml.Value, error) { return gml.RealV(0), nil },
 		"io_handle":         func(*gml.Interp, []gml.Value) (gml.Value, error) { return gml.RealV(0), nil },
 		"keyboard_wait":     func(*gml.Interp, []gml.Value) (gml.Value, error) { return gml.RealV(0), nil },
+		"event_perform": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (type, numb): self's event of that kind, as its own (ev_ constants)
+			if len(a) < 2 {
+				return gml.Value{}, fmt.Errorf("needs type and number")
+			}
+			if get := EventGetter(int(a[0].N), int(a[1].N)); get != nil {
+				s := g.self()
+				if h := s.Obj.handler(get); h != nil {
+					h(g.room, s)
+				}
+			}
+			return gml.RealV(0), nil
+		},
+		"event_inherited": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (): the parent's handler for the event being run
+			g.self().Inherited(g.room)
+			return gml.RealV(0), nil
+		},
 		"event_user": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (n 0–15): self's user event n
 			if len(a) == 0 {
 				return gml.RealV(0), nil

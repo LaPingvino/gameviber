@@ -81,6 +81,7 @@ type Instance struct {
 	GravityDirection     float64 // degrees, 270 = down
 	Alarm                [12]int // -1 = off
 	Destroyed            bool
+	events               []eventCtx // the events running on it, innermost last (event_inherited)
 	// Solid is the instance's own solid flag (GM 5 keeps it per instance:
 	// code may change it — Pacmanio's ghosts toggle walls); from the object.
 	Solid bool

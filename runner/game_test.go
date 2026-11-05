@@ -466,3 +466,34 @@ far = instance_furthest(0, 0, wall)`)
 		t.Errorf("%v", v)
 	}
 }
+
+// event_inherited runs the parent's handler for the same event (up a chain
+// of three); event_perform runs an event by type and number.
+func TestEventInheritedAndPerform(t *testing.T) {
+	grand := &Object{Name: "grand"}
+	parent := &Object{Name: "parent", Parent: grand}
+	child := &Object{Name: "child", Parent: parent}
+	g := &Game{Objects: []*Object{grand, parent, child}}
+	code := func(src string) Handler {
+		h, err := g.Code(src)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return h
+	}
+	grand.Events.Step = code("trail += 100")
+	parent.Events.Step = code("trail += 10; event_inherited()")
+	child.Events.Step = code("trail += 1; event_inherited(); event_perform(ev_alarm, 3); event_perform(ev_other, ev_user2)")
+	parent.Events.Alarm[3] = code("alarmed = 1")
+	child.Events.Other = map[int]Handler{12: code("user2 = 1; event_inherited()")}
+	r := &Room{W: 64, H: 64, G: &Globals{Vars: map[string]float64{}}}
+	in := r.Create(child, 0, 0)
+	in.Vars["trail"] = 0
+	r.Step(keyKeys{})
+	if len(g.Errors) > 0 {
+		t.Fatal(g.Errors)
+	}
+	if v := in.Vars; v["trail"] != 111 || v["alarmed"] != 1 || v["user2"] != 1 || len(in.events) != 0 {
+		t.Errorf("%v, events left %d", v, len(in.events))
+	}
+}

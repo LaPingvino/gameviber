@@ -417,6 +417,21 @@ var constants = map[string]float64{
 	// GameViber has no unregistered mode (GM 5's library actions check it).
 	"gamemaker_registered": 1,
 	// Mouse buttons and virtual keys (GM 5's constants; Windows key codes).
+	// Event types and numbers (event_perform; GM 5's ev_ constants).
+	"ev_create": 0, "ev_destroy": 1, "ev_alarm": 2, "ev_step": 3, "ev_collision": 4, "ev_keyboard": 5, "ev_mouse": 6,
+	"ev_other": 7, "ev_draw": 8, "ev_keypress": 9, "ev_keyrelease": 10,
+	"ev_step_normal": 0, "ev_step_begin": 1, "ev_step_end": 2,
+	"ev_outside": 0, "ev_boundary": 1, "ev_game_start": 2, "ev_game_end": 3, "ev_room_start": 4, "ev_room_end": 5,
+	"ev_no_more_lives": 6, "ev_animation_end": 7, "ev_end_of_path": 8,
+	"ev_user0": 10, "ev_user1": 11, "ev_user2": 12, "ev_user3": 13, "ev_user4": 14, "ev_user5": 15, "ev_user6": 16,
+	"ev_user7": 17, "ev_user8": 18, "ev_user9": 19, "ev_user10": 20, "ev_user11": 21, "ev_user12": 22, "ev_user13": 23,
+	"ev_user14": 24, "ev_user15": 25,
+	"ev_left_button": 0, "ev_right_button": 1, "ev_middle_button": 2, "ev_no_button": 3, "ev_left_press": 4,
+	"ev_right_press": 5, "ev_middle_press": 6, "ev_left_release": 7, "ev_right_release": 8, "ev_middle_release": 9,
+	"ev_mouse_enter": 10, "ev_mouse_leave": 11,
+	"ev_global_left_button": 50, "ev_global_right_button": 51, "ev_global_middle_button": 52, "ev_global_left_press": 53,
+	"ev_global_right_press": 54, "ev_global_middle_press": 55, "ev_global_left_release": 56,
+	"ev_global_right_release": 57, "ev_global_middle_release": 58,
 	"mb_any": -1, "mb_none": 0, "mb_left": 1, "mb_right": 2, "mb_middle": 3,
 	"vk_nokey": 0, "vk_anykey": 1, "vk_backspace": 8, "vk_tab": 9, "vk_enter": 13, "vk_shift": 16, "vk_control": 17,
 	"vk_alt": 18, "vk_pause": 19, "vk_escape": 27, "vk_space": 32, "vk_pageup": 33, "vk_pagedown": 34, "vk_end": 35,

@@ -73,8 +73,87 @@ func (r *Room) Create(obj *Object, x, y float64) *Instance {
 func (o *Object) handler(get func(*Events) Handler) Handler {
 	for _, p := range o.chain() {
 		if h := get(&p.Events); h != nil {
-			return h
+			return running(get, p, h)
 		}
+	}
+	return nil
+}
+
+// eventCtx is an event being run on an instance: which event, and the object
+// up the parent chain whose handler runs (event_inherited goes on from its
+// parent).
+type eventCtx struct {
+	get   func(*Events) Handler
+	owner *Object
+}
+
+// running wraps a handler so the instance knows which event it is in.
+func running(get func(*Events) Handler, owner *Object, h Handler) Handler {
+	return func(r *Room, i *Instance) {
+		i.events = append(i.events, eventCtx{get, owner})
+		defer func() { i.events = i.events[:len(i.events)-1] }()
+		h(r, i)
+	}
+}
+
+// Inherited runs the parent's handler for the event the instance is in
+// (event_inherited); nothing outside an event or without a parent's.
+func (i *Instance) Inherited(r *Room) {
+	if len(i.events) == 0 {
+		return
+	}
+	top := i.events[len(i.events)-1]
+	for p := top.owner.Parent; p != nil; p = p.Parent {
+		if h := top.get(&p.Events); h != nil {
+			running(top.get, p, h)(r, i)
+			return
+		}
+	}
+}
+
+// EventGetter is event_perform's (type, number) as an Events field; nil for
+// events GameViber has no single handler for (collisions).
+func EventGetter(typ, n int) func(*Events) Handler {
+	switch typ {
+	case 0:
+		return func(e *Events) Handler { return e.Create }
+	case 1:
+		return func(e *Events) Handler { return e.Destroy }
+	case 2:
+		if n < 0 || n >= 12 {
+			return nil
+		}
+		return func(e *Events) Handler { return e.Alarm[n] }
+	case 3:
+		switch n {
+		case 1:
+			return func(e *Events) Handler { return e.BeginStep }
+		case 2:
+			return func(e *Events) Handler { return e.EndStep }
+		}
+		return func(e *Events) Handler { return e.Step }
+	case 5:
+		return func(e *Events) Handler { return e.Key[Key(n)] }
+	case 6:
+		return func(e *Events) Handler { return e.Mouse[n] }
+	case 7:
+		switch n {
+		case 0:
+			return func(e *Events) Handler { return e.OutsideRoom }
+		case 4:
+			return func(e *Events) Handler { return e.RoomStart }
+		case 5:
+			return func(e *Events) Handler { return e.RoomEnd }
+		case 6:
+			return func(e *Events) Handler { return e.NoMoreLives }
+		}
+		return func(e *Events) Handler { return e.Other[n] }
+	case 8:
+		return func(e *Events) Handler { return e.Draw }
+	case 9:
+		return func(e *Events) Handler { return e.KeyPress[Key(n)] }
+	case 10:
+		return func(e *Events) Handler { return e.KeyRelease[Key(n)] }
 	}
 	return nil
 }
