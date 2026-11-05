@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"fmt"
 	"math"
 	"testing"
 
@@ -495,5 +496,53 @@ func TestEventInheritedAndPerform(t *testing.T) {
 	}
 	if v := in.Vars; v["trail"] != 111 || v["alarmed"] != 1 || v["user2"] != 1 || len(in.events) != 0 {
 		t.Errorf("%v, events left %d", v, len(in.events))
+	}
+}
+
+// textDrawer records Text calls.
+type textDrawer struct {
+	Drawer
+	lines []string
+	ys    []float64
+}
+
+func (d *textDrawer) Text(x, y float64, s string, f Font) {
+	d.lines, d.ys = append(d.lines, s), append(d.ys, y)
+}
+
+// draw_text_ext wraps words at the width and spaces lines by sep;
+// string_width / string_height measure in the draw font (a stand-in
+// measurer: 10 px a letter, 12 a line).
+func TestDrawTextExtWraps(t *testing.T) {
+	old := MeasureText
+	defer func() { MeasureText = old }()
+	MeasureText = func(s string, f Font) (float64, float64) {
+		n := 1
+		for _, c := range s {
+			if c == '#' {
+				n++
+			}
+		}
+		return float64(len(s)) * 10, float64(n * 12)
+	}
+	o := &Object{Name: "o"}
+	g := &Game{Objects: []*Object{o}}
+	h, err := g.Code(`draw_text_ext(5, 10, "one two three four", 20, 90); w = string_width("abc"); hh = string_height("a#b")`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	o.Events.Draw = h
+	r := &Room{W: 64, H: 64, G: &Globals{Vars: map[string]float64{}}}
+	in := r.Create(o, 0, 0)
+	d := &textDrawer{}
+	g.RunDraw(r, in, d)
+	if len(g.Errors) > 0 {
+		t.Fatal(g.Errors)
+	}
+	if want := []string{"one two", "three", "four"}; fmt.Sprint(d.lines) != fmt.Sprint(want) || fmt.Sprint(d.ys) != "[10 30 50]" {
+		t.Errorf("lines %q at %v", d.lines, d.ys)
+	}
+	if in.Vars["w"] != 30 || in.Vars["hh"] != 24 {
+		t.Errorf("w %v hh %v", in.Vars["w"], in.Vars["hh"])
 	}
 }

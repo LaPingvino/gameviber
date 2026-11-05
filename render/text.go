@@ -125,3 +125,21 @@ func TextImage(t TextCall, scale float64) (*image.RGBA, image.Point) {
 	}
 	return img, image.Pt(int(t.X*scale), int(t.Y*scale))
 }
+
+// MeasureText is the size a text call takes (string_width / string_height):
+// the widest line, and the lines' height ('#' and newlines split as drawText).
+func MeasureText(s string, f runner.Font) (w, h float64) {
+	fc := face(f)
+	if fc == nil {
+		return 0, 0
+	}
+	lineH := fc.Metrics().Height.Ceil()
+	s = strings.ReplaceAll(strings.ReplaceAll(s, "\\#", "\x00"), "#", "\n")
+	lines := strings.Split(s, "\n")
+	for _, line := range lines {
+		w = max(w, float64(font.MeasureString(fc, strings.ReplaceAll(line, "\x00", "#")).Ceil()))
+	}
+	return w, float64(len(lines) * lineH)
+}
+
+func init() { runner.MeasureText = MeasureText }

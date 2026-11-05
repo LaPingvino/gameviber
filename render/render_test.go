@@ -241,3 +241,15 @@ func TestScreenSave(t *testing.T) {
 		}
 	}
 }
+
+// MeasureText (string_width / string_height): longer text is wider, '#'
+// adds a line of the same height; set as runner.MeasureText.
+func TestMeasureText(t *testing.T) {
+	f := runner.Font{Name: "Arial", Size: 12}
+	w1, h1 := MeasureText("Hello", f)
+	w2, h2 := MeasureText("Hello Hello", f)
+	_, h3 := MeasureText("Hello#Hello", f)
+	if w1 <= 0 || w2 <= w1 || h1 <= 0 || h2 != h1 || h3 != 2*h1 || runner.MeasureText == nil {
+		t.Errorf("w %v %v, h %v %v %v", w1, w2, h1, h2, h3)
+	}
+}

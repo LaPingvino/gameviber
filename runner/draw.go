@@ -23,6 +23,11 @@ type Drawer interface {
 	Text(x, y float64, s string, font Font)
 }
 
+// MeasureText is how big a text is in a font (string_width /
+// string_height, draw_text_ext's wrapping): the renderer sets it (render's
+// init); nil leaves the sizes 0.
+var MeasureText func(s string, f Font) (w, h float64)
+
 // Font is the draw font: name, size (points), colour, bold.
 type Font struct {
 	Name   string
@@ -172,6 +177,28 @@ func (g *Game) drawFuncs() map[string]gml.Func {
 		"draw_text": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (x, y, string)
 			if d() != nil && len(a) > 2 {
 				d().Text(num(a, 0), num(a, 1), a[2].String(), g.font())
+			}
+			return ok, nil
+		},
+		"string_width": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (string): in the current font, the widest line
+			w, _ := g.measure(str(a, 0))
+			return gml.RealV(w), nil
+		},
+		"string_height": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (string): in the current font, all lines
+			_, h := g.measure(str(a, 0))
+			return gml.RealV(h), nil
+		},
+		"draw_text_ext": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (x, y, string, sep, w): wrapped at w (−1: no wrap), lines sep apart (−1: the font's)
+			if d() == nil {
+				return ok, nil
+			}
+			x, y, sep, w := num(a, 0), num(a, 1), num(a, 3), num(a, 4)
+			f := g.font()
+			if sep < 0 {
+				_, sep = g.measure("M")
+			}
+			for i, line := range g.wrap(str(a, 2), w) {
+				d().Text(x, y+float64(i)*sep, line, f)
 			}
 			return ok, nil
 		},
@@ -337,4 +364,50 @@ func drawRoundRect(d Drawer, x1, y1, x2, y2 float64, fill, pen int32) {
 			d.Line(r-k2+1, y, r-k, y, pen)
 		}
 	}
+}
+
+// str is argument i as text ("" when missing).
+func str(a []gml.Value, i int) string {
+	if i < len(a) {
+		return a[i].String()
+	}
+	return ""
+}
+
+// measure is MeasureText in the current draw font.
+func (g *Game) measure(s string) (float64, float64) {
+	if MeasureText == nil {
+		return 0, 0
+	}
+	return MeasureText(s, g.font())
+}
+
+// wrap splits a text into lines: at '#' (GM 5's newline; \# is a real #)
+// and newlines, then words onto a line while it stays within w (w < 0: no
+// wrapping; a word longer than w gets a line of its own).
+func (g *Game) wrap(s string, w float64) []string {
+	s = strings.ReplaceAll(strings.ReplaceAll(s, "\\#", "\x00"), "#", "\n")
+	var out []string
+	for _, para := range strings.Split(s, "\n") {
+		para = strings.ReplaceAll(para, "\x00", "\\#")
+		if w < 0 {
+			out = append(out, para)
+			continue
+		}
+		line := ""
+		for _, word := range strings.Fields(para) {
+			try := word
+			if line != "" {
+				try = line + " " + word
+			}
+			if tw, _ := g.measure(try); tw > w && line != "" {
+				out = append(out, line)
+				line = word
+				continue
+			}
+			line = try
+		}
+		out = append(out, line)
+	}
+	return out
 }
