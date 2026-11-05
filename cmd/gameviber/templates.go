@@ -11,7 +11,7 @@ import (
 // a small but whole game in GameViber's own files and pictures.
 
 // templates are the names -template takes ("coins" is the starter of before).
-var templates = []string{"coins", "coins-js", "platformer", "topdown", "shooter"}
+var templates = []string{"coins", "coins-js", "coins-lua", "platformer", "topdown", "shooter"}
 
 // starterJS is the coins starter's player events in JavaScript, one for one
 // with its GML (TestStarterGMLvsJavaScript plays both and finds them the same):
@@ -25,6 +25,24 @@ var starterJS = map[string]string{
 	"collision-coin": "score += 10;\nother.instance_destroy(); // GML: with (other) instance_destroy()\n",
 	"step":           "// every coin collected: back to the start, the coins again\nif (instance_number(coin) == 0) room_goto(room);\n",
 }
+
+// starterLua is the same in Lua: the "coins-lua" template.
+var starterLua = map[string]string{
+	"create":         "score = 0\n",
+	"keyboard-37":    "if place_free(x - 4, y) then x = x - 4 end\n",
+	"keyboard-39":    "if place_free(x + 4, y) then x = x + 4 end\n",
+	"keyboard-38":    "if place_free(x, y - 4) then y = y - 4 end\n",
+	"keyboard-40":    "if place_free(x, y + 4) then y = y + 4 end\n",
+	"collision-coin": "score = score + 10\nother:instance_destroy() -- GML: with (other) instance_destroy()\n",
+	"step":           "-- every coin collected: back to the start, the coins again\nif instance_number(coin) == 0 then room_goto(room) end\n",
+}
+
+// starterLangs are the coins starter's player events in other languages, by
+// template name and file extension.
+var starterLangs = map[string]struct {
+	ext    string
+	events map[string]string
+}{"coins-js": {".js", starterJS}, "coins-lua": {".lua", starterLua}}
 
 // templateFiles makes each template's files and pictures (all but "coins").
 var templateFiles = map[string]func(name string) (map[string]string, map[string]image.Image){
