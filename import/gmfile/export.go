@@ -125,7 +125,8 @@ Check your changes with `+"`gameviber check`"+`; run with `+"`gameviber run`"+`.
 Any event or script may be JavaScript instead: step.js beside create.gml, scripts/<name>.js. It sees GameViber
 the same way — the same function names, the instance's variables as plain names (x += 4), other, global; an
 undeclared name assigned becomes an instance variable, so declare locals with let / const; a script's
-arguments are argument0 … (or arguments), and it may return a value.
+arguments are argument0 … (or arguments), and it may return a value. GML's with (other) instance_destroy() is
+other.instance_destroy(): a function called on an instance runs as that instance.
 `, name)))
 	return w.notes, w.err
 }

@@ -6,7 +6,9 @@
 // functions under their GML names (instance_create, draw_text, place_free …),
 // the instance's variables as plain names (x += 4; vspeed = 2), constants and
 // resource names as values (vk_left, c_red, obj_wall), `other` in collision
-// events and `global` for globals. `this` is the instance too. Assigning a
+// events and `global` for globals. `this` is the instance too. A GameViber
+// function called on an instance — other.instance_destroy(), or f.call(other)
+// — runs as that instance, as GML's with (other) does. Assigning a
 // name that is not declared makes an instance variable, as in GML; locals are
 // declared with let, const or var. JavaScript's own globals (Math, JSON …)
 // come first.
@@ -171,7 +173,18 @@ func (v *vm) function(name string) goja.Value {
 		for i, a := range call.Arguments {
 			args[i] = v.gml(a)
 		}
-		res, err := v.in.Call(name, args)
+		// Called on an instance — other.instance_destroy(), or
+		// instance_destroy.call(other) — it runs as that instance, the
+		// calling one as other: GML's with (other) instance_destroy().
+		in := v.in
+		if o, ok := call.This.(*goja.Object); ok {
+			if target, ok := o.Export().(*inst); ok && target.i != in.Self {
+				self, otherWas := in.Self, in.Other
+				in.Self, in.Other = target.i, self
+				defer func() { in.Self, in.Other = self, otherWas }()
+			}
+		}
+		res, err := in.Call(name, args)
 		if err != nil {
 			panic(v.rt.NewGoError(fmt.Errorf("%s: %w", name, err)))
 		}
@@ -198,6 +211,9 @@ type inst struct {
 func (o *inst) Get(key string) goja.Value {
 	if x, ok := o.i.Get(key, nil); ok {
 		return o.v.value(x)
+	}
+	if o.v.in != nil && o.v.in.Func(key) != nil { // other.instance_destroy(): runs as that instance
+		return o.v.function(key)
 	}
 	return nil
 }

@@ -168,8 +168,12 @@ goal of its own, weighed alongside the LLM-friendly rule.
    assistant's writes accept .js), its problems in the check line with file:line, completions in .js too; the
    assistant's outline marks JS events ("step [JavaScript]"); AGENTS.md (starter and import) has a paragraph on
    JavaScript. Choice: no JS colouring yet (the GML overlay stays off for .js — a JS grammar is its own job).
-   NEXT: the GML-vs-JS same-game test (a template written in both, played step for step), then a JS starter
-   template / the tutorial's language choice; then Lua (gopher-lua) the same way.
+   DONE 2026-11-05: the GML-vs-JS test (cmd/gameviber/lang_test.go: the starter twice, the player's events in
+   JS, one key script, 765 steps compared — position, score, coins, room — identical, 2 coins collected). It
+   found a real gap: JS had no `with (other)`; now a GameViber function called on an instance —
+   other.instance_destroy(), or f.call(other) — runs as that instance with the caller as other, as GML's with
+   does (TestCallOnInstance; AGENTS.md says so). NEXT: a JS starter template / the tutorial's language choice;
+   then Lua (gopher-lua) the same way.
 
 ## Libraries around it (Joop 2026-11-02: an Opus decoder "would fit right along the gml stuff … and the game
 maker file decoder")
@@ -424,4 +428,5 @@ setting (on by default) rather than per-game code:
 - 2026-11-05 (13: JavaScript part 2 — overnight) — game folders may hold .js event files: gmfile.Event.Lang + Source(), Project.EventFile (the writer keeps the extension), the loader compiles them through runner.CodeIn; load/lang_test.go plays a two-object folder (JS step, JS collision with other, a GML create beside them) and round-trips it. Full gate green, wasm builds. Not yet: .js scripts, check, the editor.
 - 2026-11-05 (13: JavaScript part 3 — overnight) — JavaScript scripts (scripts/<name>.js, called by name from GML and JS; a GML script from JS; self inside) and check for .js (syntax, file:line; only game code). Tests: the folder test extended (double.js → add1.gml, from JS and from GML, where_am_i reads x and arguments.length, the export keeps double.js), TestCheckJavaScript (clean, then a syntax error at scripts/half.js:2, a web page's .js ignored). Full gate green, wasm builds, the reference unchanged.
 - 2026-11-05 (13: JavaScript part 4 — overnight) — the editor knows .js (tree, save, assistant writes, completions, outline) and AGENTS.md explains JS. Seen in headless Chromium on a starter game with step.js and scripts/half.js: step.js open, completions for instance_c…, the check line "SyntaxError: Unexpected token ; at scripts/half.js:2:22". cmd/gameviber + gmfile tests green, wasm builds.
+- 2026-11-05 (13: JavaScript part 5 — overnight) — the GML-vs-JS same-game test: 765 identical steps of the starter game; it caught the missing `with (other)` (the JS player destroyed itself instead of the coin), fixed by calls on instances running as that instance. Full gate green, wasm builds.
 
