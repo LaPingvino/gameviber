@@ -129,7 +129,10 @@ func Attach(p *gmfile.Project, g *runner.Game) {
 // starts, and their sounds and questions need the backend already.
 func New(p *gmfile.Project, pl *load.Play) *Game {
 	a := render.LoadAssets(p)
-	a.TextOver = true // texts drawn over the frame at the screen's resolution (Draw)
+	a.TextOver = true                                // texts drawn over the frame at the screen's resolution (Draw)
+	pl.G.Game.ScreenSave = func(path string) error { // the room as it is now, texts in it
+		return render.SaveScreen(path, render.Shot(p, pl.G.Game, pl.Room, a))
+	}
 	return &Game{play: pl, assets: a, proj: p, in: input{held: map[runner.Key]bool{}, prev: map[runner.Key]bool{}}, textCache: map[string]*eb.Image{}}
 }
 

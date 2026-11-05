@@ -49,6 +49,9 @@ type Game struct {
 	Constants map[string]gml.Value
 	// Message shows show_message's text (the backend's); nil: not shown.
 	Message func(string)
+	// ScreenSave writes what the screen shows to a file (screen_save; the
+	// screen backend's); nil: nothing is saved.
+	ScreenSave func(path string) error
 	// Debug receives show_debug_message's text (a tool collecting what the
 	// game says about itself; nil: dropped).
 	Debug func(string)
@@ -510,6 +513,14 @@ func (g *Game) coreFuncs() map[string]gml.Func {
 			return gml.StrV(""), nil
 		},
 		"draw_highscore": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // drawing comes with the draw events
+			return gml.RealV(0), nil
+		},
+		"screen_save": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (fname): the screen to a file (BMP; PNG for .png)
+			if g.ScreenSave != nil && len(a) > 0 {
+				if err := g.ScreenSave(a[0].String()); err != nil && g.Debug != nil {
+					g.Debug("screen_save: " + err.Error()) // as GM 5: a screen that can't be saved doesn't stop the game (a browser has no files)
+				}
+			}
 			return gml.RealV(0), nil
 		},
 		"get_integer": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (question, default): a number typed in; the default when it isn't one

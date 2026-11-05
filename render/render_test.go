@@ -4,6 +4,7 @@ import (
 	"image"
 	"image/png"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -206,5 +207,37 @@ func TestSteloViewFollows(t *testing.T) {
 		f, _ := os.Create(path)
 		png.Encode(f, img)
 		f.Close()
+	}
+}
+
+// screen_save through render.Shot / SaveScreen: a BMP by default, a PNG for
+// .png.
+func TestScreenSave(t *testing.T) {
+	p := &gmfile.Project{Rooms: []*gmfile.Room{{Name: "r", BGColor: 0x0000FF, DrawBGColor: true}}}
+	o := &runner.Object{Name: "o"}
+	g := &runner.Game{Objects: []*runner.Object{o}}
+	h, err := g.Code(`screen_save("shot.bmp"); screen_save("shot.png")`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	o.Events.Step = h
+	r := &runner.Room{Name: "r", W: 8, H: 6, G: &runner.Globals{Vars: map[string]float64{}}}
+	r.Create(o, 0, 0)
+	dir := t.TempDir()
+	g.ScreenSave = func(path string) error {
+		return SaveScreen(filepath.Join(dir, path), Shot(p, g, r, &Assets{}))
+	}
+	r.Step(nil)
+	if len(g.Errors) > 0 {
+		t.Fatal(g.Errors)
+	}
+	for _, name := range []string{"shot.bmp", "shot.png"} {
+		b, err := os.ReadFile(filepath.Join(dir, name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if name == "shot.bmp" && string(b[:2]) != "BM" || name == "shot.png" && string(b[1:4]) != "PNG" {
+			t.Errorf("%s: starts %q", name, b[:4])
+		}
 	}
 }

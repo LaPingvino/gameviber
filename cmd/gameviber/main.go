@@ -16,7 +16,6 @@ import (
 	"flag"
 	"fmt"
 	"github.com/LaPingvino/gameviber/gml"
-	"image"
 	"image/png"
 	"io"
 	"os"
@@ -598,18 +597,7 @@ func playProjectOpts(path string, o playOpts) (map[string]any, error) {
 		}
 	}
 	if shot != nil {
-		var gr *gmfile.Room
-		for _, r := range p.Rooms {
-			if r != nil && r.Name == pl.Room.Name {
-				gr = r
-			}
-		}
-		w, h := pl.Room.W, pl.Room.H
-		if pl.Room.ViewsEnabled && len(pl.Room.Views) > 0 && pl.Room.Views[0].Visible {
-			w, h = pl.Room.Views[0].W, pl.Room.Views[0].H
-		}
-		img := image.NewRGBA(image.Rect(0, 0, w, h))
-		render.Frame(img, g.Game, pl.Room, render.LoadAssets(p), gr.BGColor, gr.DrawBGColor)
+		img := render.Shot(p, g.Game, pl.Room, render.LoadAssets(p))
 		if err := png.Encode(shot, img); err != nil {
 			return nil, err
 		}
