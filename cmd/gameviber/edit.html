@@ -13,7 +13,15 @@ nav { overflow: auto; border-right: 1px solid var(--line); padding: 8px 0; backg
 nav details { padding: 0 8px; } nav summary { cursor: pointer; padding: 3px 4px; font-weight: 600; }
 nav a { display: block; padding: 3px 4px 3px 18px; color: var(--ink); text-decoration: none; border-radius: 4px; font-family: ui-monospace, monospace; font-size: 13px; }
 nav a:hover { background: var(--line); } nav a.on { background: var(--accent); color: #fff; }
-main { display: grid; grid-template-rows: auto 1fr; min-width: 0; }
+main { display: grid; grid-template-rows: auto 1fr; min-width: 0; position: relative; }
+/* GML colouring: a <pre> under the textarea, same metrics; the textarea's own text is transparent over it. */
+#hl { position: absolute; margin: 0; padding: 12px; overflow: hidden; white-space: pre; pointer-events: none; background: var(--panel); color: var(--ink); font: 13px/1.5 ui-monospace, monospace; tab-size: 4; z-index: 0; }
+#text.hl { position: relative; z-index: 1; background: transparent; color: transparent; caret-color: var(--ink); white-space: pre; overflow-wrap: normal; overflow: auto; }
+#text.hl::selection { color: transparent; background: color-mix(in srgb, var(--accent, #c55a1f) 35%, transparent); }
+:root { --hl-k: #8a2a8f; --hl-f: #1f5fbf; --hl-v: #8a5a00; --hl-c: #8a4b00; --hl-r: #006d86; --hl-s: #2e7d32; --hl-n: #8a4b00; --hl-m: #6b6f76; }
+@media (prefers-color-scheme: dark) { :root { --hl-k: #d19af0; --hl-f: #7fb8f5; --hl-v: #ebc97a; --hl-c: #e0a878; --hl-r: #6cc7d6; --hl-s: #a6d48a; --hl-n: #e0a878; --hl-m: #98a2ad; } }
+#hl .k { color: var(--hl-k); } #hl .f { color: var(--hl-f); } #hl .v { color: var(--hl-v); } #hl .c { color: var(--hl-c); }
+#hl .r { color: var(--hl-r); } #hl .s { color: var(--hl-s); } #hl .n { color: var(--hl-n); } #hl .m { color: var(--hl-m); font-style: italic; }
 .bar { display: flex; gap: 10px; align-items: center; padding: 6px 12px; border-bottom: 1px solid var(--line); }
 .bar code { flex: 1; overflow: hidden; text-overflow: ellipsis; }
 button { font: inherit; padding: 5px 14px; border: 0; border-radius: 4px; background: var(--accent); color: #fff; cursor: pointer; }
@@ -138,6 +146,7 @@ footer pre { margin: 0; font: 12px/1.45 ui-monospace, monospace; white-space: pr
       <span class="hint">click: add a point · drag: move · right click: remove · speed % of the point under the mouse: <input id="pathspeed" type="number" min="0" max="1000" value="100" style="width:4.5em" disabled></span></div>
     <canvas id="pathcanvas" width="640" height="480" style="margin-top:6px;max-width:100%;border:1px solid var(--line);background:#1b2433;cursor:crosshair"></canvas>
   </div>
+  <pre id="hl" aria-hidden="true" hidden></pre>
   <textarea id="text" spellcheck="false" disabled></textarea>
   <div id="suggest" role="listbox" aria-label="completions" hidden style="position:fixed;bottom:10px;right:14px;z-index:20;display:flex;gap:4px;flex-wrap:wrap;max-width:60vw;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:4px 6px;font:12px ui-monospace,monospace"></div>
   <iframe id="game" title="the game" style="display:none;width:100%;height:100%;border:0;background:#111"></iframe>
@@ -791,7 +800,7 @@ async function open(f, a, asText) {
   room = null; $("room").classList.remove("on"); $("text").style.display = "";
   const t = await (await call("api/file?path=" + encodeURIComponent(f))).text();
   current = f; saved = t;
-  $("path").textContent = f; $("text").value = t; $("text").disabled = false;
+  $("path").textContent = f; $("text").value = t; $("text").disabled = false; setTimeout(hlSync, 0);
   pathOpen(/^paths\/[^/]+\.toml$/.test(f) ? t : null);
   document.querySelectorAll("nav a.on").forEach((x) => x.classList.remove("on"));
   a.classList.add("on"); mark();
@@ -915,6 +924,7 @@ $("text").addEventListener("keydown", (e) => { if (e.key === "Tab") { e.preventD
 let names = null;
 async function loadNames() {
   try { const n = await (await call("api/names")).json(); names = [].concat(n.functions.map((w) => [w, "f"]), n.variables.map((w) => [w, "v"]), n.constants.map((w) => [w, "c"]), n.resources.map((w) => [w, "r"])); } catch (e) { names = null; }
+  if (typeof nameKindsUpdate === "function") { nameKindsUpdate(); hlSync(); }
 }
 function wordAtCaret() {
   const ta = $("text"), before = ta.value.slice(0, ta.selectionStart);
@@ -948,6 +958,40 @@ $("text").addEventListener("keydown", (e) => {
 });
 $("text").addEventListener("blur", () => { $("suggest").hidden = true; });
 loadNames();
+// --- GML colouring (keywords, functions, variables, constants, this game's resources, strings, numbers,
+// comments), drawn in #hl under the textarea; only for .gml files. The textarea stays the real control. ---
+const gmlKeywords = new Set("if else while do for repeat with switch case default break continue exit return var globalvar begin end and or not xor div mod until then self other all noone global true false".split(" "));
+let nameKinds = new Map();
+function nameKindsUpdate() { nameKinds = new Map((names || []).map(([w, k]) => [w, k])); }
+function escHTML(s) { return s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]); }
+function colourGML(src) {
+  const re = /(\/\/[^\n]*|\/\*[\s\S]*?(?:\*\/|$))|("[^"]*"?|'[^']*'?)|(\$[0-9a-fA-F]+|\b\d+(?:\.\d+)?\b)|([A-Za-z_][A-Za-z0-9_]*)/g;
+  let out = "", last = 0, m;
+  while ((m = re.exec(src))) {
+    out += escHTML(src.slice(last, m.index));
+    const t = escHTML(m[0]);
+    const cls = m[1] ? "m" : m[2] ? "s" : m[3] ? "n" : gmlKeywords.has(m[0]) ? "k" : (nameKinds.get(m[0]) || "");
+    out += cls ? `<span class="${cls}">${t}</span>` : t;
+    last = re.lastIndex;
+  }
+  return out + escHTML(src.slice(last)) + "\n";
+}
+function hlSync() {
+  const ta = $("text"), pre = $("hl");
+  const on = current && /\.gml$/.test(current) && ta.style.display !== "none" && !ta.disabled && ta.offsetParent;
+  ta.classList.toggle("hl", !!on);
+  pre.hidden = !on;
+  if (!on) return;
+  pre.style.top = ta.offsetTop + "px"; pre.style.left = ta.offsetLeft + "px";
+  pre.style.width = ta.clientWidth + "px"; pre.style.height = ta.clientHeight + "px";
+  pre.innerHTML = colourGML(ta.value);
+  pre.scrollTop = ta.scrollTop; pre.scrollLeft = ta.scrollLeft;
+}
+$("text").setAttribute("wrap", "off");
+$("text").addEventListener("input", hlSync);
+$("text").addEventListener("scroll", () => { $("hl").scrollTop = $("text").scrollTop; $("hl").scrollLeft = $("text").scrollLeft; });
+new MutationObserver(hlSync).observe($("text"), { attributes: true, attributeFilter: ["style", "disabled"] });
+new ResizeObserver(hlSync).observe($("text"));
 // --- Play (step E3): the game in the editor, from the saved files ---
 let playing = false, before = null;
 $("play").onclick = () => {
