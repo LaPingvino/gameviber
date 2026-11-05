@@ -221,3 +221,34 @@ draw_arrow(100, 420, 300, 420, 20)
 		t.Errorf("arrow: line %v, head %v %v", at(200, 420), at(290, 415), at(290, 425))
 	}
 }
+
+// draw_sprite_tiled covers the room with the wall; draw_sprite_stretched
+// fills its box (the coin wide, the player tall): what the shot looked like.
+func TestDrawSpriteTiledStretched(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "g")
+	if err := cmdNew([]string{dir}); err != nil {
+		t.Fatal(err)
+	}
+	os.WriteFile(filepath.Join(dir, "objects", "player", "draw.gml"), []byte(`draw_sprite_tiled(wall, 0, 0, 0)
+draw_sprite_stretched(coin, 0, 100, 100, 200, 120)
+draw_sprite_stretched(player, 0, 340, 100, 60, 180)
+`), 0o644)
+	var shot bytes.Buffer
+	if _, err := playProjectOpts(dir, playOpts{Steps: 2, Shot: &shot}); err != nil {
+		t.Fatal(err)
+	}
+	img, err := png.Decode(&shot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	at := func(x, y int) [3]uint32 { r, g, b, _ := img.At(x, y).RGBA(); return [3]uint32{r >> 8, g >> 8, b >> 8} }
+	if a, b := at(600, 450), at(5, 5); a != b || a == at(200, 160) {
+		t.Errorf("tiled wall: %v and %v should match (and differ from the coin %v)", a, b, at(200, 160))
+	}
+	if c := at(200, 160); c[0] < 200 || c[2] > 120 {
+		t.Errorf("stretched coin centre %v, want yellow", c)
+	}
+	if p := at(370, 200); p[1] < 180 || p[0] > 150 {
+		t.Errorf("stretched player %v, want green", p)
+	}
+}

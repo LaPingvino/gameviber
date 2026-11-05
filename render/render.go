@@ -9,6 +9,8 @@ import (
 	"math"
 	"sort"
 
+	xdraw "golang.org/x/image/draw"
+
 	"github.com/LaPingvino/gameviber/import/gmfile"
 	"github.com/LaPingvino/gameviber/runner"
 )
@@ -291,5 +293,73 @@ func drawLayer(dst *image.RGBA, img *image.NRGBA, b runner.Background) {
 		for _, x := range xs {
 			draw.Draw(dst, img.Bounds().Add(image.Pt(x, y)), img, image.Point{}, draw.Over)
 		}
+	}
+}
+
+// frameOf is the sprite's frame k (wrapped), with its origin; nil if none.
+func (d *frameDrawer) frameOf(name string, frame float64) (*image.NRGBA, image.Point) {
+	frames := d.a.Frames[name]
+	if len(frames) == 0 {
+		return nil, image.Point{}
+	}
+	k := int(math.Floor(frame)) % len(frames)
+	if k < 0 {
+		k += len(frames)
+	}
+	return frames[k], d.a.Origins[name]
+}
+
+// stretch draws img scaled (nearest neighbour, as GM 5's unsmoothed drawing)
+// into the box at frame position (x, y).
+func (d *frameDrawer) stretch(img image.Image, x, y, w, h float64) {
+	if img == nil || w == 0 || h == 0 {
+		return
+	}
+	x, y = x-d.ox, y-d.oy
+	r := image.Rect(int(math.Round(x)), int(math.Round(y)), int(math.Round(x+w)), int(math.Round(y+h))).Canon()
+	xdraw.NearestNeighbor.Scale(d.dst, r, img, img.Bounds(), xdraw.Over, nil)
+}
+
+// tile draws img repeated over the whole frame, one copy with its top-left
+// at frame position (x, y).
+func (d *frameDrawer) tile(img image.Image, x, y float64) {
+	if img == nil {
+		return
+	}
+	w, h := img.Bounds().Dx(), img.Bounds().Dy()
+	if w == 0 || h == 0 {
+		return
+	}
+	x0, y0 := int(math.Floor(x-d.ox)), int(math.Floor(y-d.oy))
+	b := d.dst.Bounds()
+	for ty := ((y0-b.Min.Y)%h+h)%h - h + b.Min.Y; ty < b.Max.Y; ty += h {
+		for tx := ((x0-b.Min.X)%w+w)%w - w + b.Min.X; tx < b.Max.X; tx += w {
+			draw.Draw(d.dst, img.Bounds().Add(image.Pt(tx, ty)), img, img.Bounds().Min, draw.Over)
+		}
+	}
+}
+
+func (d *frameDrawer) SpriteStretched(name string, frame, x, y, w, h float64) {
+	img, _ := d.frameOf(name, frame)
+	if img != nil {
+		d.stretch(img, x, y, w, h)
+	}
+}
+
+func (d *frameDrawer) SpriteTiled(name string, frame, x, y float64) {
+	if img, o := d.frameOf(name, frame); img != nil {
+		d.tile(img, x-float64(o.X), y-float64(o.Y))
+	}
+}
+
+func (d *frameDrawer) BackgroundStretched(name string, x, y, w, h float64) {
+	if img := d.a.BGs[name]; img != nil {
+		d.stretch(img, x, y, w, h)
+	}
+}
+
+func (d *frameDrawer) BackgroundTiled(name string, x, y float64) {
+	if img := d.a.BGs[name]; img != nil {
+		d.tile(img, x, y)
 	}
 }

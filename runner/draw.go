@@ -20,6 +20,13 @@ type Drawer interface {
 	Point(x, y float64, colour int32)
 	Sprite(name string, frame, x, y float64)
 	Background(name string, x, y float64)
+	// SpriteStretched fills the box (x, y, w, h) with the frame (its origin
+	// ignored); SpriteTiled repeats it over the whole drawing area with one
+	// copy at (x, y) (origin applied). The background ones likewise.
+	SpriteStretched(name string, frame, x, y, w, h float64)
+	SpriteTiled(name string, frame, x, y float64)
+	BackgroundStretched(name string, x, y, w, h float64)
+	BackgroundTiled(name string, x, y float64)
 	Text(x, y float64, s string, font Font)
 }
 
@@ -275,6 +282,30 @@ func (g *Game) drawFuncs() map[string]gml.Func {
 			}
 			return ok, nil
 		},
+		"draw_sprite_stretched": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (sprite, subimg, x, y, w, h): filling the box
+			if d() != nil && len(a) > 0 {
+				d().SpriteStretched(g.IDs.SpriteName(a[0]), g.frameArg(a, 1), num(a, 2), num(a, 3), num(a, 4), num(a, 5))
+			}
+			return ok, nil
+		},
+		"draw_sprite_tiled": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (sprite, subimg, x, y): over the whole room, one copy at (x, y)
+			if d() != nil && len(a) > 0 {
+				d().SpriteTiled(g.IDs.SpriteName(a[0]), g.frameArg(a, 1), num(a, 2), num(a, 3))
+			}
+			return ok, nil
+		},
+		"draw_background_stretched": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (back, x, y, w, h)
+			if d() != nil && len(a) > 0 {
+				d().BackgroundStretched(g.IDs.Name("background", a[0]), num(a, 1), num(a, 2), num(a, 3), num(a, 4))
+			}
+			return ok, nil
+		},
+		"draw_background_tiled": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (back, x, y): over the whole room
+			if d() != nil && len(a) > 0 {
+				d().BackgroundTiled(g.IDs.Name("background", a[0]), num(a, 1), num(a, 2))
+			}
+			return ok, nil
+		},
 		"draw_background": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (background, x, y)
 			if d() != nil && len(a) > 2 {
 				d().Background(g.IDs.Name("background", a[0]), num(a, 1), num(a, 2))
@@ -410,4 +441,16 @@ func (g *Game) wrap(s string, w float64) []string {
 		out = append(out, line)
 	}
 	return out
+}
+
+// frameArg is a subimage argument: −1 means the instance's image_index.
+func (g *Game) frameArg(a []gml.Value, i int) float64 {
+	f := 0.0
+	if i < len(a) {
+		f = a[i].N
+	}
+	if f == -1 {
+		f = g.self().ImageIndex
+	}
+	return f
 }
