@@ -70,7 +70,7 @@ footer pre { margin: 0; font: 12px/1.45 ui-monospace, monospace; white-space: pr
 .ok { color: var(--ok); } .bad { color: var(--bad); }
 </style></head>
 <body>
-<header><b>GameViber</b><span id="name"></span><span id="status"></span><span style="flex:1"></span><button id="bridgeoff" class="new" style="display:none" title="stop using the project on this computer (gameviber edit -bridge) and go back to the one in this browser">Disconnect</button><button id="reopenfolder" class="new" style="display:none" title="the folder you worked on last time"></button><button id="openfolder" class="new" style="display:none" title="work on a GameViber project folder on your disk — an agent in your own terminal (Claude Code, Antigravity …) can work on it at the same time">Open folder…</button><button id="reset" style="display:none;background:transparent;color:var(--muted);border:1px solid var(--line)" title="start again from one of the starting games">New game…</button><button id="newobj" class="new">+ Object</button><button id="newevt" class="new">+ Event</button><button id="newroom" class="new">+ Room</button><button id="newspr" class="new">+ Sprite</button><button id="newsnd" class="new">+ Sound</button><button id="newsfx" class="new" title="make a sound effect: a coin, a jump, a laser … (saved as a sound)">+ Sound effect</button><button id="newmom" class="new" title="a timeline's moment">+ Moment</button><button id="pause" class="new" style="display:none">⏸ Pause</button><button id="step" class="new" style="display:none" disabled>⏭ Step</button><button id="askcopy" class="new" title="the project's context on the clipboard, to paste into any assistant (Claude, ChatGPT …)">Copy for an assistant</button><button id="askpaste" class="new" title="write the files from an assistant's answer into the project">Paste an answer</button><button id="meatbtn" class="new" title="work with any chat (no key): you copy messages between the chat and the editor, which runs what the chat asks">Chat session</button><button id="askbtn" class="new" style="display:none" title="one question to a coding agent (Claude Code, OpenCode …) — your own login, no key">Ask</button><button id="termbtn" class="new" style="display:none" title="a coding agent (Claude Code, OpenCode, Aider …) in a terminal, in this project's folder">Terminal</button><select id="playvariant" style="display:none" title="play a build variant: NAME.toml merged over game.toml"></select><button id="play">▶ Play</button></header>
+<header><b>GameViber</b><span id="name"></span><span id="status"></span><span style="flex:1"></span><button id="bridgeoff" class="new" style="display:none" title="stop using the project on this computer (gameviber edit -bridge) and go back to the one in this browser">Disconnect</button><button id="reopenfolder" class="new" style="display:none" title="the folder you worked on last time"></button><button id="openfolder" class="new" style="display:none" title="work on a GameViber project folder on your disk — an agent in your own terminal (Claude Code, Antigravity …) can work on it at the same time">Open folder…</button><button id="reset" style="display:none;background:transparent;color:var(--muted);border:1px solid var(--line)" title="start again from one of the starting games">New game…</button><button id="newobj" class="new">+ Object</button><button id="newevt" class="new">+ Event</button><button id="newroom" class="new">+ Room</button><button id="newspr" class="new">+ Sprite</button><button id="newsnd" class="new">+ Sound</button><button id="newsfx" class="new" title="make a sound effect: a coin, a jump, a laser … (saved as a sound)">+ Sound effect</button><button id="newpath" class="new" title="a path for instances to follow (path_start)">+ Path</button><button id="newmom" class="new" title="a timeline's moment">+ Moment</button><button id="pause" class="new" style="display:none">⏸ Pause</button><button id="step" class="new" style="display:none" disabled>⏭ Step</button><button id="askcopy" class="new" title="the project's context on the clipboard, to paste into any assistant (Claude, ChatGPT …)">Copy for an assistant</button><button id="askpaste" class="new" title="write the files from an assistant's answer into the project">Paste an answer</button><button id="meatbtn" class="new" title="work with any chat (no key): you copy messages between the chat and the editor, which runs what the chat asks">Chat session</button><button id="askbtn" class="new" style="display:none" title="one question to a coding agent (Claude Code, OpenCode …) — your own login, no key">Ask</button><button id="termbtn" class="new" style="display:none" title="a coding agent (Claude Code, OpenCode, Aider …) in a terminal, in this project's folder">Terminal</button><select id="playvariant" style="display:none" title="play a build variant: NAME.toml merged over game.toml"></select><button id="play">▶ Play</button></header>
 <dialog id="ask"><b>Ask a coding agent</b>
   <p class="hint" style="margin:6px 0">One question, answered in this project's folder by the agent you have installed (your own login — Claude Code Pro / Max, OpenCode …). The open file is mentioned to it.</p>
   <div class="row"><select id="askagent"><option value="claude">Claude Code</option><option value="agy">Antigravity CLI</option><option value="opencode">OpenCode</option><option value="gemini">Gemini CLI</option><option value="codex">Codex CLI</option><option value="aider">Aider</option></select>
@@ -130,6 +130,14 @@ footer pre { margin: 0; font: 12px/1.45 ui-monospace, monospace; white-space: pr
 <nav id="tree"></nav>
 <main>
   <div class="bar"><code id="path">pick a file on the left</code><button id="save" disabled>Save (Ctrl+S)</button></div>
+  <div id="pathview" style="display:none;padding:6px 8px;border-bottom:1px solid var(--line)">
+    <div class="row" style="gap:10px;flex-wrap:wrap"><label class="hint"><input type="checkbox" id="pathsmooth"> smooth</label>
+      <label class="hint"><input type="checkbox" id="pathclosed"> closed</label>
+      <label class="hint">precision <select id="pathprec"><option>1</option><option>2</option><option>3</option><option selected>4</option><option>5</option><option>6</option><option>7</option><option>8</option></select></label>
+      <label class="hint">size of room <select id="pathroom"></select></label>
+      <span class="hint">click: add a point · drag: move · right click: remove · speed % of the point under the mouse: <input id="pathspeed" type="number" min="0" max="1000" value="100" style="width:4.5em" disabled></span></div>
+    <canvas id="pathcanvas" width="640" height="480" style="margin-top:6px;max-width:100%;border:1px solid var(--line);background:#1b2433;cursor:crosshair"></canvas>
+  </div>
   <textarea id="text" spellcheck="false" disabled></textarea>
   <iframe id="game" title="the game" style="display:none;width:100%;height:100%;border:0;background:#111"></iframe>
   <div id="sprite"><div><canvas id="spr"></canvas><div id="frames"></div>
@@ -763,9 +771,102 @@ async function open(f, a, asText) {
   const t = await (await call("api/file?path=" + encodeURIComponent(f))).text();
   current = f; saved = t;
   $("path").textContent = f; $("text").value = t; $("text").disabled = false;
+  pathOpen(/^paths\/[^/]+\.toml$/.test(f) ? t : null);
   document.querySelectorAll("nav a.on").forEach((x) => x.classList.remove("on"));
   a.classList.add("on"); mark();
 }
+// --- paths (LOOP item 12c): paths/NAME.toml drawn and edited; the text below stays the file ---
+let pathData = null, pathDrag = -1, pathHover = -1;
+function pathParse(t) {
+  const flag = (k) => new RegExp("^\\s*" + k + "\\s*=\\s*true", "m").test(t);
+  const prec = +((t.match(/^\s*precision\s*=\s*(\d+)/m) || [])[1] || 4);
+  let pts = [];
+  const m = t.match(/^\s*points\s*=\s*(\[[\s\S]*?\]\s*\])/m);
+  if (m) { try { pts = JSON.parse(m[1]); } catch (e) { pts = []; } }
+  return { smooth: flag("smooth"), closed: flag("closed"), precision: prec || 4, points: pts };
+}
+function pathText(p) {
+  const pts = p.points.map((q) => "[" + q.map((v) => Math.round(v * 100) / 100).join(", ") + "]").join(", ");
+  return "smooth = " + p.smooth + "\nclosed = " + p.closed + "\nprecision = " + p.precision + "\npoints = [" + pts + "]\n";
+}
+async function pathOpen(t) {
+  $("pathview").style.display = t === null ? "none" : "";
+  if (t === null) { pathData = null; return; }
+  pathData = pathParse(t);
+  $("pathsmooth").checked = pathData.smooth; $("pathclosed").checked = pathData.closed; $("pathprec").value = String(pathData.precision);
+  const files = (await (await call("api/files")).json()).files.filter((f) => /^rooms\/[^/]+\/room\.toml$/.test(f));
+  $("pathroom").replaceChildren(...files.map((f) => Object.assign(document.createElement("option"), { value: f, textContent: f.split("/")[1] })));
+  await pathRoomSize(); pathDraw();
+}
+async function pathRoomSize() {
+  let w = 640, h = 480;
+  if ($("pathroom").value) {
+    const t = await (await call("api/file?path=" + encodeURIComponent($("pathroom").value))).text();
+    w = +((t.match(/^\s*width\s*=\s*(\d+)/m) || [])[1] || 640); h = +((t.match(/^\s*height\s*=\s*(\d+)/m) || [])[1] || 480);
+  }
+  $("pathcanvas").width = w; $("pathcanvas").height = h;
+}
+function pathChanged() { $("text").value = pathText(pathData); mark(); pathDraw(); }
+// the curve as the runner follows it (runner/path.go): straight, or quadratic pieces through the midpoints
+function pathPolyline(p) {
+  const c = p.points; if (c.length < 2) return c.slice();
+  if (!p.smooth || c.length < 3) return p.closed ? c.concat([c[0]]) : c.slice();
+  const mid = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], steps = 1 << Math.max(1, Math.min(8, p.precision)), out = [];
+  const piece = (a, k, b) => { for (let s = 0; s < steps; s++) { const t = s / steps, u = 1 - t; out.push([u * u * a[0] + 2 * u * t * k[0] + t * t * b[0], u * u * a[1] + 2 * u * t * k[1] + t * t * b[1]]); } };
+  const n = c.length;
+  if (p.closed) { for (let i = 0; i < n; i++) piece(mid(c[(i + n - 1) % n], c[i]), c[i], mid(c[i], c[(i + 1) % n])); out.push(out[0]); }
+  else { for (let i = 1; i < n - 1; i++) piece(i === 1 ? c[0] : mid(c[i - 1], c[i]), c[i], i === n - 2 ? c[n - 1] : mid(c[i], c[i + 1])); out.push(c[n - 1]); }
+  return out;
+}
+function pathDraw() {
+  if (!pathData) return;
+  const cv = $("pathcanvas"), g = cv.getContext("2d");
+  g.clearRect(0, 0, cv.width, cv.height);
+  g.strokeStyle = "rgba(255,255,255,0.08)"; g.lineWidth = 1;
+  for (let x = 32; x < cv.width; x += 32) { g.beginPath(); g.moveTo(x + 0.5, 0); g.lineTo(x + 0.5, cv.height); g.stroke(); }
+  for (let y = 32; y < cv.height; y += 32) { g.beginPath(); g.moveTo(0, y + 0.5); g.lineTo(cv.width, y + 0.5); g.stroke(); }
+  const pl = pathPolyline(pathData);
+  if (pl.length > 1) { g.strokeStyle = "#ffd166"; g.lineWidth = 2; g.beginPath(); pl.forEach((q, i) => i ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1])); g.stroke(); }
+  pathData.points.forEach((q, i) => {
+    g.fillStyle = i === 0 ? "#06d6a0" : i === pathHover ? "#ff6b6b" : "#4cc9f0";
+    g.beginPath(); g.arc(q[0], q[1], 5, 0, Math.PI * 2); g.fill();
+  });
+}
+function pathAt(e) { const cv = $("pathcanvas"), r = cv.getBoundingClientRect(); return [(e.clientX - r.left) * cv.width / r.width, (e.clientY - r.top) * cv.height / r.height]; }
+function pathNear(x, y) { return pathData.points.findIndex((q) => Math.hypot(q[0] - x, q[1] - y) < 8); }
+$("pathcanvas").addEventListener("contextmenu", (e) => e.preventDefault());
+$("pathcanvas").addEventListener("mousedown", (e) => {
+  if (!pathData) return;
+  const [x, y] = pathAt(e), i = pathNear(x, y);
+  if (e.button === 2) { if (i >= 0) { pathData.points.splice(i, 1); pathHover = -1; pathChanged(); } return; }
+  if (i >= 0) { pathDrag = i; return; }
+  const snap = (v) => e.shiftKey ? Math.round(v) : Math.round(v / 8) * 8; // like the room: a grid unless Shift
+  pathData.points.push([snap(x), snap(y), 100]); pathChanged();
+});
+$("pathcanvas").addEventListener("mousemove", (e) => {
+  if (!pathData) return;
+  const [x, y] = pathAt(e);
+  if (pathDrag >= 0) { const snap = (v) => e.shiftKey ? Math.round(v) : Math.round(v / 8) * 8; pathData.points[pathDrag][0] = snap(x); pathData.points[pathDrag][1] = snap(y); pathChanged(); return; }
+  const i = pathNear(x, y);
+  if (i !== pathHover) { pathHover = i; $("pathspeed").disabled = i < 0; if (i >= 0) $("pathspeed").value = pathData.points[i][2]; pathDraw(); }
+});
+window.addEventListener("mouseup", () => { pathDrag = -1; });
+$("pathspeed").addEventListener("change", () => { if (pathData && pathHover >= 0) { pathData.points[pathHover][2] = Math.max(0, +$("pathspeed").value || 0); pathChanged(); } });
+$("pathsmooth").onchange = () => { pathData.smooth = $("pathsmooth").checked; pathChanged(); };
+$("pathclosed").onchange = () => { pathData.closed = $("pathclosed").checked; pathChanged(); };
+$("pathprec").onchange = () => { pathData.precision = +$("pathprec").value; pathChanged(); };
+$("pathroom").onchange = async () => { await pathRoomSize(); pathDraw(); };
+$("text").addEventListener("input", () => { if (pathData) { pathData = pathParse($("text").value); pathDraw(); } });
+$("newpath").onclick = async () => {
+  const name = (window.prompt("The path's name (a–z, 0–9, _):") || "").trim().toLowerCase();
+  if (!name || /[^a-z0-9_]/.test(name)) return;
+  const f = "paths/" + name + ".toml";
+  const r = await call("api/file?path=" + encodeURIComponent(f), { method: "PUT", body: "smooth = false\nclosed = false\nprecision = 4\npoints = [[64, 64, 100], [256, 64, 100]]\n" });
+  if (!r.ok) { $("check").className = "bad"; $("check").textContent = await r.text(); return; }
+  await load();
+  const a = [...document.querySelectorAll("nav a")].find((x) => x.dataset.path === f || x.title === f || x.textContent === name + ".toml");
+  if (a) a.click();
+};
 async function save() {
   if (obj) return saveObject();
   if (spr) return saveSprite();
