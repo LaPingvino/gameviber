@@ -163,6 +163,83 @@ func (d *frameDrawer) Rect(x1, y1, x2, y2 float64, fill, outline int32, filled b
 	}
 }
 
+func (d *frameDrawer) set(x, y int, c color.RGBA) {
+	if image.Pt(x, y).In(d.dst.Bounds()) {
+		d.dst.SetRGBA(x, y, c)
+	}
+}
+
+// Point sets one pixel (the pen).
+func (d *frameDrawer) Point(x, y float64, colour int32) {
+	d.set(int(math.Round(x-d.ox)), int(math.Round(y-d.oy)), bgr(colour))
+}
+
+// Line draws a one-pixel line (the pen), both ends included (Bresenham).
+func (d *frameDrawer) Line(x1, y1, x2, y2 float64, colour int32) {
+	c := bgr(colour)
+	ax, ay := int(math.Round(x1-d.ox)), int(math.Round(y1-d.oy))
+	bx, by := int(math.Round(x2-d.ox)), int(math.Round(y2-d.oy))
+	dx, dy := abs(bx-ax), -abs(by-ay)
+	sx, sy := 1, 1
+	if ax > bx {
+		sx = -1
+	}
+	if ay > by {
+		sy = -1
+	}
+	e := dx + dy
+	for {
+		d.set(ax, ay, c)
+		if ax == bx && ay == by {
+			return
+		}
+		if e2 := 2 * e; e2 >= dy {
+			e += dy
+			ax += sx
+		} else {
+			e += dx
+			ay += sy
+		}
+	}
+}
+
+func abs(v int) int {
+	if v < 0 {
+		return -v
+	}
+	return v
+}
+
+// Ellipse fills (brush) and outlines (pen) the ellipse inside the box, the
+// box inclusive as Rect's: a pixel is in when its centre is in the ellipse;
+// the outline is the inside pixels with an outside neighbour.
+func (d *frameDrawer) Ellipse(x1, y1, x2, y2 float64, fill, outline int32, filled bool) {
+	x1, y1, x2, y2 = x1-d.ox, y1-d.oy, x2-d.ox, y2-d.oy
+	l, t := int(math.Round(min(x1, x2))), int(math.Round(min(y1, y2)))
+	r, b := int(math.Round(max(x1, x2)))+1, int(math.Round(max(y1, y2)))+1
+	cx, cy, rx, ry := float64(l+r)/2, float64(t+b)/2, float64(r-l)/2, float64(b-t)/2
+	if rx <= 0 || ry <= 0 {
+		return
+	}
+	in := func(x, y int) bool {
+		u, v := (float64(x)+0.5-cx)/rx, (float64(y)+0.5-cy)/ry
+		return u*u+v*v <= 1
+	}
+	f, o := bgr(fill), bgr(outline)
+	for y := t; y < b; y++ {
+		for x := l; x < r; x++ {
+			if !in(x, y) {
+				continue
+			}
+			if !in(x-1, y) || !in(x+1, y) || !in(x, y-1) || !in(x, y+1) {
+				d.set(x, y, o)
+			} else if filled {
+				d.set(x, y, f)
+			}
+		}
+	}
+}
+
 func (d *frameDrawer) Sprite(name string, frame, x, y float64) {
 	x, y = x-d.ox, y-d.oy
 	frames := d.a.Frames[name]

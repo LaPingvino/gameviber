@@ -12,6 +12,11 @@ import (
 // Windows 0xBBGGRR; font is GM 5's font string (name, size, colour, bold…).
 type Drawer interface {
 	Rect(x1, y1, x2, y2 float64, fill, outline int32, filled bool)
+	// Ellipse fills (brush) and outlines (pen) the ellipse in the box, as Rect.
+	Ellipse(x1, y1, x2, y2 float64, fill, outline int32, filled bool)
+	// Line draws a one-pixel line in the pen colour; Point sets one pixel.
+	Line(x1, y1, x2, y2 float64, colour int32)
+	Point(x, y float64, colour int32)
 	Sprite(name string, frame, x, y float64)
 	Background(name string, x, y float64)
 	Text(x, y float64, s string, font Font)
@@ -172,6 +177,33 @@ func (g *Game) drawFuncs() map[string]gml.Func {
 		"draw_rectangle": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (x1, y1, x2, y2): GM 5 fills with the brush, outlines with the pen
 			if d() != nil {
 				d().Rect(num(a, 0), num(a, 1), num(a, 2), num(a, 3), g.colour("brush_color"), g.colour("pen_color"), true)
+			}
+			return ok, nil
+		},
+		// GM 5's other shapes: the brush fills, the pen outlines (lines and
+		// points: the pen).
+		"draw_ellipse": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (x1, y1, x2, y2)
+			if d() != nil {
+				d().Ellipse(num(a, 0), num(a, 1), num(a, 2), num(a, 3), g.colour("brush_color"), g.colour("pen_color"), true)
+			}
+			return ok, nil
+		},
+		"draw_circle": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (x, y, r)
+			if d() != nil {
+				x, y, r := num(a, 0), num(a, 1), num(a, 2)
+				d().Ellipse(x-r, y-r, x+r, y+r, g.colour("brush_color"), g.colour("pen_color"), true)
+			}
+			return ok, nil
+		},
+		"draw_line": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (x1, y1, x2, y2)
+			if d() != nil {
+				d().Line(num(a, 0), num(a, 1), num(a, 2), num(a, 3), g.colour("pen_color"))
+			}
+			return ok, nil
+		},
+		"draw_point": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (x, y)
+			if d() != nil {
+				d().Point(num(a, 0), num(a, 1), g.colour("pen_color"))
 			}
 			return ok, nil
 		},

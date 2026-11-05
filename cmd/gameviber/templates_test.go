@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"image/png"
 	"os"
 	"path/filepath"
 	"strings"
@@ -142,5 +144,41 @@ func TestPathActions(t *testing.T) {
 	// starts at 64 (the player's place), jumps to halfway (+50), then 10 px a step: the end (164) at step 5
 	if st["score"] != 1 || st["expect"].(map[string]any)["value"] != "164" {
 		t.Errorf("score %v x %v, debug %v", st["score"], st["expect"], st["debug"])
+	}
+}
+
+// TestDrawShapes: GM 5's draw_circle / draw_ellipse / draw_line / draw_point
+// from a draw event, in the brush and pen colours, seen in a headless shot.
+func TestDrawShapes(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "g")
+	if err := cmdNew([]string{dir}); err != nil {
+		t.Fatal(err)
+	}
+	os.WriteFile(filepath.Join(dir, "objects", "player", "draw.gml"), []byte(`brush_color = c_red
+pen_color = c_white
+draw_circle(320, 240, 40)
+draw_ellipse(100, 100, 200, 150)
+pen_color = c_yellow
+draw_line(400, 100, 500, 150)
+draw_point(600, 400)
+`), 0o644)
+	var shot bytes.Buffer
+	if _, err := playProjectOpts(dir, playOpts{Steps: 2, Shot: &shot}); err != nil {
+		t.Fatal(err)
+	}
+	img, err := png.Decode(&shot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	at := func(x, y int) [3]uint32 { r, g, b, _ := img.At(x, y).RGBA(); return [3]uint32{r >> 8, g >> 8, b >> 8} }
+	red, white, yellow := [3]uint32{255, 0, 0}, [3]uint32{255, 255, 255}, [3]uint32{255, 255, 0}
+	if at(320, 240) != red || at(320, 200) != white || at(320, 280) != white {
+		t.Errorf("circle: centre %v top %v bottom %v", at(320, 240), at(320, 200), at(320, 280))
+	}
+	if at(150, 125) != red || at(100, 125) != white {
+		t.Errorf("ellipse: centre %v left %v", at(150, 125), at(100, 125))
+	}
+	if at(450, 125) != yellow || at(600, 400) != yellow {
+		t.Errorf("line middle %v, point %v", at(450, 125), at(600, 400))
 	}
 }

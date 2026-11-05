@@ -35,7 +35,7 @@ action_another_room, action_change_object, action_create_object, action_end_soun
 
 ## Drawing (in draw events)
 
-action_color, action_draw_font, action_draw_life, action_draw_life_images, action_draw_rectangle, action_draw_score, action_draw_sprite, action_draw_text, draw_background, draw_rectangle, draw_sprite, draw_text
+action_color, action_draw_font, action_draw_life, action_draw_life_images, action_draw_rectangle, action_draw_score, action_draw_sprite, action_draw_text, draw_background, draw_circle, draw_ellipse, draw_line, draw_point, draw_rectangle, draw_sprite, draw_text
 
 ## Game-wide variables
 
