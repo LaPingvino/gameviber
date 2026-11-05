@@ -131,7 +131,7 @@ func textFiles(dir string) []string {
 			return nil
 		}
 		switch filepath.Ext(p) {
-		case ".gml", ".toml", ".md", ".txt":
+		case ".gml", ".js", ".toml", ".md", ".txt":
 			rel, _ := filepath.Rel(dir, p)
 			out = append(out, filepath.ToSlash(rel))
 		}
@@ -191,7 +191,11 @@ func Outline(dir string) string {
 	for _, o := range list("objects") {
 		var evs []string
 		for _, f := range list(filepath.Join("objects", o)) {
-			if ev, ok := strings.CutSuffix(f, ".gml"); ok {
+			ev, ok := strings.CutSuffix(f, ".gml")
+			if js, isJS := strings.CutSuffix(f, ".js"); isJS {
+				ev, ok = js+" [JavaScript]", true
+			}
+			if ok {
 				n, unit := lines(filepath.Join(dir, "objects", o, f)), "lines"
 				if n == 1 {
 					unit = "line"
