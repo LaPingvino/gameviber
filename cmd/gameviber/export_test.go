@@ -11,7 +11,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -401,5 +403,53 @@ func TestEditSfx(t *testing.T) {
 		if r, _ := http.Post(srv.URL+q, "application/json", bytes.NewReader(params)); r.StatusCode != http.StatusBadRequest {
 			t.Errorf("%s: %d", q, r.StatusCode)
 		}
+	}
+}
+
+// TestExportCompiledGo: a game with a Go event exports with that Go compiled
+// into its player (GAMEVIBER_SRC: this checkout), and the program runs it
+// natively — the event finds itself a compiled function (gvgame/f0.Event),
+// which interpreted code would not.
+func TestExportCompiledGo(t *testing.T) {
+	if testing.Short() {
+		t.Skip("builds a program")
+	}
+	src, _ := filepath.Abs("../..")
+	t.Setenv("GAMEVIBER_SRC", src)
+	dir := filepath.Join(t.TempDir(), "g")
+	if err := cmdNew([]string{dir}); err != nil {
+		t.Fatal(err)
+	}
+	os.Remove(filepath.Join(dir, "objects", "player", "create.gml"))
+	event := "package main\n\nimport (\n\t\"gv\"\n\t\"os\"\n\t\"runtime\"\n)\n\nfunc Event(g *gv.Ctx) {\n\tpc, _, _, _ := runtime.Caller(0)\n\tos.WriteFile(os.Getenv(\"GV_MARK\"), []byte(runtime.FuncForPC(pc).Name()), 0o644)\n\tg.Set(\"score\", 0)\n}\n"
+	if err := os.WriteFile(filepath.Join(dir, "objects", "player", "create.go"), []byte(event), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	out := t.TempDir()
+	if err := cmdExport([]string{"-desktop", dir, out}); err != nil {
+		t.Fatal(err)
+	}
+	exe := filepath.Join(out, "g")
+	if runtime.GOOS == "windows" {
+		exe += ".exe"
+	}
+	mark := filepath.Join(t.TempDir(), "mark")
+	cmd := exec.Command(exe, "-frames", "3")
+	cmd.Env = append(os.Environ(), "GV_MARK="+mark)
+	if b, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("the exported game: %v\n%s", err, b)
+	}
+	got, err := os.ReadFile(mark)
+	if err != nil || !strings.HasPrefix(string(got), "gvgame/f") {
+		t.Errorf("the create event ran as %q (%v), not compiled", got, err)
+	}
+	// Windows builds from anywhere (no cgo): a Windows program, not the
+	// fetched player (no GAMEVIBER_PLAYERS_URL server here to give one)
+	t.Setenv("GAMEVIBER_PLAYERS_URL", "http://127.0.0.1:1")
+	if err := cmdExport([]string{"-desktop", "-os", "windows/amd64", dir, out}); err != nil {
+		t.Fatal(err)
+	}
+	if b, _ := os.ReadFile(filepath.Join(out, "g.exe")); !bytes.HasPrefix(b, []byte("MZ")) || !bytes.HasSuffix(b, []byte("GVPROJ01")) {
+		t.Error("no Windows program with the game")
 	}
 }
