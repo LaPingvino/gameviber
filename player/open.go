@@ -1,6 +1,6 @@
 //go:build !js
 
-package main
+package player
 
 import (
 	"fmt"
