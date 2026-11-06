@@ -255,7 +255,9 @@ setting (on by default) rather than per-game code:
 - (DECIDED 2026-11-05: built both — any chat by copy / paste or the session, a key in the browser, and for the local editor the key from the environment, ANTHROPIC_API_KEY / OPENAI_API_KEY, the model chosen in the editor (defaults GAMEVIBER_*_MODEL); say if you want it otherwise) (2026-11-04) The editor's assistant (docs/EDITOR.md, 'The assistant'): on Pages copy-and-paste with any chat (built: 'Copy for an assistant') — enough? For the local `gameviber edit`: which model, and the key from the environment (ANTHROPIC_API_KEY …)?
 
 ## Blocked
-- 2026-11-06: the players release must be rebuilt for the -H=windowsgui change (run players.yml or push a tag players-v2) — Joop's.
+- 2026-11-06: the players release must be rebuilt for the -H=windowsgui change. Pushing tag players-v2 over SSH was refused
+  by the auto-mode check. Joop: `cd ~/Projects/gameviber && git tag players-v2 && git push git@github.com:LaPingvino/gameviber.git players-v2`
+  (or run players.yml by hand).
 - (RESOLVED 2026-11-06: Joop ran it; release players-latest has all six) - 2026-11-04: starting the players workflow (`gh workflow run players.yml -R LaPingvino/gameviber`, which publishes the
   release `players-latest` with gameviber-run for linux / windows / darwin × amd64 / arm64) was refused by the
   auto-mode check — Joop's to run (or push a tag players-v1). Until then `export -desktop -os` for another system says
@@ -470,4 +472,5 @@ setting (on by default) rather than per-game code:
 - 2026-11-06 — 13 step 5: the docs say it (tutorial "Take it home"; SCRIPTING.md's order). Item 13 (compiled Go) done. NEXT: the next unchecked item in the queue.
 - 2026-11-06 — item 6: export for other systems works now that the players release exists (checked windows/amd64, darwin/arm64, linux/arm64 binaries); Windows players and compiled Windows games built with -H=windowsgui. TestExportCompiledGo needs a display and disk: green under xvfb with the Go cache outside /tmp/claude-1000 (its quota filled). Choice logged: no console on Windows (its messages are lost there, as for any game).
 - 2026-11-06 — item 6: an exported Windows game (the coins starter, players-latest) run under Wine on Xvfb: the room, the player and the coins drawn as on Linux (scratch Wine prefix outside /tmp, deleted after). Item 6 waits only on the players release rebuild (windowsgui).
+- 2026-11-06 — item 6: tried to start the players rebuild by pushing tag players-v2 — refused by the auto-mode check; logged under Blocked with Joop's one-liner. Nothing else workable here.
 
