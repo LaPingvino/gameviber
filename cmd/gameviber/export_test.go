@@ -453,3 +453,38 @@ func TestExportCompiledGo(t *testing.T) {
 		t.Error("no Windows program with the game")
 	}
 }
+
+// TestWebExportCompiledGo: the browser export of a game with a Go event
+// builds its wasm with that Go compiled in (the generated package's path is
+// in the program).
+func TestWebExportCompiledGo(t *testing.T) {
+	if testing.Short() {
+		t.Skip("builds a program")
+	}
+	src, _ := filepath.Abs("../..")
+	t.Setenv("GAMEVIBER_SRC", src)
+	dir := filepath.Join(t.TempDir(), "g")
+	if err := cmdNew([]string{dir}); err != nil {
+		t.Fatal(err)
+	}
+	os.Remove(filepath.Join(dir, "objects", "player", "create.gml"))
+	if err := os.WriteFile(filepath.Join(dir, "objects", "player", "create.go"), []byte("g.Set(\"score\", 0)\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	out := t.TempDir()
+	if _, err := webBuild(dir, out, ""); err != nil {
+		t.Fatal(err)
+	}
+	wasm, err := os.ReadFile(filepath.Join(out, "game.wasm"))
+	if err != nil || !bytes.HasPrefix(wasm, []byte("\x00asm")) {
+		t.Fatalf("no wasm: %v", err)
+	}
+	if !bytes.Contains(wasm, []byte("gvgame/f0")) {
+		t.Error("the game's Go isn't compiled into the wasm")
+	}
+	for _, f := range []string{"index.html", "wasm_exec.js", "project.tar"} {
+		if _, err := os.Stat(filepath.Join(out, f)); err != nil {
+			t.Error(err)
+		}
+	}
+}

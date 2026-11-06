@@ -49,10 +49,11 @@ func goFiles(p *gmfile.Project) []golang.GenFile {
 	return fs
 }
 
-// canCompileFor: this machine builds windows without cgo, and its own system
-// with it (Ebitengine needs cgo on Linux; macOS needs Apple's tools).
+// canCompileFor: this machine builds windows and the browser (js/wasm)
+// without cgo, and its own system with it (Ebitengine needs cgo on Linux;
+// macOS needs Apple's tools).
 func canCompileFor(goos, goarch string) bool {
-	return goos == "windows" || (goos == runtime.GOOS && goarch == runtime.GOARCH)
+	return goos == "windows" || goos == "js" || (goos == runtime.GOOS && goarch == runtime.GOARCH)
 }
 
 // gameviberSource says how the build finds GameViber itself: a local checkout

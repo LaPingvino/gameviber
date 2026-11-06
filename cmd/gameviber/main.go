@@ -451,7 +451,7 @@ func webBuild(dir, out, variant string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if err := buildPlayer(out); err != nil {
+	if err := buildPlayer(out, goFiles(p)); err != nil {
 		return "", err
 	}
 	name := p.Name()
@@ -532,12 +532,28 @@ func packProjectVariant(dir, variant string, w io.Writer) error {
 
 // buildPlayer builds the browser player into out: game.wasm (gameviber-run
 // for js/wasm — needs the GameViber source and go) and Go's wasm_exec.js.
-func buildPlayer(out string) error {
-	build := exec.Command("go", "build", "-o", filepath.Join(out, "game.wasm"), "./cmd/gameviber-run")
-	build.Env = append(os.Environ(), "GOOS=js", "GOARCH=wasm")
-	build.Stdout, build.Stderr = os.Stdout, os.Stderr
-	if err := build.Run(); err != nil {
-		return fmt.Errorf("building the wasm (run gameviber inside the GameViber source): %w", err)
+// buildPlayer writes the browser player (game.wasm) and Go's wasm_exec.js
+// into out: with the game's Go compiled in when it has some (compiled.go),
+// else the plain player, interpreting.
+func buildPlayer(out string, files []golang.GenFile) error {
+	compiled := false
+	if len(files) > 0 && os.Getenv("GAMEVIBER_INTERPRET") == "" {
+		if wasm, err := compiledPlayer(files, "js", "wasm"); err != nil {
+			fmt.Printf("the game's Go runs interpreted (%v)\n", firstLine(err))
+		} else if err := os.WriteFile(filepath.Join(out, "game.wasm"), wasm, 0o644); err != nil {
+			return err
+		} else {
+			compiled = true
+			fmt.Printf("compiled the game's Go in (%d files)\n", len(files))
+		}
+	}
+	if !compiled {
+		build := exec.Command("go", "build", "-o", filepath.Join(out, "game.wasm"), "./cmd/gameviber-run")
+		build.Env = append(os.Environ(), "GOOS=js", "GOARCH=wasm")
+		build.Stdout, build.Stderr = os.Stdout, os.Stderr
+		if err := build.Run(); err != nil {
+			return fmt.Errorf("building the wasm (run gameviber inside the GameViber source): %w", err)
+		}
 	}
 	root, err := exec.Command("go", "env", "GOROOT").Output()
 	if err != nil {
