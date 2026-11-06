@@ -14,6 +14,7 @@ permissions:
 jobs:
   build:
     strategy:
+      fail-fast: false # one system failing doesn't cancel the others
       matrix:
         include:
           - { os: linux, arch: amd64, runner: ubuntu-latest }
@@ -38,6 +39,8 @@ jobs:
         run: |
           ext=""; [ "${{ matrix.os }}" = windows ] && ext=".exe"
           if [ "${{ matrix.cross }}" = true ]; then export CGO_ENABLED=0; fi
+          # macOS needs cgo, and Go turns it off when cross-building (amd64 on the arm64 runner)
+          if [ "${{ matrix.os }}" = darwin ]; then export CGO_ENABLED=1; fi
           GOOS=${{ matrix.os }} GOARCH=${{ matrix.arch }} go build -trimpath -ldflags="-s -w" \
             -o "gameviber-run-${{ matrix.os }}-${{ matrix.arch }}$ext" ./cmd/gameviber-run
       - uses: actions/upload-artifact@v4
