@@ -117,7 +117,7 @@ goal of its own, weighed alongside the LLM-friendly rule.
       file_handlers for GameViber projects (game.toml) so the OS can open them in it.
    Not possible: a Claude.ai / Pro login used by a page directly — subscriptions work through the apps (Claude Code
    …), hence e and f.
-6. [ ] (WEB, ICON, DESKTOP DONE 2026-11-04; other systems wait on the first players release — see Blocked) **Export** — `gameviber export`: finished builds — a web zip for itch.io / Pages, desktop binaries (Linux,
+6. [~] (WEB, ICON, DESKTOP DONE 2026-11-04; OTHER SYSTEMS WORK 2026-11-06 — the players release exists: windows/amd64, darwin/arm64 (.app), linux/arm64 exported and checked as PE / Mach-O / ELF; Windows players and compiled Windows games now GUI programs (-H=windowsgui, no console window) — the release needs a rebuild to carry it: Joop runs players.yml or pushes a tag players-v2; NEXT: run one under Wine once /tmp has room) **Export** — `gameviber export`: finished builds — a web zip for itch.io / Pages, desktop binaries (Linux,
    Windows, macOS via Go cross-compiling), the game's title and icon; the export options built in.
    The web build as an installable PWA too (manifest, offline service worker, full screen on phones).
 6b. [x] (DONE 2026-11-04) **Build variants as overlay TOMLs** (Joop 2026-11-04: other project TOML files "would allow things like
@@ -255,7 +255,8 @@ setting (on by default) rather than per-game code:
 - (DECIDED 2026-11-05: built both — any chat by copy / paste or the session, a key in the browser, and for the local editor the key from the environment, ANTHROPIC_API_KEY / OPENAI_API_KEY, the model chosen in the editor (defaults GAMEVIBER_*_MODEL); say if you want it otherwise) (2026-11-04) The editor's assistant (docs/EDITOR.md, 'The assistant'): on Pages copy-and-paste with any chat (built: 'Copy for an assistant') — enough? For the local `gameviber edit`: which model, and the key from the environment (ANTHROPIC_API_KEY …)?
 
 ## Blocked
-- 2026-11-04: starting the players workflow (`gh workflow run players.yml -R LaPingvino/gameviber`, which publishes the
+- 2026-11-06: the players release must be rebuilt for the -H=windowsgui change (run players.yml or push a tag players-v2) — Joop's.
+- (RESOLVED 2026-11-06: Joop ran it; release players-latest has all six) - 2026-11-04: starting the players workflow (`gh workflow run players.yml -R LaPingvino/gameviber`, which publishes the
   release `players-latest` with gameviber-run for linux / windows / darwin × amd64 / arm64) was refused by the
   auto-mode check — Joop's to run (or push a tag players-v1). Until then `export -desktop -os` for another system says
   the release isn't built yet. (Also: the https token lacks the `workflow` scope; the workflow file went up over SSH.)
@@ -467,4 +468,5 @@ setting (on by default) rather than per-game code:
 - 2026-11-06 — 13 step 3b: compiled Go in desktop exports (see the item). Choices (POLICY): fall back rather than fail when the compiled build can't be made, with the reason printed (a game must still export); targets limited to the host and windows since Ebitengine needs cgo on Linux and Apple's tools on macOS; GameViber found by GAMEVIBER_SRC or build info. Fixed on the way: a toolchain version like go1.27.3-X:nodwarf5 is cut to 1.27.3 for go.mod. All tests green (xvfb-run).
 - 2026-11-06 — 13 step 4: compiled Go in browser exports — buildPlayer(out, files): with Go files, compiledPlayer(files, "js", "wasm") (canCompileFor now allows js); else, or on failure (a one-line note), the plain player as before. Editor Play / web editor pass nil (interpreted: their code changes between Plays). TestWebExportCompiledGo: the starter with a statement create.go → a wasm containing gvgame/f0, index.html, wasm_exec.js, project.tar. All tests green (xvfb-run; one run hit the /tmp quota — "No space left" at link — passed after trimming my Go cache; a shared /tmp sweep was refused by the auto-mode check, rightly).
 - 2026-11-06 — 13 step 5: the docs say it (tutorial "Take it home"; SCRIPTING.md's order). Item 13 (compiled Go) done. NEXT: the next unchecked item in the queue.
+- 2026-11-06 — item 6: export for other systems works now that the players release exists (checked windows/amd64, darwin/arm64, linux/arm64 binaries); Windows players and compiled Windows games built with -H=windowsgui. TestExportCompiledGo needs a display and disk: green under xvfb with the Go cache outside /tmp/claude-1000 (its quota filled). Choice logged: no console on Windows (its messages are lost there, as for any game).
 
