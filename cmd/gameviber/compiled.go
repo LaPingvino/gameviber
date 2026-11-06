@@ -142,7 +142,11 @@ func compiledPlayer(files []golang.GenFile, goos, goarch string) ([]byte, error)
 	if goos != runtime.GOOS {
 		env = append(env, "CGO_ENABLED=0")
 	}
-	if err := run(env, "build", "-trimpath", "-ldflags=-s -w", "-o", "game.bin", "."); err != nil {
+	ld := "-ldflags=-s -w"
+	if goos == "windows" {
+		ld += " -H=windowsgui" // a game: no console window beside it
+	}
+	if err := run(env, "build", "-trimpath", ld, "-o", "game.bin", "."); err != nil {
 		return nil, err
 	}
 	return os.ReadFile(filepath.Join(tmp, "game.bin"))
