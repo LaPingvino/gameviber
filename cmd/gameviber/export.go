@@ -213,7 +213,16 @@ func exportDesktop(dir, out, target, variant string) error {
 		return fmt.Errorf("-os %s: linux, windows or darwin / amd64 or arm64", target)
 	}
 	var exe []byte
-	if goos == runtime.GOOS && goarch == runtime.GOARCH {
+	if files := goFiles(p); len(files) > 0 && os.Getenv("GAMEVIBER_INTERPRET") == "" {
+		if exe, err = compiledPlayer(files, goos, goarch); err != nil {
+			fmt.Printf("the game's Go runs interpreted (%v)\n", firstLine(err))
+			exe = nil
+		} else {
+			fmt.Printf("compiled the game's Go in (%d files)\n", len(files))
+		}
+	}
+	if exe != nil { // compiled above
+	} else if goos == runtime.GOOS && goarch == runtime.GOARCH {
 		player, err := runnerPath()
 		if err != nil {
 			return err
@@ -319,3 +328,8 @@ const infoPlist = `<?xml version="1.0" encoding="UTF-8"?>
 <key>NSHighResolutionCapable</key><true/>
 </dict></plist>
 `
+
+func firstLine(err error) string {
+	s, _, _ := strings.Cut(err.Error(), "\n")
+	return s
+}
