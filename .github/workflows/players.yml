@@ -20,8 +20,10 @@ jobs:
           - { os: linux, arch: arm64, runner: ubuntu-24.04-arm }
           - { os: windows, arch: amd64, runner: ubuntu-latest, cross: true }
           - { os: windows, arch: arm64, runner: ubuntu-latest, cross: true }
-          - { os: darwin, arch: amd64, runner: macos-13 }
-          - { os: darwin, arch: arm64, runner: macos-14 }
+          # macOS needs cgo (Metal, GLFW); macos-13 / macos-14 runners are retired: both on
+          # macos-latest (Apple Silicon), amd64 cross-built there by cgo with clang's -arch.
+          - { os: darwin, arch: amd64, runner: macos-latest }
+          - { os: darwin, arch: arm64, runner: macos-latest }
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
