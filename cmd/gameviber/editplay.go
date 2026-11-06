@@ -27,7 +27,7 @@ func (p *editPlay) build() {
 	p.once.Do(func() {
 		p.out, p.err = os.MkdirTemp("", "gameviber-player")
 		if p.err == nil {
-			p.err = buildPlayer(p.out)
+			p.err = buildPlayer(p.out, nil) // interpreted: built once, the game's code changes between Plays
 		}
 	})
 }

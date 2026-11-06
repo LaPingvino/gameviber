@@ -27,7 +27,7 @@ func cmdEditorWeb(args []string) error {
 	if err := build.Run(); err != nil {
 		return fmt.Errorf("building the editor's wasm (run inside the GameViber source): %w", err)
 	}
-	if err := buildPlayer(out); err != nil { // game.wasm, wasm_exec.js
+	if err := buildPlayer(out, nil); err != nil { // game.wasm, wasm_exec.js — the general player, interpreting
 		return err
 	}
 	shim, err := os.ReadFile(filepath.Join("web", "editor", "fsshim.js"))
