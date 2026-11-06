@@ -60,5 +60,8 @@ wasm's size (to measure; a build without a language can leave it out).
 1. This note → Joop's yes on the modules.
 2. JavaScript end to end (loader, binding, errors, editor, check, the four-way test with GML).
 3. Lua.
-4. Go: interpreted first; compiled in export after.
+4. Go: interpreted first; compiled in export after. **Done 2026-11-06**: `export -desktop` (this system, and
+   Windows from anywhere) and the web export compile a game's `.go` events and scripts into its player
+   (`cmd/gameviber/compiled.go`); without Go, or for macOS / Linux from another system, the export says why and
+   ships the interpreting player. The editor's Play stays interpreted (the code changes between Plays).
 5. The templates and tutorial offering a language choice.

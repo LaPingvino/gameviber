@@ -78,5 +78,10 @@ gameviber run mygame                        # play it in a window
 gameviber export mygame mygame.zip          # a web build to put online (itch.io takes the zip)
 ```
 
+A game with code in Go runs it interpreted while you edit and play it here; **`gameviber export`** compiles that
+Go into the exported game (for the web, Windows, and the system you export on), so it runs at full speed. If it
+can't — no Go on the computer, or another system to export for — the export says why and the game still works,
+interpreted as in the editor.
+
 On disk, a coding agent in your terminal (Claude Code, OpenCode, Gemini CLI …) can work on the same folder while
 the editor follows its changes — see [With an assistant](./#with-an-assistant).
