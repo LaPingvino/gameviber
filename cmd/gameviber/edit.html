@@ -958,19 +958,35 @@ $("text").addEventListener("keydown", (e) => {
 });
 $("text").addEventListener("blur", () => { $("suggest").hidden = true; });
 loadNames();
-// --- GML colouring (keywords, functions, variables, constants, this game's resources, strings, numbers,
-// comments), drawn in #hl under the textarea; only for .gml files. The textarea stays the real control. ---
+// --- Code colouring (keywords, functions, variables, constants, this game's resources, strings, numbers,
+// comments), drawn in #hl under the textarea, for .gml and the other game languages (.js .lua .go — the
+// same GameViber names, each language's own keywords, comments and strings). The textarea stays the real control. ---
 const gmlKeywords = new Set("if else while do for repeat with switch case default break continue exit return var globalvar begin end and or not xor div mod until then self other all noone global true false".split(" "));
 let nameKinds = new Map();
 function nameKindsUpdate() { nameKinds = new Map((names || []).map(([w, k]) => [w, k])); }
 function escHTML(s) { return s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]); }
-function colourGML(src) {
-  const re = /(\/\/[^\n]*|\/\*[\s\S]*?(?:\*\/|$))|("[^"]*"?|'[^']*'?)|(\$[0-9a-fA-F]+|\b\d+(?:\.\d+)?\b)|([A-Za-z_][A-Za-z0-9_]*)/g;
+// Each language: [comments, strings, numbers] as regex sources, and its keywords. GML's strings have no
+// escapes; the others' do.
+const esc = (q) => `${q}(?:[^${q}\\\\\\n]|\\\\.)*${q}?`;
+const codeLangs = {
+  gml: { c: "//[^\\n]*|/\\*[\\s\\S]*?(?:\\*/|$)", s: `"[^"]*"?|'[^']*'?`, n: "\\$[0-9a-fA-F]+|\\b\\d+(?:\\.\\d+)?\\b", k: gmlKeywords },
+  js: { c: "//[^\\n]*|/\\*[\\s\\S]*?(?:\\*/|$)", s: `${esc('"')}|${esc("'")}|\`[^\`]*\`?`, n: "\\b0x[0-9a-fA-F]+\\b|\\b\\d+(?:\\.\\d+)?\\b",
+    k: new Set("var let const function return if else for while do switch case default break continue new this typeof instanceof in of true false null undefined try catch finally throw class extends super".split(" ")) },
+  lua: { c: "--\\[\\[[\\s\\S]*?(?:\\]\\]|$)|--[^\\n]*", s: `${esc('"')}|${esc("'")}|\\[\\[[\\s\\S]*?(?:\\]\\]|$)`, n: "\\b0x[0-9a-fA-F]+\\b|\\b\\d+(?:\\.\\d+)?\\b",
+    k: new Set("local function end if then elseif else for while do repeat until return break goto in and or not nil true false".split(" ")) },
+  go: { c: "//[^\\n]*|/\\*[\\s\\S]*?(?:\\*/|$)", s: `${esc('"')}|${esc("'")}|\`[^\`]*\`?`, n: "\\b0x[0-9a-fA-F]+\\b|\\b\\d+(?:\\.\\d+)?\\b",
+    k: new Set("package import func return if else for range switch case default break continue var const type struct map chan go defer select interface fallthrough goto nil true false".split(" ")) },
+};
+for (const l of Object.values(codeLangs)) l.re = new RegExp(`(${l.c})|(${l.s})|(${l.n})|([A-Za-z_][A-Za-z0-9_]*)`, "g");
+function colourGML(src, lang = "gml") {
+  const L = codeLangs[lang] || codeLangs.gml, re = L.re;
+  re.lastIndex = 0;
   let out = "", last = 0, m;
   while ((m = re.exec(src))) {
+    if (m[0] === "") { re.lastIndex++; continue; }
     out += escHTML(src.slice(last, m.index));
     const t = escHTML(m[0]);
-    const cls = m[1] ? "m" : m[2] ? "s" : m[3] ? "n" : gmlKeywords.has(m[0]) ? "k" : (nameKinds.get(m[0]) || "");
+    const cls = m[1] ? "m" : m[2] ? "s" : m[3] ? "n" : L.k.has(m[0]) ? "k" : (nameKinds.get(m[0]) || "");
     out += cls ? `<span class="${cls}">${t}</span>` : t;
     last = re.lastIndex;
   }
@@ -978,13 +994,14 @@ function colourGML(src) {
 }
 function hlSync() {
   const ta = $("text"), pre = $("hl");
-  const on = current && /\.gml$/.test(current) && ta.style.display !== "none" && !ta.disabled && ta.offsetParent;
+  const ext = current && (current.match(/\.(gml|js|lua|go)$/) || [])[1];
+  const on = ext && ta.style.display !== "none" && !ta.disabled && ta.offsetParent;
   ta.classList.toggle("hl", !!on);
   pre.hidden = !on;
   if (!on) return;
   pre.style.top = ta.offsetTop + "px"; pre.style.left = ta.offsetLeft + "px";
   pre.style.width = ta.clientWidth + "px"; pre.style.height = ta.clientHeight + "px";
-  pre.innerHTML = colourGML(ta.value);
+  pre.innerHTML = colourGML(ta.value, ext);
   pre.scrollTop = ta.scrollTop; pre.scrollLeft = ta.scrollLeft;
 }
 $("text").setAttribute("wrap", "off");

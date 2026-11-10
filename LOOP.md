@@ -166,7 +166,7 @@ goal of its own, weighed alongside the LLM-friendly rule.
    code; the summary says "code files"). DONE 2026-11-10: check looks up JS calls to unknown names too (lang/js Calls). DONE 2026-11-05: the editor — .js in the tree, opened, saved (PUT api/file and the
    assistant's writes accept .js), its problems in the check line with file:line, completions in .js too; the
    assistant's outline marks JS events ("step [JavaScript]"); AGENTS.md (starter and import) has a paragraph on
-   JavaScript. Choice: no JS colouring yet (the GML overlay stays off for .js — a JS grammar is its own job).
+   JavaScript. JS colouring DONE 2026-11-10 (the overlay's tokenizer per language).
    DONE 2026-11-05: the GML-vs-JS test (cmd/gameviber/lang_test.go: the starter twice, the player's events in
    JS, one key script, 765 steps compared — position, score, coins, room — identical, 2 coins collected). It
    found a real gap: JS had no `with (other)`; now a GameViber function called on an instance —
@@ -181,7 +181,7 @@ goal of its own, weighed alongside the LLM-friendly rule.
    tostring(); GameViber's truth values become Lua booleans (0 is true in Lua): gml.Value gained Bool (N stays 1
    / 0, GML unchanged), set by boolVal / BoolV and the runner's predicate helper. DONE 2026-11-05: the coins-lua template (New game…, gameviber new,
    the tutorial), AGENTS.md's Lua paragraph, and the same-game test for Lua — 765 steps identical to GML, as JS.
-   Lua is first-class but for syntax colouring. SIZE: the static editor's wasm is 38.4 MB with goja and gopher-lua
+   Lua is first-class (colouring DONE 2026-11-10). SIZE: the static editor's wasm is 38.4 MB with goja and gopher-lua
    (to compare without them; a build tag per language could trim the web build if it matters). GO STARTED 2026-11-05: lang/golang on yaegi v0.16.3
    — events and scripts in Go, registered in load, check (syntax AND types: yaegi compiles) and the editor's lists.
    CHOICES: Go is typed, so the code reaches GameViber through g *gv.Ctx (g.Num / g.Str / g.Get / g.Set as GML
@@ -473,3 +473,4 @@ setting (on by default) rather than per-game code:
 - 2026-11-06 — item 6: an exported Windows game (the coins starter, players-latest) run under Wine on Xvfb: the room, the player and the coins drawn as on Linux (scratch Wine prefix outside /tmp, deleted after). Item 6 waits only on the players release rebuild (windowsgui).
 - 2026-11-06 — item 6: tried to start the players rebuild by pushing tag players-v2 — refused by the auto-mode check; logged under Blocked with Joop's one-liner. Nothing else workable here.
 - 2026-11-10 (overnight) — item 13's leftover: `gameviber check` now reports JavaScript calls to names nothing defines (lang/js Calls: goja's parser, a reflective walk, declared names and goja's own globals left out; file:line:col and GML's hint). Tests: TestCalls, TestCheckJavaScript's typo, the coins-js template clean; SCRIPTING.md + AGENTS.md updated. Left in the queue: item 6 (the players-v2 tag, Joop's), syntax colouring for JS / Lua (a choice, not started).
+- 2026-11-10 (overnight) — the editor's colouring for JavaScript, Lua and Go too (edit.html: one tokenizer per language — comments incl. Lua's --[[ ]], strings with escapes, JS / Go backticks, Lua's [[ ]], numbers, each language's keywords — and GameViber's names as for GML); checked with node on a sample per language. Left: item 6 (players-v2 tag, Joop's).
