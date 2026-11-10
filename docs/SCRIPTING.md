@@ -33,7 +33,9 @@ table. Nothing in the runner changes; GML stays the default and the reference fo
   package (below). Constants (`vk_left`, `c_red`, object names) are there as values. `docs/reference.md`
   stays the one list of what exists, with a line per language on how to call it.
 - **Errors** carry file and line like GML's, and land in the same places (the editor's problems, `check`,
-  the chat session's results).
+  the chat session's results). `check` also looks up JavaScript's calls to plain names as it does GML's: one
+  that neither GameViber, the project's scripts, the file itself nor JavaScript defines is reported with
+  file:line:col (2026-11-10).
 
 ## Each language
 
