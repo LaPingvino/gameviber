@@ -284,7 +284,7 @@ func checkProjectVariant(dir, variant string, w io.Writer) (int, error) {
 		list []gml.Stmt
 	}
 	var ok []parsed
-	var jsFiles [][2]string // path, source: their calls are looked up once the project loads
+	var jsFiles [][2]string // path, source (.js / .lua): their calls are looked up once the project loads
 	var loadErr error
 	problems, files := 0, 0
 	walkErr := filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
@@ -303,7 +303,7 @@ func checkProjectVariant(dir, variant string, w io.Writer) (int, error) {
 			if err := check(path, string(src)); err != nil {
 				fmt.Fprintln(w, err)
 				problems++
-			} else if filepath.Ext(path) == ".js" {
+			} else if ext := filepath.Ext(path); ext == ".js" || ext == ".lua" {
 				jsFiles = append(jsFiles, [2]string{path, string(src)})
 			}
 			return nil
@@ -346,18 +346,33 @@ func checkProjectVariant(dir, variant string, w io.Writer) (int, error) {
 				}
 			}
 		}
-		// JavaScript's calls to plain names, against the same list (lang/js
-		// Calls leaves out what the file declares and JavaScript's own globals).
+		// JavaScript's and Lua's calls to plain names, against the same list
+		// (lang/js and lang/lua Calls leave out what the file declares and the
+		// language's own globals; Lua gives lines only).
 		for _, f := range jsFiles {
 			if g == nil {
 				break
 			}
 			known := g.KnownFuncs()
-			calls, _ := js.Calls(f[0], f[1]) // its syntax passed above
+			type call struct {
+				fn, at string
+			}
+			var calls []call
+			if filepath.Ext(f[0]) == ".lua" {
+				cs, _ := lua.Calls(f[0], f[1]) // its syntax passed above
+				for _, c := range cs {
+					calls = append(calls, call{c.Fn, fmt.Sprint(c.Line)})
+				}
+			} else {
+				cs, _ := js.Calls(f[0], f[1])
+				for _, c := range cs {
+					calls = append(calls, call{c.Fn, fmt.Sprintf("%d:%d", c.Line, c.Col)})
+				}
+			}
 			for _, c := range calls {
-				if !known[c.Fn] {
-					msg := fmt.Sprintf("%s:%d:%d: %s is not a function GameViber knows (nor a script of this project)", f[0], c.Line, c.Col, c.Fn)
-					if h := hint(c.Fn, known); h != "" {
+				if !known[c.fn] {
+					msg := fmt.Sprintf("%s:%s: %s is not a function GameViber knows (nor a script of this project)", f[0], c.at, c.fn)
+					if h := hint(c.fn, known); h != "" {
 						msg += " — " + h
 					}
 					fmt.Fprintln(w, msg)

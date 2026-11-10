@@ -776,6 +776,31 @@ func TestCheckJavaScript(t *testing.T) {
 	}
 }
 
+// Lua too: a call nothing defines, with file:line; a script, a local function and math pass.
+func TestCheckLuaUnknownNames(t *testing.T) {
+	dir := t.TempDir() + "/game"
+	if err := cmdNew([]string{dir}); err != nil {
+		t.Fatal(err)
+	}
+	os.Remove(dir + "/objects/player/step.gml")
+	os.MkdirAll(dir+"/scripts", 0o755)
+	os.WriteFile(dir+"/scripts/half.lua", []byte("return argument0 / 2\n"), 0o644)
+	os.WriteFile(dir+"/objects/player/step.lua", []byte("local function twice(n) return n * 2 end\nx = x + twice(half(math.abs(hspeed)))\ninstance_destory()\n"), 0o644)
+	var b strings.Builder
+	n, _ := checkProject(dir, &b)
+	if n != 1 || !strings.Contains(b.String(), "objects/player/step.lua:3: instance_destory is not a function") {
+		t.Errorf("an unknown name: %d problems\n%s", n, b.String())
+	}
+	dir2 := t.TempDir() + "/game"
+	if err := cmdNew([]string{"-template", "coins-lua", dir2}); err != nil {
+		t.Fatal(err)
+	}
+	b.Reset()
+	if n, err := checkProject(dir2, &b); err != nil || n != 0 {
+		t.Fatalf("coins-lua: %d problems, %v\n%s", n, err, b.String())
+	}
+}
+
 // Every JavaScript template checks clean: no unknown name where none is.
 func TestCheckJavaScriptTemplate(t *testing.T) {
 	dir := t.TempDir() + "/game"
