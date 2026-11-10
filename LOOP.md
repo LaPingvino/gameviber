@@ -163,8 +163,7 @@ goal of its own, weighed alongside the LLM-friendly rule.
    function of argument0 … argument15 (GML's names; `arguments` works too) run as the caller's instance; callable
    by name from GML and JS alike, script_execute / action scripts through the shared Funcs table) and `gameviber
    check` on objects/*/*.js and scripts/*.js (syntax with file:line; other .js files in the folder are not game
-   code; the summary says "code files"). NOT YET in check: unknown names in JS (only at run time — goja's parser
-   could walk the calls later). DONE 2026-11-05: the editor — .js in the tree, opened, saved (PUT api/file and the
+   code; the summary says "code files"). DONE 2026-11-10: check looks up JS calls to unknown names too (lang/js Calls). DONE 2026-11-05: the editor — .js in the tree, opened, saved (PUT api/file and the
    assistant's writes accept .js), its problems in the check line with file:line, completions in .js too; the
    assistant's outline marks JS events ("step [JavaScript]"); AGENTS.md (starter and import) has a paragraph on
    JavaScript. Choice: no JS colouring yet (the GML overlay stays off for .js — a JS grammar is its own job).
@@ -473,4 +472,4 @@ setting (on by default) rather than per-game code:
 - 2026-11-06 — item 6: export for other systems works now that the players release exists (checked windows/amd64, darwin/arm64, linux/arm64 binaries); Windows players and compiled Windows games built with -H=windowsgui. TestExportCompiledGo needs a display and disk: green under xvfb with the Go cache outside /tmp/claude-1000 (its quota filled). Choice logged: no console on Windows (its messages are lost there, as for any game).
 - 2026-11-06 — item 6: an exported Windows game (the coins starter, players-latest) run under Wine on Xvfb: the room, the player and the coins drawn as on Linux (scratch Wine prefix outside /tmp, deleted after). Item 6 waits only on the players release rebuild (windowsgui).
 - 2026-11-06 — item 6: tried to start the players rebuild by pushing tag players-v2 — refused by the auto-mode check; logged under Blocked with Joop's one-liner. Nothing else workable here.
-
+- 2026-11-10 (overnight) — item 13's leftover: `gameviber check` now reports JavaScript calls to names nothing defines (lang/js Calls: goja's parser, a reflective walk, declared names and goja's own globals left out; file:line:col and GML's hint). Tests: TestCalls, TestCheckJavaScript's typo, the coins-js template clean; SCRIPTING.md + AGENTS.md updated. Left in the queue: item 6 (the players-v2 tag, Joop's), syntax colouring for JS / Lua (a choice, not started).
