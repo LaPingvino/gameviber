@@ -765,6 +765,27 @@ func TestCheckJavaScript(t *testing.T) {
 	if n != 1 || !strings.Contains(b.String(), "scripts/half.js:2") {
 		t.Errorf("a syntax error: %d problems\n%s", n, b.String())
 	}
+	// Unknown names: a call GameViber doesn't know (with its file:line:col and the
+	// hint), while a project script, a local function and Math pass.
+	os.WriteFile(dir+"/scripts/half.js", []byte("return argument0 / 2;\n"), 0o644)
+	os.WriteFile(dir+"/objects/player/step.js", []byte("function twice(n) { return n * 2; }\nx += twice(half(Math.abs(hspeed)));\ninstance_destory();\n"), 0o644)
+	b.Reset()
+	n, _ = checkProject(dir, &b)
+	if n != 1 || !strings.Contains(b.String(), "objects/player/step.js:3:1: instance_destory is not a function") {
+		t.Errorf("an unknown name: %d problems\n%s", n, b.String())
+	}
+}
+
+// Every JavaScript template checks clean: no unknown name where none is.
+func TestCheckJavaScriptTemplate(t *testing.T) {
+	dir := t.TempDir() + "/game"
+	if err := cmdNew([]string{"-template", "coins-js", dir}); err != nil {
+		t.Fatal(err)
+	}
+	var b strings.Builder
+	if n, err := checkProject(dir, &b); err != nil || n != 0 {
+		t.Fatalf("coins-js: %d problems, %v\n%s", n, err, b.String())
+	}
 }
 
 // check reads Lua events and scripts too, with the file and line of a syntax

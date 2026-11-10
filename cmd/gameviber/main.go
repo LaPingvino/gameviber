@@ -284,6 +284,7 @@ func checkProjectVariant(dir, variant string, w io.Writer) (int, error) {
 		list []gml.Stmt
 	}
 	var ok []parsed
+	var jsFiles [][2]string // path, source: their calls are looked up once the project loads
 	var loadErr error
 	problems, files := 0, 0
 	walkErr := filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
@@ -298,10 +299,12 @@ func checkProjectVariant(dir, variant string, w io.Writer) (int, error) {
 		if err != nil {
 			return err
 		}
-		if check := langCheck[filepath.Ext(path)]; check != nil { // JavaScript, Lua: their syntax (unknown names show when it runs)
+		if check := langCheck[filepath.Ext(path)]; check != nil { // other languages: their syntax (JavaScript's calls below)
 			if err := check(path, string(src)); err != nil {
 				fmt.Fprintln(w, err)
 				problems++
+			} else if filepath.Ext(path) == ".js" {
+				jsFiles = append(jsFiles, [2]string{path, string(src)})
 			}
 			return nil
 		}
@@ -335,6 +338,25 @@ func checkProjectVariant(dir, variant string, w io.Writer) (int, error) {
 			for _, c := range gml.Calls(f.list) {
 				if !known[c.Fn] {
 					msg := fmt.Sprintf("%s:%s: %s is not a function GameViber knows (nor a script of this project)", f.path, c.P, c.Fn)
+					if h := hint(c.Fn, known); h != "" {
+						msg += " — " + h
+					}
+					fmt.Fprintln(w, msg)
+					problems++
+				}
+			}
+		}
+		// JavaScript's calls to plain names, against the same list (lang/js
+		// Calls leaves out what the file declares and JavaScript's own globals).
+		for _, f := range jsFiles {
+			if g == nil {
+				break
+			}
+			known := g.KnownFuncs()
+			calls, _ := js.Calls(f[0], f[1]) // its syntax passed above
+			for _, c := range calls {
+				if !known[c.Fn] {
+					msg := fmt.Sprintf("%s:%d:%d: %s is not a function GameViber knows (nor a script of this project)", f[0], c.Line, c.Col, c.Fn)
 					if h := hint(c.Fn, known); h != "" {
 						msg += " — " + h
 					}
