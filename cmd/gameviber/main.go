@@ -49,6 +49,10 @@ func cliMain() {
 		err = cmdCheck(os.Args[2:])
 	case "edit":
 		err = cmdEdit(os.Args[2:])
+	case "app":
+		err = cmdApp(os.Args[2:])
+	case "icon":
+		err = cmdIcon(os.Args[2:])
 	case "editor-web":
 		err = cmdEditorWeb(os.Args[2:])
 	case "run":
@@ -82,6 +86,8 @@ func usage() {
 	fmt.Fprint(os.Stderr, `gameviber — a GameMaker-style engine and toolset
 
   gameviber reference [FILE]        what GameViber's GML understands: events, functions, variables
+  gameviber app [DIR]               GameViber in a window of its own: your projects, the editor, coding agents
+                                    (what the desktop launcher starts)
   gameviber edit DIR                the editor, in your browser (served on this machine only)
   gameviber new [-template coins|platformer|topdown|shooter] DIR                 a small starter game to build on (collect the coins)
   gameviber import GAME.exe DIR     turn a GameMaker 5.3 game into a GameViber project in DIR
@@ -585,8 +591,15 @@ func buildPlayer(out string, files []golang.GenFile) error {
 		}
 	}
 	if !compiled {
-		build := exec.Command("go", "build", "-o", filepath.Join(out, "game.wasm"), "./cmd/gameviber-run")
+		absOut, err := filepath.Abs(out)
+		if err != nil {
+			return err
+		}
+		build := exec.Command("go", "build", "-o", filepath.Join(absOut, "game.wasm"), "./cmd/gameviber-run")
 		build.Env = append(os.Environ(), "GOOS=js", "GOARCH=wasm")
+		if src := os.Getenv("GAMEVIBER_SRC"); src != "" { // a packaged GameViber: its source (app.go appEnv)
+			build.Dir = src
+		}
 		build.Stdout, build.Stderr = os.Stdout, os.Stderr
 		if err := build.Run(); err != nil {
 			return fmt.Errorf("building the wasm (run gameviber inside the GameViber source): %w", err)

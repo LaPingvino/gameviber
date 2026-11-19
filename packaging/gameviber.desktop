@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=GameViber
+GenericName=Game Maker
+Comment=Make 2D games, GameMaker-style, with coding agents in the editor
+Exec=gameviber app %f
+Icon=gameviber
+Terminal=false
+Categories=Development;IDE;Game;
+Keywords=gamemaker;gml;game;editor;engine;
+StartupWMClass=GameViber
+StartupNotify=true

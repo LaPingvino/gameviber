@@ -297,8 +297,11 @@ func newToken() string {
 // served page holds (a meta tag) and other sites can't read or send (a custom
 // header needs a CORS permission this server never gives). It matters since
 // the terminal panel runs commands.
-func guardLocal(h http.Handler, token string) http.Handler {
-	page := bytes.Replace(editPage, []byte("<head>"), []byte(`<head><meta name="gameviber-token" content="`+token+`">`), 1)
+func guardLocal(h http.Handler, token string) http.Handler { return guardLocalPage(h, token, editPage) }
+
+// guardLocalPage is guardLocal serving base as the page (the app's has a way back to its projects: app.go).
+func guardLocalPage(h http.Handler, token string, base []byte) http.Handler {
+	page := bytes.Replace(base, []byte("<head>"), []byte(`<head><meta name="gameviber-token" content="`+token+`">`), 1)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		host := r.Host
 		if h, _, err := net.SplitHostPort(host); err == nil {

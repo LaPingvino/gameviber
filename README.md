@@ -5,6 +5,18 @@ for the desktop and the browser (WebAssembly), and is made to be driven by peopl
 
 Design approved; the GML front end is being built. Progress: https://lapingvino.github.io/gameviber/ — the plan is in LOOP.md.
 
+## As a desktop program
+
+`gameviber app` opens GameViber in a window of its own: your recent projects, a new game from a template, any
+project folder, and the editor with its Terminal, where Claude Code (or OpenCode, Aider, Codex, Gemini …) works in
+the project with GameViber's tools. On Arch Linux, `packaging/arch/PKGBUILD` installs it with a desktop launcher:
+
+```
+cd packaging/arch && makepkg -si      # gameviber, gameviber-run, the launcher and icon; the source for exports
+```
+
+The window is Chromium's (or Chrome's, Brave's …) app mode; without one the default browser opens it.
+
 ## Trying it
 
 ```
