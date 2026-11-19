@@ -39,6 +39,7 @@ build() {
 
 check() {
   cd gameviber
+  rm -rf build/check-game  # a rebuild (makepkg -f) keeps build/ from the last run
   ./build/gameviber new build/check-game >/dev/null
   ./build/gameviber check build/check-game
 }
