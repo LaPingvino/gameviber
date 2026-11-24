@@ -10,7 +10,15 @@ import (
 type Project struct {
 	// IconSprite is a text project's [settings] icon: the sprite whose first
 	// frame is the exported game's icon ("" = GameViber's own).
-	IconSprite                 string
+	IconSprite string
+	// Touch is a text project's [settings] touch: "" or "pads" — a touch
+	// screen gets arrow pads beside the game (arrow-key games) —, or "tap" —
+	// a finger is the mouse's left button where it touches, no pads (games
+	// played by pressing things on the screen).
+	Touch string
+	// Typing is a text project's [settings] typing: the game takes typed text
+	// (keyboard_string), so M is a letter there, not the sound shortcut.
+	Typing                     bool
 	GameID                     int32
 	Settings                   Settings
 	Sounds                     []*Sound  // by id; nil where a resource was deleted

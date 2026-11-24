@@ -26,11 +26,15 @@ import (
 var keys = map[runner.Key]eb.Key{
 	37: eb.KeyArrowLeft, 38: eb.KeyArrowUp, 39: eb.KeyArrowRight, 40: eb.KeyArrowDown,
 	32: eb.KeySpace, 13: eb.KeyEnter, 27: eb.KeyEscape, 33: eb.KeyPageUp, 34: eb.KeyPageDown,
+	8: eb.KeyBackspace,
 }
 
 type input struct {
 	held, prev map[runner.Key]bool
 	mx, my     float64 // the cursor in the room
+	// tap, tapPrev: a finger is down now / was down last step — the left
+	// button, in a game with [settings] touch = "tap".
+	tap, tapPrev bool
 }
 
 func (in *input) Held(k runner.Key) bool     { return in.held[k] }
@@ -41,9 +45,15 @@ func (in *input) Released(k runner.Key) bool { return !in.held[k] && in.prev[k] 
 var buttons = map[int]eb.MouseButton{1: eb.MouseButtonLeft, 2: eb.MouseButtonRight, 3: eb.MouseButtonMiddle}
 
 func (in *input) Mouse() (float64, float64) { return in.mx, in.my }
-func (in *input) MouseHeld(b int) bool      { return eb.IsMouseButtonPressed(buttons[b]) }
-func (in *input) MousePressed(b int) bool   { return inpututil.IsMouseButtonJustPressed(buttons[b]) }
-func (in *input) MouseReleased(b int) bool  { return inpututil.IsMouseButtonJustReleased(buttons[b]) }
+func (in *input) MouseHeld(b int) bool {
+	return eb.IsMouseButtonPressed(buttons[b]) || b == 1 && in.tap
+}
+func (in *input) MousePressed(b int) bool {
+	return inpututil.IsMouseButtonJustPressed(buttons[b]) || b == 1 && in.tap && !in.tapPrev
+}
+func (in *input) MouseReleased(b int) bool {
+	return inpututil.IsMouseButtonJustReleased(buttons[b]) || b == 1 && !in.tap && in.tapPrev
+}
 
 // Pause / StepOnce are the editor's Play controls: paused, the game does not
 // step (the window keeps drawing); StepOnce runs one step while paused.
@@ -79,7 +89,7 @@ func audioAvailable() bool {
 // LOOP.md): M sound on / off, F11 or Alt+Enter full screen. The game never
 // sees them (M is not among the keys handed to it).
 func (g *Game) shortcuts() {
-	if inpututil.IsKeyJustPressed(eb.KeyM) {
+	if inpututil.IsKeyJustPressed(eb.KeyM) && !g.proj.Typing { // a typing game: M is a letter
 		if s, ok := g.play.G.Sound.(*sounds); ok {
 			s.SetMuted(!s.muted)
 		}
@@ -105,6 +115,7 @@ type Game struct {
 	touches    []eb.TouchID
 	textCache  map[string]*eb.Image // texts drawn at the screen's resolution, by text / font / scale
 	touched    bool                 // the screen has been touched: the pads show (touch.go)
+	tapX, tapY int                  // where the finger is (or was lifted), touch = "tap"
 	lay        touchLayout          // their last layout
 	// MaxFrames ends the run after so many frames (0: run until closed) —
 	// for checks under a virtual display.
@@ -162,14 +173,37 @@ func (g *Game) Update() error {
 			g.in.held[k] = true
 		}
 	}
+	// Typed text (keyboard_string, GM 5): the characters typed this step;
+	// Backspace deletes, held down it repeats.
+	if cs := eb.AppendInputChars(nil); len(cs) > 0 {
+		g.play.Globals.Type(cs)
+	}
+	if d := inpututil.KeyPressDuration(eb.KeyBackspace); d == 1 || d > 15 && d%3 == 0 {
+		g.play.Globals.Type([]rune{'\b'})
+	}
+	// A game played by pressing things ([settings] touch = "tap"): the first
+	// finger is the left mouse button where it touches — no pads, the frame
+	// keeps the whole screen; a finger on the player's own buttons is theirs.
+	tapMode := g.proj.Touch == "tap"
+	if tapMode {
+		g.in.tapPrev, g.in.tap = g.in.tap, false
+		g.touches = eb.AppendTouchIDs(g.touches[:0])
+		for _, id := range g.touches {
+			if x, y := eb.TouchPosition(id); !g.onButton(x, y) {
+				g.in.tap, g.tapX, g.tapY = true, x, y
+				break
+			}
+		}
+	}
 	// Touch (phones, tablets, touch screens): a finger held on the screen
 	// holds the arrow towards it — from the screen's centre, along the
 	// stronger direction — so arrow-key games play without a keyboard and
 	// nothing covers the play area.
-	if len(eb.AppendTouchIDs(nil)) > 0 {
+	if len(eb.AppendTouchIDs(nil)) > 0 && !tapMode {
 		g.touched = true
 	}
-	if g.touched {
+	if tapMode { // the finger is the mouse (above)
+	} else if g.touched {
 		g.padKeys()
 	} else if ids := eb.AppendTouchIDs(g.touches[:0]); len(ids) > 0 && !g.onButton(eb.TouchPosition(ids[0])) {
 		g.touches = ids
@@ -190,7 +224,11 @@ func (g *Game) Update() error {
 			g.in.held[40] = true
 		}
 	}
-	cx, cy := g.view.toFrame(eb.CursorPosition()) // screen → frame; + the view's position = the room
+	px, py := eb.CursorPosition()
+	if g.in.tap || g.in.tapPrev { // the finger, down or just lifted (its release where it was)
+		px, py = g.tapX, g.tapY
+	}
+	cx, cy := g.view.toFrame(px, py) // screen → frame; + the view's position = the room
 	g.in.mx, g.in.my = float64(cx), float64(cy)
 	if r := g.play.Room; r.ViewsEnabled && len(r.Views) > 0 && r.Views[0].Visible {
 		g.in.mx += float64(r.Views[0].X)

@@ -132,7 +132,10 @@ const agentsMD = `# For agents
 A GameViber project (GameMaker-style). Objects are objects/<name>/: object.toml (sprite, solid, depth …) and
 one .gml file per event: create.gml, step.gml, keyboard-<key code>.gml (37 left, 38 up, 39 right, 40 down),
 collision-<object>.gml, alarm-<n>.gml, draw.gml … Rooms are rooms/<name>/room.toml (instances, size, speed);
-game.toml lists the room order. GML is GameMaker 5's language.
+game.toml lists the room order. GML is GameMaker 5's language. game.toml's [settings]: icon (a sprite, the
+exported game's icon); touch = "tap" for a game played by pressing things on the screen (a finger is the left
+mouse button where it touches, no arrow pads; the default "pads" suits arrow-key games); typing = true when the
+game reads keyboard_string (typed text, Backspace deletes; M is then a letter, not the sound key).
 
 Any event or script may be JavaScript instead: step.js beside create.gml, scripts/<name>.js. It sees GameViber
 the same way — the same function names, the instance's variables as plain names (x += 4), other, global; an

@@ -22,6 +22,7 @@ gameviber/
 ```
 mygame/
   game.toml                    name, size, speed, start room, GM version for GML, export options
+                               ([settings] icon, touch = "pads" | "tap", typing = true)
   sprites/player/strip.png     frames side by side + sprite.toml (origin, box, frame size, speed)
   objects/player/object.toml   sprite, solid, visible, depth, parent
   objects/player/create.gml    one .gml file per event (step.gml, collision-wall.gml, alarm-0.gml …)

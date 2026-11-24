@@ -30,7 +30,9 @@ func ReadFS(fsys fs.FS, dir string) (*Project, error) {
 		RoomOrder []string          `toml:"room_order"`
 		Constants map[string]string `toml:"constants"`
 		Settings  struct {
-			Icon string `toml:"icon"` // a sprite: the exported game's icon (its first frame)
+			Icon   string `toml:"icon"`   // a sprite: the exported game's icon (its first frame)
+			Touch  string `toml:"touch"`  // "pads" (default) or "tap"
+			Typing bool   `toml:"typing"` // the game takes typed text: M is no shortcut
 		} `toml:"settings"`
 	}
 	if _, err := decodeTOML(fsys, path.Join(dir, "game.toml"), &game); err != nil {
@@ -38,6 +40,13 @@ func ReadFS(fsys fs.FS, dir string) (*Project, error) {
 	}
 	p.name = game.Name
 	p.IconSprite = game.Settings.Icon
+	switch game.Settings.Touch {
+	case "", "pads", "tap":
+		p.Touch = game.Settings.Touch
+	default:
+		return nil, fmt.Errorf("game.toml: [settings] touch = %q: want \"pads\" or \"tap\"", game.Settings.Touch)
+	}
+	p.Typing = game.Settings.Typing
 	keys := make([]string, 0, len(game.Constants))
 	for k := range game.Constants {
 		keys = append(keys, k)
