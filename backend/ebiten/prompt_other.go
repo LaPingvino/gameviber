@@ -2,7 +2,11 @@
 
 package ebiten
 
-import "log"
+import (
+	"log"
+	"os/exec"
+	"runtime"
+)
 
 // On the desktop there is no dialog yet (it needs text drawing): get_string
 // takes the default, show_message is printed. PARTIAL.
@@ -17,4 +21,20 @@ func showMessage(m string) { log.Printf("%s", m) }
 func askQuestion(q string) bool {
 	log.Printf("show_question (answered no: no dialog yet): %s", q)
 	return false
+}
+
+// openURL is url_open: the desktop's browser.
+func openURL(u string) {
+	var c *exec.Cmd
+	switch runtime.GOOS {
+	case "windows":
+		c = exec.Command("rundll32", "url.dll,FileProtocolHandler", u)
+	case "darwin":
+		c = exec.Command("open", u)
+	default:
+		c = exec.Command("xdg-open", u)
+	}
+	if err := c.Start(); err != nil {
+		log.Printf("url_open %s: %v", u, err)
+	}
 }

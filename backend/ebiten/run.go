@@ -92,19 +92,20 @@ func (g *Game) shortcuts() {
 
 // Game is a game in the window.
 type Game struct {
-	play      *load.Play
-	assets    *render.Assets
-	proj      *gmfile.Project
-	in        input
-	frame     *image.RGBA
-	img       *eb.Image
-	caption   string
-	view      frameView
-	sw, sh    int // the screen's size (the buttons' place)
-	touches   []eb.TouchID
-	textCache map[string]*eb.Image // texts drawn at the screen's resolution, by text / font / scale
-	touched   bool                 // the screen has been touched: the pads show (touch.go)
-	lay       touchLayout          // their last layout
+	play       *load.Play
+	assets     *render.Assets
+	proj       *gmfile.Project
+	in         input
+	frame      *image.RGBA
+	img        *eb.Image
+	caption    string
+	view       frameView
+	sw, sh     int // the screen's size (the buttons' place)
+	outW, outH int // the window's size in screen pixels (window_get_width / height)
+	touches    []eb.TouchID
+	textCache  map[string]*eb.Image // texts drawn at the screen's resolution, by text / font / scale
+	touched    bool                 // the screen has been touched: the pads show (touch.go)
+	lay        touchLayout          // their last layout
 	// MaxFrames ends the run after so many frames (0: run until closed) —
 	// for checks under a virtual display.
 	MaxFrames int
@@ -119,6 +120,7 @@ func Attach(p *gmfile.Project, g *runner.Game) {
 		g.AskString = askString
 	}
 	g.AskQuestion = askQuestion
+	g.OpenURL = openURL
 	if f := gameFiles(p); f != nil {
 		g.Files = f
 	}
@@ -137,7 +139,9 @@ func New(p *gmfile.Project, pl *load.Play) *Game {
 	pl.G.Game.ScreenSave = func(path string) error { // the room as it is now, texts in it
 		return render.SaveScreen(path, render.Shot(p, pl.G.Game, pl.Room, a))
 	}
-	return &Game{play: pl, assets: a, proj: p, in: input{held: map[runner.Key]bool{}, prev: map[runner.Key]bool{}}, textCache: map[string]*eb.Image{}}
+	gg := &Game{play: pl, assets: a, proj: p, in: input{held: map[runner.Key]bool{}, prev: map[runner.Key]bool{}}, textCache: map[string]*eb.Image{}}
+	pl.G.Game.WindowSize = func() (int, int) { return gg.outW, gg.outH }
+	return gg
 }
 
 // Update is one step of the game (Ebitengine calls it at the room's speed).
@@ -283,6 +287,7 @@ func (g *Game) size() (int, int) {
 
 // Layout is the screen's real resolution; Draw scales the frame onto it.
 func (g *Game) Layout(outW, outH int) (int, int) {
+	g.outW, g.outH = outW, outH
 	s := eb.Monitor().DeviceScaleFactor() // the screen's real resolution
 	return int(float64(outW) * s), int(float64(outH) * s)
 }
@@ -307,13 +312,20 @@ func (g *Game) Run(title string) error {
 // and scale and kept. ASSUMPTION [engine]: over everything the frame shows —
 // GM 5 games draw their texts (score, messages) last.
 func (g *Game) drawTexts(screen *eb.Image, texts []render.TextCall) {
-	if len(g.textCache) > 256 {
-		clear(g.textCache)
-	}
+	// Kept from frame to frame: the texts this frame draws (a screen full of
+	// text — a board game's, a menu's — is drawn once, not every frame);
+	// anything not drawn this frame is dropped after it.
+	prev := g.textCache
+	g.textCache = make(map[string]*eb.Image, len(texts))
 	for _, t := range texts {
 		key := fmt.Sprintf("%q %v %g %g %g", t.S, t.Font, t.X, t.Y, g.view.scale)
 		img, ok := g.textCache[key]
 		if !ok {
+			img, ok = prev[key]
+		}
+		if ok {
+			g.textCache[key] = img
+		} else {
 			rgba, _ := render.TextImage(t, g.view.scale)
 			if rgba != nil {
 				img = eb.NewImageFromImage(rgba)

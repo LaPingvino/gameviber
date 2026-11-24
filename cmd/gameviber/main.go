@@ -494,7 +494,7 @@ func webBuild(dir, out, variant string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if err := buildPlayer(out, goFiles(p)); err != nil {
+	if err := buildPlayer(out, goFiles(p), langTags(p)...); err != nil {
 		return "", err
 	}
 	name := p.Name()
@@ -578,7 +578,7 @@ func packProjectVariant(dir, variant string, w io.Writer) error {
 // buildPlayer writes the browser player (game.wasm) and Go's wasm_exec.js
 // into out: with the game's Go compiled in when it has some (compiled.go),
 // else the plain player, interpreting.
-func buildPlayer(out string, files []golang.GenFile) error {
+func buildPlayer(out string, files []golang.GenFile, tags ...string) error {
 	compiled := false
 	if len(files) > 0 && os.Getenv("GAMEVIBER_INTERPRET") == "" {
 		if wasm, err := compiledPlayer(files, "js", "wasm"); err != nil {
@@ -595,7 +595,12 @@ func buildPlayer(out string, files []golang.GenFile) error {
 		if err != nil {
 			return err
 		}
-		build := exec.Command("go", "build", "-o", filepath.Join(absOut, "game.wasm"), "./cmd/gameviber-run")
+		args := []string{"build", "-ldflags=-s -w"} // no symbol tables: a smaller download
+		if len(tags) > 0 {
+			args = append(args, "-tags", strings.Join(tags, ","))
+			fmt.Printf("the player leaves out what the game doesn't use (%s)\n", strings.Join(tags, ", "))
+		}
+		build := exec.Command("go", append(args, "-o", filepath.Join(absOut, "game.wasm"), "./cmd/gameviber-run")...)
 		build.Env = append(os.Environ(), "GOOS=js", "GOARCH=wasm")
 		if src := os.Getenv("GAMEVIBER_SRC"); src != "" { // a packaged GameViber: its source (app.go appEnv)
 			build.Dir = src
@@ -735,4 +740,31 @@ func playProjectOpts(path string, o playOpts) (map[string]any, error) {
 		state["expect"] = ex
 	}
 	return state, nil
+}
+
+// langTags are the build tags that leave the game's unused languages out of
+// its player (load/lang_*.go): a game written only in GML needs none of
+// JavaScript, Lua or Go's interpreter, which roughly halves the wasm.
+func langTags(p *gmfile.Project) []string {
+	used := map[string]bool{}
+	for _, o := range p.Objects {
+		if o == nil {
+			continue
+		}
+		for _, ev := range o.Events {
+			used[ev.Lang] = true
+		}
+	}
+	for _, sc := range p.Scripts {
+		if sc != nil {
+			used[sc.Lang] = true
+		}
+	}
+	var tags []string
+	for _, l := range []struct{ ext, tag string }{{".go", "gv_nogo"}, {".js", "gv_nojs"}, {".lua", "gv_nolua"}} {
+		if !used[l.ext] {
+			tags = append(tags, l.tag)
+		}
+	}
+	return tags
 }

@@ -195,6 +195,24 @@ func (g *Game) drawFuncs() map[string]gml.Func {
 			_, h := g.measure(str(a, 0))
 			return gml.RealV(h), nil
 		},
+		// string_width_ext / string_height_ext (GameMaker 6+): the size of a
+		// text as draw_text_ext draws it — wrapped at w, lines sep apart — so a
+		// game can stack wrapped paragraphs.
+		"string_width_ext": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (string, sep, w)
+			wd := 0.0
+			for _, line := range g.wrap(str(a, 0), num(a, 2)) {
+				lw, _ := g.measure(line)
+				wd = max(wd, lw)
+			}
+			return gml.RealV(wd), nil
+		},
+		"string_height_ext": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (string, sep, w)
+			sep := num(a, 1)
+			if sep < 0 {
+				_, sep = g.measure("M")
+			}
+			return gml.RealV(float64(len(g.wrap(str(a, 0), num(a, 2)))) * sep), nil
+		},
 		"draw_text_ext": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (x, y, string, sep, w): wrapped at w (−1: no wrap), lines sep apart (−1: the font's)
 			if d() == nil {
 				return ok, nil
@@ -410,13 +428,50 @@ func (g *Game) measure(s string) (float64, float64) {
 	if MeasureText == nil {
 		return 0, 0
 	}
-	return MeasureText(s, g.font())
+	key := measureKey{s, g.font()}
+	if m, ok := g.measures[key]; ok {
+		return m[0], m[1]
+	}
+	w, h := MeasureText(s, key.font)
+	if g.measures == nil || len(g.measures) > 8192 {
+		g.measures = map[measureKey][2]float64{}
+	}
+	g.measures[key] = [2]float64{w, h}
+	return w, h
+}
+
+// measureKey is a measured text's cache key.
+type measureKey struct {
+	s    string
+	font Font
 }
 
 // wrap splits a text into lines: at '#' (GM 5's newline; \# is a real #)
 // and newlines, then words onto a line while it stays within w (w < 0: no
 // wrapping; a word longer than w gets a line of its own).
 func (g *Game) wrap(s string, w float64) []string {
+	// The same text wrapped the same way every frame (a game laying out its
+	// screen measures it each step): kept, by text, width and font.
+	key := wrapKey{s, w, g.font()}
+	if lines, ok := g.wraps[key]; ok {
+		return lines
+	}
+	lines := g.wrapText(s, w)
+	if g.wraps == nil || len(g.wraps) > 4096 {
+		g.wraps = map[wrapKey][]string{}
+	}
+	g.wraps[key] = lines
+	return lines
+}
+
+// wrapKey is a wrapped text's cache key.
+type wrapKey struct {
+	s    string
+	w    float64
+	font Font
+}
+
+func (g *Game) wrapText(s string, w float64) []string {
 	s = strings.ReplaceAll(strings.ReplaceAll(s, "\\#", "\x00"), "#", "\n")
 	var out []string
 	for _, para := range strings.Split(s, "\n") {

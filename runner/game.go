@@ -51,10 +51,18 @@ type Game struct {
 	Message func(string)
 	// AskQuestion answers show_question (yes / no; the backend's); nil: no.
 	AskQuestion func(question string) bool
+	// OpenURL opens a web address for url_open (the backend's: a new browser
+	// tab, or the desktop's browser); nil: nothing opens.
+	OpenURL func(url string)
+	// WindowSize is the window's (or the browser page's) size in screen
+	// pixels for window_get_width / window_get_height; nil: the room's size.
+	WindowSize func() (w, h int)
 	// Files is where the file_* functions read and write (nil: the working
 	// directory, through the os package).
-	Files FileStore
-	file  *openFile // GM 5's one open file
+	Files    FileStore
+	file     *openFile                 // GM 5's one open file
+	wraps    map[wrapKey][]string      // wrapped texts, kept (draw.go wrap)
+	measures map[measureKey][2]float64 // measured texts, kept (draw.go measure)
 	// ScreenSave writes what the screen shows to a file (screen_save; the
 	// screen backend's); nil: nothing is saved.
 	ScreenSave func(path string) error
@@ -642,6 +650,23 @@ func (g *Game) coreFuncs() map[string]gml.Func {
 			}
 			return gml.RealV(0), nil
 		},
+		"url_open": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (url): GameMaker 8's; a relative address is the page's, in the browser
+			if g.OpenURL != nil && len(a) > 0 && a[0].String() != "" {
+				g.OpenURL(a[0].String())
+			}
+			return gml.RealV(0), nil
+		},
+		// window_get_width / height (GameMaker 6+): the window's size, so a game
+		// can lay itself out for a wide or a tall screen (a phone held upright);
+		// headless: the room's size.
+		"window_get_width": func(in *gml.Interp, a []gml.Value) (gml.Value, error) {
+			w, _ := g.windowSize()
+			return gml.RealV(float64(w)), nil
+		},
+		"window_get_height": func(in *gml.Interp, a []gml.Value) (gml.Value, error) {
+			_, h := g.windowSize()
+			return gml.RealV(float64(h)), nil
+		},
 		"show_message": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (text): the backend shows it; headless, nothing
 			if g.Message != nil && len(a) > 0 {
 				g.Message(a[0].String())
@@ -747,4 +772,17 @@ func (g *Game) RoomValue(name string) gml.Value {
 		return gml.RealV(float64(id))
 	}
 	return gml.StrV(name)
+}
+
+// windowSize is the window's size, or the room's when there is no window.
+func (g *Game) windowSize() (int, int) {
+	if g.WindowSize != nil {
+		if w, h := g.WindowSize(); w > 0 && h > 0 {
+			return w, h
+		}
+	}
+	if g.room != nil {
+		return g.room.W, g.room.H
+	}
+	return 0, 0
 }
