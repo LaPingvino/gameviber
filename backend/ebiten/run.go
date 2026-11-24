@@ -279,7 +279,7 @@ func (g *Game) Draw(screen *eb.Image) {
 	} else {
 		g.view = fit(w, h, sw, sh)
 	}
-	screen.Fill(color.Black)
+	screen.Fill(margin(colour, drawColour))
 	op := &eb.DrawImageOptions{Filter: eb.FilterNearest}
 	op.GeoM.Scale(g.view.scale, g.view.scale)
 	op.GeoM.Translate(g.view.ox, g.view.oy)
@@ -290,6 +290,18 @@ func (g *Game) Draw(screen *eb.Image) {
 	if g.touched {
 		g.drawPads(screen)
 	}
+}
+
+// margin is the colour round the frame where the screen's shape differs from
+// the room's: the room's own background colour when it draws one (a page,
+// a phone held upright, shows one calm surface), else black.
+// DECIDED [engine]: GameMaker's window border is black; GameViber fills it
+// with the room's colour, as the room would look if it were larger.
+func margin(c int32, draw bool) color.Color {
+	if !draw {
+		return color.Black
+	}
+	return color.RGBA{uint8(c), uint8(c >> 8), uint8(c >> 16), 255}
 }
 
 // Sharp scaling (the export options; as Stelo and Pacmanio): the frame on the
