@@ -12,6 +12,13 @@ import (
 	"github.com/LaPingvino/gameviber/load"
 )
 
+// ProjectGlobal is the page's JavaScript global that names the packed project
+// for the browser player (its URL, with a cache key). A page that wants
+// another name builds the player with
+// -ldflags "-X github.com/LaPingvino/gameviber/player.ProjectGlobal=NAME"
+// (gameviber web -global NAME does both).
+var ProjectGlobal = "gameviberProject"
+
 // Main plays a game in a window from command-line arguments:
 //
 //	[-room R] [-frames N] [-mute] [-variant V] [GAME.exe|DIR]

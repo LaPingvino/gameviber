@@ -21,6 +21,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -98,7 +99,8 @@ func usage() {
   gameviber check DIR               check a project: every .gml / .js / .lua / .go parses, every GML call exists
                                     (file:line:col: message; exit 1 when there is anything)
   gameviber run [-room R] GAME      play it in a window (arrow keys, space, enter; M sound, F11 full screen)
-  gameviber web DIR OUT             a web page that plays the project DIR (OUT: index.html, game.wasm, project.tar)
+  gameviber web [-global NAME] DIR OUT  a web page that plays the project DIR (OUT: index.html, game.wasm, project.tar;
+                                    -global: the page's JavaScript name for the project, default gameviberProject)
   gameviber web|export -variant NAME …   with NAME.toml merged over game.toml (a demo build …)
   gameviber sfx [-seed N] PRESET NAME DIR   a sound effect (coin, laser, explosion, powerup, hit, jump, blip) as DIR/sounds/NAME.wav
   gameviber export DIR OUT          the finished web build, installable as an app (OUT: a folder, or name.zip for itch.io)
@@ -454,7 +456,7 @@ const webPage = `<!doctype html>
 <script>
 // Each file's URL carries its content hash: a new build has new URLs, an
 // unchanged one stays cached.
-window.gameviberProject = "project.tar?v=%s";
+window.%s = "project.tar?v=%s";
 const go = new Go();
 WebAssembly.instantiateStreaming(fetch("game.wasm?v=%s"), go.importObject)
   .then(r => { document.getElementById("msg").remove(); go.run(r.instance); })
@@ -464,10 +466,17 @@ WebAssembly.instantiateStreaming(fetch("game.wasm?v=%s"), go.importObject)
 
 func cmdWeb(args []string) error {
 	variant, args := takeVariant(args)
-	if len(args) != 2 {
-		return fmt.Errorf("usage: gameviber web [-variant NAME] DIR OUT")
+	global := "gameviberProject"
+	if len(args) >= 2 && (args[0] == "-global" || args[0] == "--global") {
+		global, args = args[1], args[2:]
+		if !jsIdent.MatchString(global) {
+			return fmt.Errorf("-global %q: want a JavaScript name (letters, digits, _ or $)", global)
+		}
 	}
-	name, err := webBuild(args[0], args[1], variant)
+	if len(args) != 2 {
+		return fmt.Errorf("usage: gameviber web [-variant NAME] [-global NAME] DIR OUT")
+	}
+	name, err := webBuildGlobal(args[0], args[1], variant, global)
 	if err != nil {
 		return err
 	}
@@ -475,8 +484,16 @@ func cmdWeb(args []string) error {
 	return nil
 }
 
+// jsIdent is a plain JavaScript name (for the page's project global).
+var jsIdent = regexp.MustCompile(`^[A-Za-z_$][A-Za-z0-9_$]*$`)
+
 // webBuild writes the web page that plays the project dir into out; the game's name.
 func webBuild(dir, out, variant string) (string, error) {
+	return webBuildGlobal(dir, out, variant, "gameviberProject")
+}
+
+// webBuildGlobal is webBuild with the page's project global named (-global).
+func webBuildGlobal(dir, out, variant, global string) (string, error) {
 	p, err := gmfile.ReadDirVariant(dir, variant) // it must read before it's shipped
 	if err != nil {
 		return "", err
@@ -494,6 +511,10 @@ func webBuild(dir, out, variant string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	if global != "gameviberProject" {
+		playerLdflags = "-X " + gameviberModule + "/player.ProjectGlobal=" + global
+		defer func() { playerLdflags = "" }()
+	}
 	if err := buildPlayer(out, goFiles(p), langTags(p)...); err != nil {
 		return "", err
 	}
@@ -502,7 +523,7 @@ func webBuild(dir, out, variant string) (string, error) {
 		name = filepath.Base(dir)
 	}
 	page := fmt.Sprintf(webPage, name, fileHash(filepath.Join(out, "wasm_exec.js")),
-		fileHash(filepath.Join(out, "project.tar")), fileHash(filepath.Join(out, "game.wasm")))
+		global, fileHash(filepath.Join(out, "project.tar")), fileHash(filepath.Join(out, "game.wasm")))
 	if err := os.WriteFile(filepath.Join(out, "index.html"), []byte(page), 0o644); err != nil {
 		return "", err
 	}
@@ -595,7 +616,7 @@ func buildPlayer(out string, files []golang.GenFile, tags ...string) error {
 		if err != nil {
 			return err
 		}
-		args := []string{"build", "-ldflags=-s -w"} // no symbol tables: a smaller download
+		args := []string{"build", "-ldflags=-s -w " + playerLdflags} // no symbol tables: a smaller download
 		if len(tags) > 0 {
 			args = append(args, "-tags", strings.Join(tags, ","))
 			fmt.Printf("the player leaves out what the game doesn't use (%s)\n", strings.Join(tags, ", "))
@@ -741,6 +762,9 @@ func playProjectOpts(path string, o playOpts) (map[string]any, error) {
 	}
 	return state, nil
 }
+
+// playerLdflags are extra linker flags for the browser player (web -global).
+var playerLdflags string
 
 // langTags are the build tags that leave the game's unused languages out of
 // its player (load/lang_*.go): a game written only in GML needs none of

@@ -488,3 +488,15 @@ func TestWebExportCompiledGo(t *testing.T) {
 		}
 	}
 }
+
+// web -global takes only a plain JavaScript name for the page's project global.
+func TestWebGlobalName(t *testing.T) {
+	if err := cmdWeb([]string{"-global", "bad name", "x", "y"}); err == nil || !strings.Contains(err.Error(), "JavaScript name") {
+		t.Errorf("a bad -global: %v", err)
+	}
+	for _, ok := range []string{"gameviberProject", "game_data", "$p1"} {
+		if !jsIdent.MatchString(ok) {
+			t.Errorf("%q should be a JavaScript name", ok)
+		}
+	}
+}

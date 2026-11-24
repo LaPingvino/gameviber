@@ -22,7 +22,7 @@ func open(string, string) (*gmfile.Project, error) {
 		return nil, err
 	}
 	ref := "project.tar" // the page names it with its content hash (a fresh copy after a deploy)
-	if v := js.Global().Get("gameviberProject"); v.Type() == js.TypeString {
+	if v := js.Global().Get(ProjectGlobal); v.Type() == js.TypeString {
 		ref = v.String()
 	}
 	rel, err := url.Parse(ref)
