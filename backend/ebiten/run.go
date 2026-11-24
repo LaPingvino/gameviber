@@ -116,6 +116,7 @@ type Game struct {
 	textCache  map[string]*eb.Image // texts drawn at the screen's resolution, by text / font / scale
 	touched    bool                 // the screen has been touched: the pads show (touch.go)
 	tapX, tapY int                  // where the finger is (or was lifted), touch = "tap"
+	light      bool                 // the margin is light: the player's buttons and pads draw dark
 	lay        touchLayout          // their last layout
 	// MaxFrames ends the run after so many frames (0: run until closed) —
 	// for checks under a virtual display.
@@ -279,7 +280,9 @@ func (g *Game) Draw(screen *eb.Image) {
 	} else {
 		g.view = fit(w, h, sw, sh)
 	}
-	screen.Fill(margin(colour, drawColour))
+	mc := margin(colour, drawColour)
+	g.light = isLight(mc)
+	screen.Fill(mc)
 	op := &eb.DrawImageOptions{Filter: eb.FilterNearest}
 	op.GeoM.Scale(g.view.scale, g.view.scale)
 	op.GeoM.Translate(g.view.ox, g.view.oy)

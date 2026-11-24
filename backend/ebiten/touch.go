@@ -88,7 +88,11 @@ func (g *Game) drawPads(screen *eb.Image) {
 		if g.in.held[p.key] {
 			a = 150
 		}
-		vector.FillRect(screen, float32(p.r.Min.X), float32(p.r.Min.Y), float32(p.r.Dx()), float32(p.r.Dy()), color.NRGBA{255, 255, 255, a}, false)
+		back := color.NRGBA{255, 255, 255, a}
+		if g.light { // a light margin (the room's colour): darker pads
+			back = color.NRGBA{0, 0, 0, a / 3}
+		}
+		vector.FillRect(screen, float32(p.r.Min.X), float32(p.r.Min.Y), float32(p.r.Dx()), float32(p.r.Dy()), back, false)
 		cx, cy := float32(p.r.Min.X+p.r.Dx()/2), float32(p.r.Min.Y+p.r.Dy()/2)
 		s := float32(p.r.Dx()) * 0.28
 		var path vector.Path

@@ -40,3 +40,17 @@ func TestMargin(t *testing.T) {
 		t.Errorf("no room colour: %v", c)
 	}
 }
+
+// The player's buttons stay visible on the margin: dark ink on a light room
+// colour, white on a dark one or on black.
+func TestButtonInkOnMargin(t *testing.T) {
+	if !isLight(margin(0xE7F1F6, true)) || isLight(margin(0x30221B, true)) || isLight(margin(0, false)) {
+		t.Error("light / dark margins misread")
+	}
+	if _, ink := buttonColours(true); ink.R != 0 {
+		t.Errorf("ink on a light margin: %v", ink)
+	}
+	if _, ink := buttonColours(false); ink.R != 255 {
+		t.Errorf("ink on a dark margin: %v", ink)
+	}
+}

@@ -77,17 +77,28 @@ func (g *Game) drawButtons(screen *eb.Image) {
 	if s, ok := g.play.G.Sound.(*sounds); ok {
 		muted = s.muted
 	}
-	drawSoundButton(screen, sound, muted)
-	drawFullButton(screen, full)
+	back, ink := buttonColours(g.light)
+	drawSoundButton(screen, sound, muted, back, ink)
+	drawFullButton(screen, full, back, ink)
 }
 
-var (
-	buttonBack = color.NRGBA{255, 255, 255, 50}
-	buttonInk  = color.NRGBA{255, 255, 255, 210}
-)
+// buttonColours: white on a dark margin, dark on a light one (the margin
+// takes the room's colour, run.go's margin).
+func buttonColours(light bool) (back, ink color.NRGBA) {
+	if light {
+		return color.NRGBA{0, 0, 0, 22}, color.NRGBA{0, 0, 0, 170}
+	}
+	return color.NRGBA{255, 255, 255, 50}, color.NRGBA{255, 255, 255, 210}
+}
+
+// isLight: a colour light enough for dark controls on it.
+func isLight(c color.Color) bool {
+	r, g, b, _ := c.RGBA()
+	return 0.299*float64(r>>8)+0.587*float64(g>>8)+0.114*float64(b>>8) > 140
+}
 
 // drawFullButton: four corner marks.
-func drawFullButton(screen *eb.Image, f image.Rectangle) {
+func drawFullButton(screen *eb.Image, f image.Rectangle, buttonBack, buttonInk color.NRGBA) {
 	if f.Empty() {
 		return
 	}
@@ -101,7 +112,7 @@ func drawFullButton(screen *eb.Image, f image.Rectangle) {
 }
 
 // drawSoundButton: a loudspeaker, with waves when on and a cross when off.
-func drawSoundButton(screen *eb.Image, r image.Rectangle, muted bool) {
+func drawSoundButton(screen *eb.Image, r image.Rectangle, muted bool, buttonBack, buttonInk color.NRGBA) {
 	if r.Empty() {
 		return
 	}
