@@ -4,14 +4,22 @@ package ebiten
 
 import (
 	"log"
+
 	"os/exec"
 	"runtime"
+
+	"github.com/LaPingvino/gameviber/runner"
 )
 
 // On the desktop there is no dialog yet (it needs text drawing): get_string
 // takes the default, show_message is printed. PARTIAL.
 // hasDialogs: get_string can ask the player here.
 const hasDialogs = false
+
+// pageURL: the desktop has no page. httpDo: nil — the runner's own net/http.
+func pageURL() string { return "" }
+
+var httpDo func(runner.HTTPRequest, func(runner.HTTPResponse))
 
 func askString(question, def string) string { return def }
 
@@ -23,8 +31,9 @@ func askQuestion(q string) bool {
 	return false
 }
 
-// openURL is url_open: the desktop's browser.
-func openURL(u string) {
+// openURL is url_open / url_open_ext: the desktop's browser (the target
+// doesn't apply).
+func openURL(u, target string) {
 	var c *exec.Cmd
 	switch runtime.GOOS {
 	case "windows":

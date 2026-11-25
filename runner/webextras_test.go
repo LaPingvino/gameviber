@@ -11,9 +11,9 @@ func TestTextExtURLAndWindow(t *testing.T) {
 	MeasureText = func(s string, f Font) (float64, float64) { return float64(len(s)) * 10, 12 }
 	o := &Object{Name: "o"}
 	var opened []string
-	g := &Game{Objects: []*Object{o}, OpenURL: func(u string) { opened = append(opened, u) }}
+	g := &Game{Objects: []*Object{o}, OpenURL: func(u, target string) { opened = append(opened, u+"|"+target) }}
 	h, err := g.Code(`hx = string_height_ext("one two three four", -1, 90); wx = string_width_ext("one two three four", 20, 90)
-url_open("../f/card.html"); url_open("")
+url_open("../f/card.html"); url_open(""); url_open_ext("/", "_self")
 ww = window_get_width(); wh = window_get_height()`)
 	if err != nil {
 		t.Fatal(err)
@@ -29,7 +29,7 @@ ww = window_get_width(); wh = window_get_height()`)
 	if in.Vars["hx"] != 36 || in.Vars["wx"] != 70 {
 		t.Errorf("height_ext %v width_ext %v", in.Vars["hx"], in.Vars["wx"])
 	}
-	if len(opened) != 1 || opened[0] != "../f/card.html" {
+	if len(opened) != 2 || opened[0] != "../f/card.html|" || opened[1] != "/|_self" {
 		t.Errorf("opened %q", opened)
 	}
 	if in.Vars["ww"] != 64 || in.Vars["wh"] != 48 {

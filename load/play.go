@@ -104,6 +104,7 @@ func (p *Play) Step(in runner.Input) error {
 	if p.Ended {
 		return nil
 	}
+	p.G.Game.DeliverHTTP(p.Room) // answers to http_get / http_post: other-62
 	p.Room.Step(in)
 	p.Room.NoMoreLivesDue()
 	to := p.Room.Goto

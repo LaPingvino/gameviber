@@ -133,6 +133,8 @@ func Attach(p *gmfile.Project, g *runner.Game) {
 	}
 	g.AskQuestion = askQuestion
 	g.OpenURL = openURL
+	g.PageURL = pageURL
+	g.HTTP = httpDo
 	if f := gameFiles(p); f != nil {
 		g.Files = f
 	}

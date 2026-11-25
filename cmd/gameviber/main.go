@@ -112,6 +112,8 @@ func usage() {
                       (names: left right up down space enter; empty = none)
       -shot FILE.png  write the last frame
       -json           print the state as JSON (room, score, lives, instances, errors)
+      -base URL       the page the game plays at: page_url, and where relative http_get /
+                      http_post go (each step waits for their answers)
 `)
 	os.Exit(2)
 }
@@ -219,6 +221,7 @@ func cmdPlay(args []string) error {
 	asJSON := fs.Bool("json", false, "print the state as JSON")
 	variant := fs.String("variant", "", "a build variant: NAME.toml merged over game.toml")
 	expect := fs.String("expect", "", "a GML expression checked after the run (e.g. 'score >= 10'): pass or fail")
+	base := fs.String("base", "", "the page address the game plays at (page_url; relative http_get / http_post go there)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -234,7 +237,7 @@ func cmdPlay(args []string) error {
 		defer f.Close()
 		shotW = f
 	}
-	state, err := playProjectOpts(fs.Arg(0), playOpts{Variant: *variant, Room: *room, Steps: *steps, Keys: *keys, Shot: shotW, Expect: *expect})
+	state, err := playProjectOpts(fs.Arg(0), playOpts{Variant: *variant, Room: *room, Steps: *steps, Keys: *keys, Shot: shotW, Expect: *expect, Base: *base})
 	if err != nil {
 		return err
 	}
@@ -658,9 +661,11 @@ func playProjectVariant(path, variant, room string, steps int, keys string, shot
 // playOpts are a headless run's settings; Expect is a GML expression checked
 // after the run (LOOP item 11: the model tests its own change).
 type playOpts struct {
-	Variant, Room, Keys, Expect string
-	Steps                       int
-	Shot                        io.Writer
+	// Base is the page address the game plays at (page_url; relative
+	// http_get / http_post go against it); "": none.
+	Variant, Room, Keys, Expect, Base string
+	Steps                             int
+	Shot                              io.Writer
 }
 
 // playProjectOpts runs the game headless: the state after, with the game's
@@ -679,6 +684,8 @@ func playProjectOpts(path string, o playOpts) (map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
+	g.Game.BaseURL = o.Base
+	g.Game.HTTPWait = true // each step waits for the answers asked for: the same run every time
 	var debug []string
 	g.Game.Debug = func(s string) {
 		if len(debug) < 50 {

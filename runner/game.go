@@ -51,9 +51,15 @@ type Game struct {
 	Message func(string)
 	// AskQuestion answers show_question (yes / no; the backend's); nil: no.
 	AskQuestion func(question string) bool
-	// OpenURL opens a web address for url_open (the backend's: a new browser
-	// tab, or the desktop's browser); nil: nothing opens.
-	OpenURL func(url string)
+	// OpenURL opens a web address for url_open / url_open_ext (the backend's:
+	// in the browser a new tab, or the target given — "_self" the game's own
+	// page; on the desktop the system's browser); nil: nothing opens.
+	OpenURL func(url, target string)
+	// PageURL is page_url: the address of the page the game plays in (the
+	// browser); nil: BaseURL (headless play -base), else "".
+	PageURL func() string
+	// The asynchronous HTTP requests (http.go).
+	httpState
 	// WindowSize is the window's (or the browser page's) size in screen
 	// pixels for window_get_width / window_get_height; nil: the room's size.
 	WindowSize func() (w, h int)
@@ -340,6 +346,9 @@ func (g *Game) runnerFuncs() map[string]gml.Func {
 	}
 	m["keyboard_check_direct"] = m["keyboard_check"] // the hardware's state: the same here
 	for k, f := range g.fileFuncs() {
+		m[k] = f
+	}
+	for k, f := range g.httpFuncs() {
 		m[k] = f
 	}
 	m["script_execute"] = g.actionFuncs()["action_execute_script"] // (script, arguments …): GM 5's call by script id
@@ -652,7 +661,13 @@ func (g *Game) coreFuncs() map[string]gml.Func {
 		},
 		"url_open": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (url): GameMaker 8's; a relative address is the page's, in the browser
 			if g.OpenURL != nil && len(a) > 0 && a[0].String() != "" {
-				g.OpenURL(a[0].String())
+				g.OpenURL(a[0].String(), "")
+			}
+			return gml.RealV(0), nil
+		},
+		"url_open_ext": func(in *gml.Interp, a []gml.Value) (gml.Value, error) { // (url, target): GameMaker 8's; "_self" leaves the game for the address, "_blank" a new tab
+			if g.OpenURL != nil && len(a) > 1 && a[0].String() != "" {
+				g.OpenURL(a[0].String(), a[1].String())
 			}
 			return gml.RealV(0), nil
 		},

@@ -43,6 +43,7 @@ compares, and / or / xor / not / div / mod are words.
 | draw.gml | draws the instance itself (instead of its sprite) |
 | other-0 / 1 / 2 / 3 / 4 / 5 / 6 / 7 .gml | outside the room / touching its edge / game start / game end / room start / room end / no more lives / animation end |
 | other-10 … other-25 .gml | user events 0–15 (event_user(n)) |
+| other-62.gml | an answer to http_get / http_post came in (http_id, http_status — 0: none —, http_result) |
 
 The step order is GameMaker 5's: begin step, alarms, keyboard, key press, key release, mouse, step, timelines,
 movement (speed, gravity), outside room, intersect boundary, collisions, end step, animation, views.
