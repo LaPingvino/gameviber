@@ -122,3 +122,20 @@ func TestPlayExpectDebug(t *testing.T) {
 		t.Errorf("a broken expression: %v", ex)
 	}
 }
+
+// A key script's text=WORD types WORD (keyboard_string) at its span's first
+// step; play -base is the page the game plays at (page_url).
+func TestPlayTextAndBase(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "g")
+	if err := cmdNew([]string{dir}); err != nil {
+		t.Fatal(err)
+	}
+	st, err := playProjectOpts(dir, playOpts{Steps: 6, Keys: ":1,text=ĉu jes:1,:1,text=!:2", Base: "http://localhost:1/ludo/",
+		Expect: `keyboard_string == "ĉu jes!" && page_url() == "http://localhost:1/ludo/"`})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ex := st["expect"].(map[string]any); ex["pass"] != true {
+		t.Errorf("typed / page: %v", ex)
+	}
+}

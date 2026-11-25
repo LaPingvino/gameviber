@@ -108,7 +108,7 @@ func usage() {
   gameviber play [flags] GAME       run a game headless (GAME: a GameMaker 5.3 .exe or a project folder)
       -room NAME      start in this room (default: the first in the room order)
       -steps N        steps to run (default 300)
-      -keys SCRIPT    keys held per span: "right:40,right+up:25,:10,left:30"
+      -keys SCRIPT    keys held per span: "right:40,right+up:25,:10,left:30"; text=WORD:1 types WORD
                       (names: left right up down space enter; empty = none)
       -shot FILE.png  write the last frame
       -json           print the state as JSON (room, score, lives, instances, errors)
@@ -174,6 +174,7 @@ var keyNames = map[string]runner.Key{"left": 37, "up": 38, "right": 39, "down": 
 type span struct {
 	keys  []runner.Key
 	steps int
+	text  string // typed at the span's first step (keyboard_string): "text=hello:1"
 }
 
 func parseKeys(s string) ([]span, error) {
@@ -192,13 +193,18 @@ func parseKeys(s string) ([]span, error) {
 		}
 		var sp span
 		sp.steps = steps
+		if t, ok := strings.CutPrefix(k, "text="); ok {
+			sp.text = t
+			out = append(out, sp)
+			continue
+		}
 		for _, name := range strings.Split(k, "+") {
 			if name == "" {
 				continue
 			}
 			key, ok := keyNames[name]
 			if !ok {
-				return nil, fmt.Errorf("key span %q: unknown key %q (left right up down space enter)", part, name)
+				return nil, fmt.Errorf("key span %q: unknown key %q (left right up down space enter; text=… types)", part, name)
 			}
 			sp.keys = append(sp.keys, key)
 		}
@@ -714,21 +720,28 @@ func playProjectOpts(path string, o playOpts) (map[string]any, error) {
 		return nil, err
 	}
 	k := &keySet{held: map[runner.Key]bool{}, prev: map[runner.Key]bool{}}
-	keysAt := func(i int) []runner.Key { // the script's keys at step i (none after its end)
+	keysAt := func(i int) ([]runner.Key, string) { // the script's keys at step i (none after its end), and text typed then
 		for _, sp := range script {
 			if i < sp.steps {
-				return sp.keys
+				if i == 0 {
+					return sp.keys, sp.text
+				}
+				return sp.keys, ""
 			}
 			i -= sp.steps
 		}
-		return nil
+		return nil, ""
 	}
 	rooms := []string{pl.Room.Name}
 	for i := 0; i < steps && !pl.Ended; i++ {
 		stepsDone = i
 		k.prev, k.held = k.held, map[runner.Key]bool{}
-		for _, c := range keysAt(i) {
+		held, text := keysAt(i)
+		for _, c := range held {
 			k.held[c] = true
+		}
+		if text != "" {
+			pl.Globals.Type([]rune(text))
 		}
 		if err := pl.Step(k); err != nil {
 			return nil, err
